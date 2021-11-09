@@ -27,15 +27,15 @@ build:
 	mkdir build
 	echo system >build/rust-toolchain
 	cp -a ./perl-* ./build/
-	cp -a ./pve-rs ./pmg-rs ./build
+	cp -a ./pve-rs ./build
 
 pve-deb: build
 	cd ./build/pve-rs && dpkg-buildpackage -b -uc -us
 	touch $@
 
-pmg-deb: build
-	cd ./build/pmg-rs && dpkg-buildpackage -b -uc -us
-	touch $@
+# pmg-deb: build
+# 	cd ./build/pmg-rs && dpkg-buildpackage -b -uc -us
+# 	touch $@
 
 .PHONY: clean
 clean:
