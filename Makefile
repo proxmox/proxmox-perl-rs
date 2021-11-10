@@ -37,6 +37,13 @@ pve-deb: build
 # 	cd ./build/pmg-rs && dpkg-buildpackage -b -uc -us
 # 	touch $@
 
+%-upload: %-deb
+	cd build; \
+	    dcmd --deb lib$*-rs-perl*.changes \
+	    | grep -v '.changes$$' \
+	    | tar -cf "$@.tar" -T-; \
+	    cat "$@.tar" | ssh -X repoman@repo.proxmox.com upload --product $* --dist bullseye
+
 .PHONY: clean
 clean:
 	cargo clean
