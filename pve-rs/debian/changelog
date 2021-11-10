@@ -1,8 +1,8 @@
-libpve-rs-perl (0.3.0) UNRELEASED; urgency=medium
+libpve-rs-perl (0.3.0) bullseye; urgency=medium
 
   * add TFA api
 
- -- Proxmox Support Team <support@proxmox.com>  Wed, 20 Oct 2021 10:11:47 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Nov 2021 11:52:11 +0100
 
 libpve-rs-perl (0.2.3) bullseye; urgency=medium
 
