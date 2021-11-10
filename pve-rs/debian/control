@@ -35,6 +35,7 @@ Package: libpve-rs-perl
 Architecture: any
 Depends:
  ${misc:Depends},
+ ${perl:Depends},
  ${shlibs:Depends},
 Description: PVE parts which have been ported to Rust - Rust source code
  This package contains the source for the Rust pve-rs crate, packaged by
