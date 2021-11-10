@@ -357,6 +357,37 @@ mod export {
         )
     }
 
+    /// Add a totp entry without validating it, used for user.cfg keys.
+    /// Returns the ID.
+    #[export]
+    fn add_totp_entry(
+        #[try_from_ref] this: &Tfa,
+        userid: &str,
+        description: String,
+        totp: String,
+    ) -> Result<String, Error> {
+        Ok(this
+            .inner
+            .lock()
+            .unwrap()
+            .add_totp(userid, description, totp.parse()?))
+    }
+
+    /// Add a yubico entry without validating it, used for user.cfg keys.
+    /// Returns the ID.
+    #[export]
+    fn add_yubico_entry(
+        #[try_from_ref] this: &Tfa,
+        userid: &str,
+        description: String,
+        yubico: String,
+    ) -> String {
+        this.inner
+            .lock()
+            .unwrap()
+            .add_yubico(userid, description, yubico)
+    }
+
     #[export]
     fn api_update_tfa_entry(
         #[try_from_ref] this: &Tfa,
