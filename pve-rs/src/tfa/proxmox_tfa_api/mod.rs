@@ -167,34 +167,22 @@ impl TfaConfig {
     ///
     /// Unlike U2F/WA, this does not require a challenge/response. The user can choose their secret
     /// themselves.
-    pub fn add_totp(
-        &mut self,
-        userid: &str,
-        description: String,
-        value: Totp,
-    ) -> Result<String, Error> {
-        Ok(self
-            .users
+    pub fn add_totp(&mut self, userid: &str, description: String, value: Totp) -> String {
+        self.users
             .entry(userid.to_owned())
             .or_default()
-            .add_totp(description, value))
+            .add_totp(description, value)
     }
 
     /// Add a Yubico key to a user.
     ///
     /// Unlike U2F/WA, this does not require a challenge/response. The user can choose their secret
     /// themselves.
-    pub fn add_yubico(
-        &mut self,
-        userid: &str,
-        description: String,
-        key: String,
-    ) -> Result<String, Error> {
-        Ok(self
-            .users
+    pub fn add_yubico(&mut self, userid: &str, description: String, key: String) -> String {
+        self.users
             .entry(userid.to_owned())
             .or_default()
-            .add_yubico(description, key))
+            .add_yubico(description, key)
     }
 
     /// Add a new set of recovery keys. There can only be 1 set of keys at a time.

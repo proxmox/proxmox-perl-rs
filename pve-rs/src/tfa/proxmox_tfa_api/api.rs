@@ -388,9 +388,11 @@ fn add_totp(
     {
         bail!("failed to verify TOTP challenge");
     }
-    config
-        .add_totp(userid, description, totp)
-        .map(TfaUpdateInfo::id)
+    Ok(TfaUpdateInfo::id(config.add_totp(
+        userid,
+        description,
+        totp,
+    )))
 }
 
 fn add_yubico(
@@ -400,9 +402,11 @@ fn add_yubico(
     value: Option<String>,
 ) -> Result<TfaUpdateInfo, Error> {
     let key = value.ok_or_else(|| format_err!("missing 'value' parameter for 'yubico' entry"))?;
-    config
-        .add_yubico(userid, description, key)
-        .map(TfaUpdateInfo::id)
+    Ok(TfaUpdateInfo::id(config.add_yubico(
+        userid,
+        description,
+        key,
+    )))
 }
 
 fn add_u2f<A: OpenUserChallengeData>(
