@@ -490,10 +490,13 @@ fn decode_old_entry(ty: &[u8], data: &[u8], user: &str) -> Result<TfaUserData, E
         .map_err(|err| format_err!("failed to parse json data in tfa entry - {}", err))?;
 
     match ty {
-        b"u2f" => user_data.u2f.push(proxmox_tfa_api::TfaEntry::from_parts(
-            info,
-            decode_old_u2f_entry(value)?,
-        )),
+        b"u2f" => {
+            if let Some(entry) = decode_old_u2f_entry(value)? {
+                user_data
+                    .u2f
+                    .push(proxmox_tfa_api::TfaEntry::from_parts(info, entry))
+            }
+        }
         b"oath" => user_data.totp.extend(
             decode_old_oath_entry(value, user)?
                 .into_iter()
@@ -513,11 +516,16 @@ fn decode_old_entry(ty: &[u8], data: &[u8], user: &str) -> Result<TfaUserData, E
     Ok(user_data)
 }
 
-fn decode_old_u2f_entry(data: JsonValue) -> Result<proxmox_tfa::u2f::Registration, Error> {
+fn decode_old_u2f_entry(data: JsonValue) -> Result<Option<proxmox_tfa::u2f::Registration>, Error> {
     let mut obj = match data {
         JsonValue::Object(obj) => obj,
         _ => bail!("bad json type for u2f registration"),
     };
+
+    // discard old partial u2f registrations
+    if obj.get("challenge").is_some() {
+        return Ok(None);
+    }
 
     let reg = proxmox_tfa::u2f::Registration {
         key: proxmox_tfa::u2f::RegisteredKey {
@@ -538,7 +546,7 @@ fn decode_old_u2f_entry(data: JsonValue) -> Result<proxmox_tfa::u2f::Registratio
         bail!("invalid extra data in u2f entry");
     }
 
-    Ok(reg)
+    Ok(Some(reg))
 }
 
 fn decode_old_oath_entry(
