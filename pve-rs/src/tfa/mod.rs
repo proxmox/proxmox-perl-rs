@@ -660,7 +660,7 @@ fn trim_ascii_whitespace_start(data: &[u8]) -> &[u8] {
 
 fn trim_ascii_whitespace_end(data: &[u8]) -> &[u8] {
     match data.iter().rposition(|&c| !c.is_ascii_whitespace()) {
-        Some(to) => &data[..to],
+        Some(to) => &data[..=to],
         None => data,
     }
 }
