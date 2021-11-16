@@ -3,3 +3,9 @@ exclude = [ "build", "perl-*" ]
 members = [
     "pve-rs",
 ]
+
+[patch.crates-io]
+# proxmox-tfa requires -time and -uuid as well, so enable *all* or *none* of them
+#proxmox-tfa = { path = "../proxmox/proxmox-tfa" }
+#proxmox-time = { path = "../proxmox/proxmox-time" }
+#proxmox-uuid = { path = "../proxmox/proxmox-uuid" }
