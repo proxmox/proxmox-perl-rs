@@ -20,8 +20,7 @@ use nix::errno::Errno;
 use nix::sys::stat::Mode;
 use serde_json::Value as JsonValue;
 
-mod proxmox_tfa_api;
-pub(self) use proxmox_tfa_api::{
+pub(self) use proxmox_tfa::api::{
     RecoveryState, TfaChallenge, TfaConfig, TfaResponse, TfaUserData, U2fConfig, WebauthnConfig,
 };
 
@@ -34,8 +33,8 @@ mod export {
     use serde_bytes::ByteBuf;
 
     use perlmod::Value;
+    use proxmox_tfa::api::methods;
 
-    use super::proxmox_tfa_api::api;
     use super::{TfaConfig, UserAccess};
 
     perlmod::declare_magic!(Box<Tfa> : &Tfa as "PVE::RS::TFA");
@@ -300,8 +299,8 @@ mod export {
     fn api_list_user_tfa(
         #[try_from_ref] this: &Tfa,
         userid: &str,
-    ) -> Result<Vec<api::TypedTfaInfo>, Error> {
-        api::list_user_tfa(&this.inner.lock().unwrap(), userid)
+    ) -> Result<Vec<methods::TypedTfaInfo>, Error> {
+        methods::list_user_tfa(&this.inner.lock().unwrap(), userid)
     }
 
     #[export]
@@ -309,8 +308,8 @@ mod export {
         #[try_from_ref] this: &Tfa,
         userid: &str,
         id: &str,
-    ) -> Result<Option<api::TypedTfaInfo>, Error> {
-        api::get_tfa_entry(&this.inner.lock().unwrap(), userid, id)
+    ) -> Option<methods::TypedTfaInfo> {
+        methods::get_tfa_entry(&this.inner.lock().unwrap(), userid, id)
     }
 
     /// Returns `true` if the user still has other TFA entries left, `false` if the user has *no*
@@ -318,9 +317,9 @@ mod export {
     #[export]
     fn api_delete_tfa(#[try_from_ref] this: &Tfa, userid: &str, id: String) -> Result<bool, Error> {
         let mut this = this.inner.lock().unwrap();
-        match api::delete_tfa(&mut this, userid, id) {
+        match methods::delete_tfa(&mut this, userid, &id) {
             Ok(has_entries_left) => Ok(has_entries_left),
-            Err(api::EntryNotFound) => bail!("no such entry"),
+            Err(methods::EntryNotFound) => bail!("no such entry"),
         }
     }
 
@@ -329,8 +328,8 @@ mod export {
         #[try_from_ref] this: &Tfa,
         authid: &str,
         top_level_allowed: bool,
-    ) -> Result<Vec<api::TfaUser>, Error> {
-        api::list_tfa(&this.inner.lock().unwrap(), authid, top_level_allowed)
+    ) -> Result<Vec<methods::TfaUser>, Error> {
+        methods::list_tfa(&this.inner.lock().unwrap(), authid, top_level_allowed)
     }
 
     #[export]
@@ -342,10 +341,10 @@ mod export {
         totp: Option<String>,
         value: Option<String>,
         challenge: Option<String>,
-        ty: api::TfaType,
-    ) -> Result<api::TfaUpdateInfo, Error> {
+        ty: methods::TfaType,
+    ) -> Result<methods::TfaUpdateInfo, Error> {
         let this: &Tfa = (&raw_this).try_into()?;
-        api::add_tfa_entry(
+        methods::add_tfa_entry(
             &mut this.inner.lock().unwrap(),
             UserAccess::new(&raw_this)?,
             userid,
@@ -396,7 +395,7 @@ mod export {
         description: Option<String>,
         enable: Option<bool>,
     ) -> Result<(), Error> {
-        match api::update_tfa_entry(
+        match methods::update_tfa_entry(
             &mut this.inner.lock().unwrap(),
             userid,
             id,
@@ -404,7 +403,7 @@ mod export {
             enable,
         ) {
             Ok(()) => Ok(()),
-            Err(api::EntryNotFound) => bail!("no such entry"),
+            Err(methods::EntryNotFound) => bail!("no such entry"),
         }
     }
 }
@@ -479,7 +478,7 @@ fn parse_old_config(data: &[u8]) -> Result<TfaConfig, Error> {
 fn decode_old_entry(ty: &[u8], data: &[u8], user: &str) -> Result<TfaUserData, Error> {
     let mut user_data = TfaUserData::default();
 
-    let info = proxmox_tfa_api::TfaInfo {
+    let info = proxmox_tfa::api::TfaInfo {
         id: "v1-entry".to_string(),
         description: "<old version 1 entry>".to_string(),
         created: 0,
@@ -494,18 +493,18 @@ fn decode_old_entry(ty: &[u8], data: &[u8], user: &str) -> Result<TfaUserData, E
             if let Some(entry) = decode_old_u2f_entry(value)? {
                 user_data
                     .u2f
-                    .push(proxmox_tfa_api::TfaEntry::from_parts(info, entry))
+                    .push(proxmox_tfa::api::TfaEntry::from_parts(info, entry))
             }
         }
         b"oath" => user_data.totp.extend(
             decode_old_oath_entry(value, user)?
                 .into_iter()
-                .map(move |entry| proxmox_tfa_api::TfaEntry::from_parts(info.clone(), entry)),
+                .map(move |entry| proxmox_tfa::api::TfaEntry::from_parts(info.clone(), entry)),
         ),
         b"yubico" => user_data.yubico.extend(
             decode_old_yubico_entry(value)?
                 .into_iter()
-                .map(move |entry| proxmox_tfa_api::TfaEntry::from_parts(info.clone(), entry)),
+                .map(move |entry| proxmox_tfa::api::TfaEntry::from_parts(info.clone(), entry)),
         ),
         other => match std::str::from_utf8(other) {
             Ok(s) => bail!("unknown tfa.cfg entry type: {:?}", s),
@@ -852,7 +851,7 @@ fn challenge_data_path(userid: &str, debug: bool) -> PathBuf {
     }
 }
 
-impl proxmox_tfa_api::OpenUserChallengeData for UserAccess {
+impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     type Data = UserChallengeData;
 
     fn open(&self, userid: &str) -> Result<UserChallengeData, Error> {
@@ -930,6 +929,15 @@ impl proxmox_tfa_api::OpenUserChallengeData for UserAccess {
             lock: file,
         }))
     }
+
+    fn remove(&self, userid: &str) -> Result<bool, Error> {
+        let path = challenge_data_path(userid, self.is_debug());
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(true),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
+            Err(err) => Err(err.into()),
+        }
+    }
 }
 
 /// Container of `TfaUserChallenges` with the corresponding file lock guard.
@@ -937,13 +945,13 @@ impl proxmox_tfa_api::OpenUserChallengeData for UserAccess {
 /// Basically provides the TFA API to the REST server by persisting, updating and verifying active
 /// challenges.
 pub struct UserChallengeData {
-    inner: proxmox_tfa_api::TfaUserChallenges,
+    inner: proxmox_tfa::api::TfaUserChallenges,
     path: PathBuf,
     lock: File,
 }
 
-impl proxmox_tfa_api::UserChallengeAccess for UserChallengeData {
-    fn get_mut(&mut self) -> &mut proxmox_tfa_api::TfaUserChallenges {
+impl proxmox_tfa::api::UserChallengeAccess for UserChallengeData {
+    fn get_mut(&mut self) -> &mut proxmox_tfa::api::TfaUserChallenges {
         &mut self.inner
     }
 
