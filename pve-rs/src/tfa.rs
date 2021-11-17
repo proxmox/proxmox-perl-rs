@@ -676,37 +676,6 @@ fn trim_ascii_whitespace(data: &[u8]) -> &[u8] {
     trim_ascii_whitespace_start(trim_ascii_whitespace_end(data))
 }
 
-fn create_legacy_data(data: &TfaUserData) -> bool {
-    if !data.webauthn.is_empty() || data.recovery.is_some() || data.u2f.len() > 1 {
-        // incompatible
-        return false;
-    }
-
-    if data.u2f.is_empty() && data.totp.is_empty() && data.yubico.is_empty() {
-        // no tfa configured
-        return false;
-    }
-
-    if let Some(totp) = data.totp.get(0) {
-        let algorithm = totp.entry.algorithm();
-        let digits = totp.entry.digits();
-        let period = totp.entry.period();
-        if period.subsec_nanos() != 0 {
-            return false;
-        }
-
-        for totp in data.totp.iter().skip(1) {
-            if totp.entry.algorithm() != algorithm
-                || totp.entry.digits() != digits
-                || totp.entry.period() != period
-            {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 fn b64u_np_encode<T: AsRef<[u8]>>(data: T) -> String {
     base64::encode_config(data.as_ref(), base64::URL_SAFE_NO_PAD)
 }
@@ -721,10 +690,6 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
     let users = Hash::new();
 
     for (user, data) in &config.users {
-        if !create_legacy_data(data) {
-            continue;
-        }
-
         if let Some(u2f) = data.u2f.get(0) {
             let data = Hash::new();
             data.insert(
@@ -784,6 +749,15 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
             users.insert(user, Value::new_ref(&entry));
             continue;
         }
+
+        if data.is_empty() {
+            continue;
+        }
+
+        // lock out the user:
+        let entry = Hash::new();
+        entry.insert("type", Value::new_string("incompatible"));
+        users.insert(user, Value::new_ref(&entry));
     }
 
     out.insert("users", Value::new_ref(&users));
