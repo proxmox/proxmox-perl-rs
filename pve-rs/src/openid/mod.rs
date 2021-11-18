@@ -81,7 +81,7 @@ mod export {
     ) -> Result<Value, Error> {
 
         let open_id = this.inner.lock().unwrap();
-        let claims = open_id.verify_authorization_code(code, &private_auth_state)?;
+        let claims = open_id.verify_authorization_code_simple(code, &private_auth_state)?;
 
         Ok(to_value(&claims)?)
     }
