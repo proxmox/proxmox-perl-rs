@@ -1,3 +1,9 @@
+libpve-rs-perl (0.4.2) bullseye; urgency=medium
+
+  * fix resetting unreadable webauthn challenge data
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 19 Nov 2021 14:14:04 +0100
+
 libpve-rs-perl (0.4.1) bullseye; urgency=medium
 
   * rebuild with base64 0.13
