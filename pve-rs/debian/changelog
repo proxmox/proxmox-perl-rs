@@ -1,3 +1,9 @@
+libpve-rs-perl (0.4.1) bullseye; urgency=medium
+
+  * rebuild with base64 0.13
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 19 Nov 2021 11:26:08 +0100
+
 libpve-rs-perl (0.4.0) bullseye; urgency=medium
 
   * depend on proxmox-openid 0.0 (support prompt and scopes)
