@@ -6,3 +6,6 @@ maintainer = "Proxmox Support Team <support@proxmox.com>"
 section = "perl"
 vcs_git = "git://git.proxmox.com/git/proxmox.git"
 vcs_browser = "https://git.proxmox.com/?p=proxmox.git"
+
+[packages.libpve-rs-perl]
+extra_lines = ["Breaks: libpve-access-control (<< 7.1-3)"]
