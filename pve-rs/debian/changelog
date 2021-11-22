@@ -1,3 +1,10 @@
+libpve-rs-perl (0.4.4) bullseye; urgency=medium
+
+  * fix an issue with multi-facet u2f where the appid was used instead of the
+    origin, which caused verifications to fail
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Nov 2021 13:31:24 +0100
+
 libpve-rs-perl (0.4.3) bullseye; urgency=medium
 
   * fix 0.4.x build, actually break libpve-access-control (<< 7.1-3) due to
