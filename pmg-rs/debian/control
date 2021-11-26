@@ -6,15 +6,20 @@ Build-Depends:
  debhelper (>= 12),
  librust-anyhow-1+default-dev,
  librust-hex-0.4+default-dev,
+ librust-libc-0.2+default-dev,
+ librust-nix-0.19+default-dev,
  librust-openssl-0.10+default-dev (>= 0.10.32-~~),
- librust-perlmod-0.8+default-dev,
- librust-perlmod-0.8+exporter-dev,
+ librust-perlmod-0.8+default-dev (>= 0.8.1-~~),
+ librust-perlmod-0.8+exporter-dev (>= 0.8.1-~~),
  librust-proxmox-acme-rs-0.3+client-dev (>= 0.3.1-~~),
  librust-proxmox-acme-rs-0.3+default-dev (>= 0.3.1-~~),
  librust-proxmox-apt-0.8+default-dev,
+ librust-proxmox-tfa-2+api-dev,
+ librust-proxmox-tfa-2+default-dev,
  librust-serde-1+default-dev,
  librust-serde-bytes-0.11+default-dev (>= 0.11.3-~~),
  librust-serde-json-1+default-dev,
+ librust-url-2+default-dev,
 Standards-Version: 4.3.0
 Homepage: https://www.proxmox.com
 

@@ -18,9 +18,10 @@ PM_DIRS := \
 	PMG/RS/APT
 
 PM_FILES := \
-	PMG/RS/Acme.pm \
 	PMG/RS/APT/Repositories.pm \
-	PMG/RS/CSR.pm
+	PMG/RS/Acme.pm \
+	PMG/RS/CSR.pm \
+	PMG/RS/TFA.pm
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
