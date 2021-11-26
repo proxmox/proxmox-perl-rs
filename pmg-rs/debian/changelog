@@ -1,0 +1,50 @@
+libpmg-rs-perl (0.3.2) bullseye; urgency=medium
+
+  * acme: add proxy support
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 18 Nov 2021 11:18:01 +0100
+
+libpmg-rs-perl (0.3.1) bullseye; urgency=medium
+
+  * update to proxmox-acme-rs 0.3
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 21 Oct 2021 13:13:46 +0200
+
+libpmg-rs-perl (0.3.0) bullseye; urgency=medium
+
+  * update proxmox-apt to 0.6.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 30 Jul 2021 10:56:35 +0200
+
+libpmg-rs-perl (0.2.0-1) bullseye; urgency=medium
+
+  * add bindings for proxmox-apt
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 13 Jul 2021 12:48:04 +0200
+
+libpmg-rs-perl (0.1.3-1) bullseye; urgency=medium
+
+  * re-build for Proxmox Mail Gateway 7 / Debian 11 Bullseye
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 27 May 2021 19:58:08 +0200
+
+libpmg-rs-perl (0.1.2-1) buster; urgency=medium
+
+  * update proxmox-acme-rs to 0.1.4 to store the 'created' account field if it
+    is available
+
+  * set account file permission to 0700
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Mar 2021 11:22:54 +0200
+
+libpmg-rs-perl (0.1.1-1) unstable; urgency=medium
+
+  * update proxmox-acme-rs to 0.1.3 to fix ecsda signature padding
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 17 Mar 2021 13:43:12 +0100
+
+libpmg-rs-perl (0.1-1) unstable; urgency=medium
+
+  * initial release
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Feb 2021 13:40:10 +0100

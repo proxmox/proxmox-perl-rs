@@ -1,0 +1,33 @@
+[package]
+name = "pmg-rs"
+version = "0.3.2"
+authors = [
+    "Proxmox Support Team <support@proxmox.com>",
+    "Wolfgang Bumiller <w.bumiller@proxmox.com>",
+    "Fabian Ebner <f.ebner@proxmox.com>",
+]
+edition = "2018"
+license = "AGPL-3"
+description = "PMG parts which have been ported to rust"
+exclude = [
+    "build",
+    "debian",
+    "PMG",
+]
+
+[lib]
+crate-type = [ "cdylib" ]
+
+[dependencies]
+anyhow = "1.0"
+hex = "0.4"
+openssl = "0.10.32"
+serde = "1.0"
+serde_bytes = "0.11.3"
+serde_json = "1.0"
+
+perlmod = { version = "0.8.1", features = [ "exporter" ] }
+
+proxmox-acme-rs = { version = "0.3.1", features = ["client"] }
+
+proxmox-apt = "0.8.0"

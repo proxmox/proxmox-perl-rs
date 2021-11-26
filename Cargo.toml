@@ -2,6 +2,7 @@
 exclude = [ "build", "perl-*" ]
 members = [
     "pve-rs",
+    "pmg-rs",
 ]
 
 [patch.crates-io]
