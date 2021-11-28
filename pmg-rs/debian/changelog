@@ -1,3 +1,9 @@
+libpmg-rs-perl (0.4.0) bullseye; urgency=medium
+
+  * add tfa module
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 28 Nov 2021 17:24:50 +0100
+
 libpmg-rs-perl (0.3.2) bullseye; urgency=medium
 
   * acme: add proxy support
