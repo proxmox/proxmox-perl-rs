@@ -5,3 +5,4 @@ pub mod apt;
 
 pub mod openid;
 pub mod tfa;
+pub mod calendar_event;

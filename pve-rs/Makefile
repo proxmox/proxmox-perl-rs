@@ -20,6 +20,7 @@ PM_DIRS := \
 
 PM_FILES := \
 	PVE/RS/APT/Repositories.pm \
+	PVE/RS/CalendarEvent.pm \
 	PVE/RS/OpenId.pm \
 	PVE/RS/TFA.pm
 
