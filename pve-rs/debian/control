@@ -1,7 +1,8 @@
 Source: libpve-rs-perl
 Section: perl
 Priority: optional
-Build-Depends: debhelper (>= 12),
+Build-Depends:
+ debhelper (>= 12),
  dh-cargo (>= 24),
  cargo:native <!nocheck>,
  rustc:native <!nocheck>,
@@ -13,8 +14,8 @@ Build-Depends: debhelper (>= 12),
  librust-libc-0.2+default-dev,
  librust-nix-0.19+default-dev,
  librust-openssl-0.10+default-dev,
- librust-perlmod-0.9+default-dev,
- librust-perlmod-0.9+exporter-dev,
+ librust-perlmod-0.10+default-dev,
+ librust-perlmod-0.10+exporter-dev,
  librust-proxmox-apt-0.8+default-dev,
  librust-proxmox-openid-0.9+default-dev,
  librust-proxmox-tfa-2+api-dev,
