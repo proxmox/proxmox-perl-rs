@@ -20,6 +20,7 @@ Build-Depends:
  librust-proxmox-openid-0.9+default-dev,
  librust-proxmox-tfa-2+api-dev,
  librust-proxmox-tfa-2+default-dev,
+ librust-proxmox-time-1.1.3+default-dev,
  librust-serde-1+default-dev,
  librust-serde-bytes-0.11+default-dev,
  librust-serde-json-1+default-dev,
