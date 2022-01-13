@@ -1,3 +1,9 @@
+libpve-rs-perl (0.5.0) bullseye; urgency=medium
+
+  * pve-rs: add perlmod for CalendarEvent
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 13 Jan 2022 14:02:56 +0100
+
 libpve-rs-perl (0.4.4) bullseye; urgency=medium
 
   * fix an issue with multi-facet u2f where the appid was used instead of the
