@@ -1,3 +1,12 @@
+libpve-rs-perl (0.5.1) bullseye; urgency=medium
+
+  * update OpenID Connect dependency, avoiding linking with curl and all its
+    dependencies and fixing compatibillity with auth0, a commercial identiy
+    service provider that uses a non-standard conform timestamp in their
+    responses.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 03 Feb 2022 08:47:39 +0100
+
 libpve-rs-perl (0.5.0) bullseye; urgency=medium
 
   * pve-rs: add perlmod for CalendarEvent
