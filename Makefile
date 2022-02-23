@@ -21,7 +21,7 @@ endif
 .PHONY: pve pmg
 pve pmg:
 	@PERLMOD_PRODUCT=$(call to_upper,$@) \
-	  $(CARGO) $(CARGO_BUILD_ARGS) build -p $@-rs
+	  $(CARGO) build $(CARGO_BUILD_ARGS) -p $@-rs
 
 build:
 	mkdir build
