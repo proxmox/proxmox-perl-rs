@@ -33,3 +33,4 @@ perlmod = { version = "0.12", features = [ "exporter" ] }
 proxmox-acme-rs = { version = "0.4", features = ["client"] }
 proxmox-apt = "0.8.0"
 proxmox-tfa = { version = "2", features = ["api"] }
+proxmox-time = "1.1.3"

@@ -26,8 +26,11 @@ pve pmg:
 build:
 	mkdir build
 	echo system >build/rust-toolchain
+	cp -a ./common-src ./build
 	cp -a ./pve-rs ./build
 	cp -a ./pmg-rs ./build
+	cp -a ./perl ./build/pve-rs
+	cp -a ./perl ./build/pmg-rs
 
 pve-deb: build
 	cd ./build/pve-rs && dpkg-buildpackage -b -uc -us

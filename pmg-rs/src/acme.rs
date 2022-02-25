@@ -179,7 +179,7 @@ impl Inner {
     }
 }
 
-#[perlmod::package(name = "PMG::RS::Acme", lib = "pmg_rs")]
+#[perlmod::package(name = "PMG::RS::Acme")]
 pub mod export {
     use std::collections::HashMap;
     use std::convert::TryFrom;
@@ -426,5 +426,4 @@ pub mod export {
     pub fn set_proxy(#[try_from_ref] this: &Acme, proxy: String) {
         this.inner.lock().unwrap().set_proxy(proxy)
     }
-
 }

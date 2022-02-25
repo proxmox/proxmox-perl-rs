@@ -1,4 +1,4 @@
-#[perlmod::package(name = "PMG::RS::CSR", lib = "pmg_rs")]
+#[perlmod::package(name = "PMG::RS::CSR")]
 pub mod export {
     use std::collections::HashMap;
 
@@ -16,9 +16,6 @@ pub mod export {
         attributes: HashMap<String, &str>,
     ) -> Result<(ByteBuf, ByteBuf), Error> {
         let csr = Csr::generate(&identifiers, &attributes)?;
-        Ok((
-            ByteBuf::from(csr.data),
-            ByteBuf::from(csr.private_key_pem),
-        ))
+        Ok((ByteBuf::from(csr.data), ByteBuf::from(csr.private_key_pem)))
     }
 }
