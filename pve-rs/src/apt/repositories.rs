@@ -1,4 +1,4 @@
-#[perlmod::package(name = "${PERLMOD_PRODUCT}::RS::APT::Repositories")]
+#[perlmod::package(name = "PVE::RS::APT::Repositories", lib = "pve_rs")]
 mod export {
     use std::convert::TryInto;
 

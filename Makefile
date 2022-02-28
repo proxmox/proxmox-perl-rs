@@ -26,7 +26,6 @@ pve pmg:
 build:
 	mkdir build
 	echo system >build/rust-toolchain
-	cp -a ./perl-* ./build/
 	cp -a ./pve-rs ./build
 	cp -a ./pmg-rs ./build
 

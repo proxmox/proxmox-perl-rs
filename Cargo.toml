@@ -1,5 +1,5 @@
 [workspace]
-exclude = [ "build", "perl-*" ]
+exclude = [ "build" ]
 members = [
     "pve-rs",
     "pmg-rs",

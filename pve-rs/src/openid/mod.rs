@@ -1,4 +1,4 @@
-#[perlmod::package(name = "${PERLMOD_PRODUCT}::RS::OpenId")]
+#[perlmod::package(name = "PVE::RS::OpenId", lib = "pve_rs")]
 mod export {
     use std::sync::Mutex;
     use std::convert::TryFrom;
