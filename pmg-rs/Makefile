@@ -15,9 +15,11 @@ DEBS=$(MAIN_DEB) $(DBGSYM_DEB)
 DESTDIR=
 
 PM_DIRS := \
+	Proxmox/Lib \
 	PMG/RS/APT
 
 PM_FILES := \
+	Proxmox/Lib/PVE.pm \
 	PMG/RS/APT/Repositories.pm \
 	PMG/RS/Acme.pm \
 	PMG/RS/CSR.pm \
