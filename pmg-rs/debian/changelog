@@ -1,3 +1,11 @@
+libpmg-rs-perl (0.5.0) bullseye; urgency=medium
+
+  * bump perlmod to 0.12
+
+  * provide Proxmox::RS::CalendarEvent
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 01 Mar 2022 10:38:42 +0100
+
 libpmg-rs-perl (0.4.0) bullseye; urgency=medium
 
   * add tfa module
