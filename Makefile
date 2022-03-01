@@ -25,9 +25,11 @@ all:
 ifeq ($(BUILD_TARGET), pve)
 	$(MAKE) pve
 else ifeq ($(BUILD_TARGET), pmg)
-	$(MAKE) pve
+	$(MAKE) pmg
 else
-	@echo "Run 'make pve' or 'make pmg'"
+	@echo "Run one of"
+	@echo "  - make pve"
+	@echo "  - make pmg"
 endif
 
 .PHONY: pve pmg
@@ -56,7 +58,7 @@ build:
 	mkdir build
 	echo system >build/rust-toolchain
 	cp -a ./scripts ./build
-	cp -a ./common-src ./build
+	cp -a ./common ./build
 	cp -a ./pve-rs ./build
 	cp -a ./pmg-rs ./build
 	cp -a ./Proxmox ./build
@@ -67,6 +69,9 @@ build:
 	mv ./build/Proxmox/Lib/PMG.pm ./build/pmg-rs/Proxmox/Lib/PMG.pm
 	mv ./build/PVE ./build/pve-rs
 	mv ./build/PMG ./build/pmg-rs
+	mv ./build/Proxmox ./build/common/pkg
+# So the common packages end up in ./build, rather than ./build/common
+	mv ./build/common/pkg ./build/common-pkg
 
 pve-deb: build
 	cd ./build/pve-rs && dpkg-buildpackage -b -uc -us
@@ -74,6 +79,10 @@ pve-deb: build
 
 pmg-deb: build
 	cd ./build/pmg-rs && dpkg-buildpackage -b -uc -us
+	touch $@
+
+common-deb: build
+	cd ./build/common-pkg && dpkg-buildpackage -b -uc -us
 	touch $@
 
 %-upload: %-deb

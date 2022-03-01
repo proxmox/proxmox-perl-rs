@@ -1,0 +1,6 @@
+libproxmox-rs-perl (0.1.0) bullseye; urgency=medium
+
+  * initial release
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 01 Mar 2022 09:58:17 +0100
+
