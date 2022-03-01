@@ -3,8 +3,11 @@
 /build
 Cargo.lock
 /test.pl
-/perl/PVE
-/perl/PMG
-/perl/Proxmox/Lib/PMG.pm
-/perl/Proxmox/Lib/PVE.pm
-/perl/Proxmox/RS
+/PVE
+/PMG
+/Proxmox/Lib/PMG.pm
+/Proxmox/Lib/PVE.pm
+/Proxmox/RS
+/common-deb
+/pve-deb
+/pmg-deb
