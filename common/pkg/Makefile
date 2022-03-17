@@ -13,10 +13,12 @@ DEB=${PACKAGE}_${DEB_VERSION}_${ARCH}.deb
 DESTDIR=
 
 PM_DIRS := \
+	PVE/RS \
 	Proxmox/Lib \
 	Proxmox/RS
 
 PM_FILES := \
+	PVE/RS/CalendarEvent.pm \
 	Proxmox/Lib/Common.pm \
 	Proxmox/RS/CalendarEvent.pm
 
@@ -26,10 +28,10 @@ all:
 .PHONY: install
 install:
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
-	for i in $(PM_DIRS); do \
+	set -e && for i in $(PM_DIRS); do \
 	  install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
 	done
-	for i in $(PM_FILES); do \
+	set -e && for i in $(PM_FILES); do \
 	  install -m644 $$i $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
 	done
 
