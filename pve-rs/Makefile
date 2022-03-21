@@ -15,15 +15,7 @@ DEBS=$(MAIN_DEB) $(DBGSYM_DEB)
 
 DESTDIR=
 
-PM_DIRS := \
-	Proxmox/Lib \
-	PVE/RS/APT
-
-PM_FILES := \
-	Proxmox/Lib/PVE.pm \
-	PVE/RS/APT/Repositories.pm \
-	PVE/RS/OpenId.pm \
-	PVE/RS/TFA.pm
+PM_DIR := PVE
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
@@ -46,13 +38,10 @@ build:
 install: target/release/libpve_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpve_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpve_rs.so
-	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/PVE/RS
-	set -e && for i in $(PM_DIRS); do \
-	  install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
-	done
-	set -e && for i in $(PM_FILES); do \
-	  install -m644 $$i $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
-	done
+	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
+	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib
+	install -m644 Proxmox/Lib/PVE.pm $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib/PVE.pm
+	find $(PM_DIR) \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 
 .PHONY: deb
 deb: $(MAIN_DEB)

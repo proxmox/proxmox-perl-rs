@@ -12,28 +12,15 @@ DEB=${PACKAGE}_${DEB_VERSION}_${ARCH}.deb
 
 DESTDIR=
 
-PM_DIRS := \
-	PVE/RS \
-	Proxmox/Lib \
-	Proxmox/RS
-
-PM_FILES := \
-	PVE/RS/CalendarEvent.pm \
-	Proxmox/Lib/Common.pm \
-	Proxmox/RS/CalendarEvent.pm
-
 all:
 	true
 
 .PHONY: install
 install:
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
-	set -e && for i in $(PM_DIRS); do \
-	  install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
-	done
-	set -e && for i in $(PM_FILES); do \
-	  install -m644 $$i $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
-	done
+	find PVE \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
+	find Proxmox \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
+	rm $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/Proxmox/Lib/template.pm'
 
 .PHONY: deb
 deb: $(DEB)

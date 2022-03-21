@@ -14,16 +14,7 @@ DEBS=$(MAIN_DEB) $(DBGSYM_DEB)
 
 DESTDIR=
 
-PM_DIRS := \
-	Proxmox/Lib \
-	PMG/RS/APT
-
-PM_FILES := \
-	Proxmox/Lib/PMG.pm \
-	PMG/RS/APT/Repositories.pm \
-	PMG/RS/Acme.pm \
-	PMG/RS/CSR.pm \
-	PMG/RS/TFA.pm
+PM_DIR := PMG
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
@@ -46,13 +37,10 @@ build:
 install: target/release/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
-	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/PMG/RS
-	set -e && for i in $(PM_DIRS); do \
-	  install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
-	done
-	set -e && for i in $(PM_FILES); do \
-	  install -m644 $$i $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
-	done
+	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
+	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib
+	install -m644 Proxmox/Lib/PMG.pm $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib/PMG.pm
+	find $(PM_DIR) \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 
 .PHONY: deb
 deb: $(MAIN_DEB)
