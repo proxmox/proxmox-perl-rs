@@ -19,7 +19,7 @@ PM_DIRS := \
 	PMG/RS/APT
 
 PM_FILES := \
-	Proxmox/Lib/PVE.pm \
+	Proxmox/Lib/PMG.pm \
 	PMG/RS/APT/Repositories.pm \
 	PMG/RS/Acme.pm \
 	PMG/RS/CSR.pm \
