@@ -47,10 +47,10 @@ install: target/release/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/PMG/RS
-	for i in $(PM_DIRS); do \
+	set -e && for i in $(PM_DIRS); do \
 	  install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
 	done
-	for i in $(PM_FILES); do \
+	set -e && for i in $(PM_FILES); do \
 	  install -m644 $$i $(DESTDIR)$(PERL_INSTALLVENDORLIB)/$$i; \
 	done
 
