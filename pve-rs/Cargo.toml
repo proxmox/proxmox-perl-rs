@@ -29,6 +29,6 @@ url = "2"
 perlmod = { version = "0.13", features = [ "exporter" ] }
 
 proxmox-apt = "0.8"
-proxmox-openid = "0.9.4"
+proxmox-openid = "0.9.5"
 proxmox-tfa = { version = "2", features = ["api"] }
 proxmox-time = "1.1.3"
