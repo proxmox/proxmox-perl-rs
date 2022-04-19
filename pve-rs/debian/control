@@ -16,7 +16,7 @@ Build-Depends:
  librust-perlmod-0.13+default-dev,
  librust-perlmod-0.13+exporter-dev,
  librust-proxmox-apt-0.8+default-dev,
- librust-proxmox-openid-0.9+default-dev (>= 0.9.3-~~),
+ librust-proxmox-openid-0.9+default-dev (>= 0.9.5-~~),
  librust-proxmox-tfa-2+api-dev,
  librust-proxmox-tfa-2+default-dev,
  librust-proxmox-time-1+default-dev (>= 1.1.3-~~),
