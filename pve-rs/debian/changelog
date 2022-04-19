@@ -1,3 +1,10 @@
+libpve-rs-perl (0.6.1) bullseye; urgency=medium
+
+  * update OpenID connect proxmox integration dependency to fix Azure AD
+    support due to them not supporting chunked transfer encoding.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 19 Apr 2022 10:58:30 +0200
+
 libpve-rs-perl (0.6.0) bullseye; urgency=medium
 
   * update to perlmod 0.12
