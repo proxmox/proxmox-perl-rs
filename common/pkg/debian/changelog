@@ -1,3 +1,9 @@
+libproxmox-rs-perl (0.1.1) bullseye; urgency=medium
+
+  * rebuild to record break/replace for libpve-rs-perl (<< 0.6.0)
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 10 May 2022 07:12:11 +0200
+
 libproxmox-rs-perl (0.1.0) bullseye; urgency=medium
 
   * initial release
