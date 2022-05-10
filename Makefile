@@ -95,4 +95,4 @@ common-deb: build
 .PHONY: clean
 clean:
 	cargo clean
-	rm -rf ./build ./PVE ./PMG ./pve-deb ./pmg-deb
+	rm -rf ./build ./PVE ./PMG ./pve-deb ./pmg-deb ./common-deb
