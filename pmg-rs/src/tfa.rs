@@ -382,7 +382,7 @@ pub(crate) fn mkdir<P: AsRef<Path>>(path: P, mode: libc::mode_t) -> Result<(), E
     let path = path.as_ref();
     match nix::unistd::mkdir(path, unsafe { Mode::from_bits_unchecked(mode) }) {
         Ok(()) => Ok(()),
-        Err(nix::Error::Sys(Errno::EEXIST)) => Ok(()),
+        Err(Errno::EEXIST) => Ok(()),
         Err(err) => bail!("failed to create directory {:?}: {}", path, err),
     }
 }
