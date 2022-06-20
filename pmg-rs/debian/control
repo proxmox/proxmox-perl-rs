@@ -11,7 +11,7 @@ Build-Depends:
  librust-anyhow-1+default-dev,
  librust-hex-0.4+default-dev,
  librust-libc-0.2+default-dev,
- librust-nix-0.19+default-dev,
+ librust-nix-0.24+default-dev,
  librust-perlmod-0.13+default-dev,
  librust-perlmod-0.13+exporter-dev,
  librust-proxmox-acme-rs-0.4+client-dev,
