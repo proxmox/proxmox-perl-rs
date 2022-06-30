@@ -51,7 +51,8 @@ gen:
 	$(call package_template,PVE,pve_rs)
 	perl ./scripts/genpackage.pl Common \
 	  Proxmox::RS::APT::Repositories \
-	  Proxmox::RS::CalendarEvent
+	  Proxmox::RS::CalendarEvent \
+	  Proxmox::RS::Subscription
 	perl ./scripts/genpackage.pl PVE \
 	  PVE::RS::APT::Repositories \
 	  PVE::RS::OpenId \
