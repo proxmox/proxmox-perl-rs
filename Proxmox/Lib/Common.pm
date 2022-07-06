@@ -35,7 +35,7 @@ BEGIN {
         push @ISA, $base;
     } else {
         eval { require Proxmox::Lib::PVE and push @ISA, 'Proxmox::Lib::PVE'; };
-        eval { require Proxmox::Lib::PMG and push @ISA, 'Proxmox::Lib::PVE'; } if $@;
+        eval { require Proxmox::Lib::PMG and push @ISA, 'Proxmox::Lib::PMG'; } if $@;
         die $@ if $@;
     }
 }
