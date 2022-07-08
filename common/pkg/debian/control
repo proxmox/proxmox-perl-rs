@@ -16,7 +16,7 @@ Depends:
  ${misc:Depends},
  ${perl:Depends},
  ${shlibs:Depends},
- libpve-rs-perl (>= 0.6.0) | libpmg-rs-perl (>= 0.5.0),
+ libpve-rs-perl (>= 0.6.2) | libpmg-rs-perl (>= 0.5.1),
 Breaks: libpve-rs-perl (<< 0.6.0)
 Replaces: libpve-rs-perl (<< 0.6.0)
 Description: PVE/PMG common parts which have been ported to Rust - Perl packages
