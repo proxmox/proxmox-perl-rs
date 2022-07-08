@@ -1,3 +1,11 @@
+libpmg-rs-perl (0.5.2) bullseye; urgency=medium
+
+  * add common apt module
+
+  * update nix to 0.24
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 08 Jul 2022 14:48:58 +0200
+
 libpmg-rs-perl (0.5.1) bullseye; urgency=medium
 
   * install missing PMG.pm file
