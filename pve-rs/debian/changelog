@@ -1,3 +1,11 @@
+libpve-rs-perl (0.6.2) bullseye; urgency=medium
+
+  * add common apt module
+
+  * update nix to 0.24
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 08 Jul 2022 14:48:21 +0200
+
 libpve-rs-perl (0.6.1) bullseye; urgency=medium
 
   * update OpenID connect proxmox integration dependency to fix Azure AD
