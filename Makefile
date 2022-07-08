@@ -20,6 +20,14 @@ define package_template
 	  >Proxmox/Lib/$(1).pm
 endef
 
+define upload_template
+	cd build; \
+	    dcmd --deb lib$(1)-rs-perl*.changes \
+	    | grep -v '.changes$$' \
+	    | tar -cf "$@.tar" -T-; \
+	    cat "$@.tar" | ssh -X repoman@repo.proxmox.com upload --product $(2) --dist bullseye
+endef
+
 .PHONY: all
 all:
 ifeq ($(BUILD_TARGET), pve)
@@ -87,12 +95,12 @@ common-deb: build
 	cd ./build/common-pkg && dpkg-buildpackage -b -uc -us
 	touch $@
 
-%-upload: %-deb
-	cd build; \
-	    dcmd --deb lib$*-rs-perl*.changes \
-	    | grep -v '.changes$$' \
-	    | tar -cf "$@.tar" -T-; \
-	    cat "$@.tar" | ssh -X repoman@repo.proxmox.com upload --product $* --dist bullseye
+pve-upload: pve-deb
+	$(call upload_template,pve,pve)
+pmg-upload: pmg-deb
+	$(call upload_template,pmg,pmg)
+common-upload: common-deb
+	$(call upload_template,proxmox,pve\,pmg)
 
 .PHONY: clean
 clean:
