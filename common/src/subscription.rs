@@ -70,17 +70,16 @@ mod export {
     use anyhow::{bail, format_err, Error};
 
     use proxmox_subscription::SubscriptionInfo;
-    use proxmox_sys::fs::{file_get_contents, CreateOptions};
+    use proxmox_sys::fs::CreateOptions;
 
     use super::client::UreqClient;
 
     #[export]
     fn read_subscription(path: String) -> Result<Option<SubscriptionInfo>, Error> {
-        let key = file_get_contents("/usr/share/keyrings/proxmox-offline-signing-key.pub")?;
-        let key = openssl::pkey::PKey::public_key_from_pem(&key)
-            .map_err(|err| format_err!("Failed to parse public key - {err}"))?;
-
-        proxmox_subscription::files::read_subscription(path, &key)
+        proxmox_subscription::files::read_subscription(
+            path.as_str(),
+            &[proxmox_subscription::files::DEFAULT_SIGNING_KEY],
+        )
     }
 
     #[export]
@@ -154,11 +153,7 @@ mod export {
             bail!("SubscriptionInfo is not signed!");
         }
 
-        let key = file_get_contents("/usr/share/keyrings/proxmox-offline-signing-key.pub")?;
-        let key = openssl::pkey::PKey::public_key_from_pem(&key)
-            .map_err(|err| format_err!("Failed to parse public key - {err}"))?;
-
-        info.check_signature(&key);
+        info.check_signature(&[proxmox_subscription::files::DEFAULT_SIGNING_KEY]);
 
         Ok(info)
     }
