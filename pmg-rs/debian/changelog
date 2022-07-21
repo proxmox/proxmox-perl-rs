@@ -1,3 +1,11 @@
+libpmg-rs-perl (0.6.0) bullseye; urgency=medium
+
+  * add Proxmox::RS::Subscription support
+
+  * bump proxmox-http to 0.6.4 to fix an issue with proxy authorization
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 21 Jul 2022 14:57:21 +0200
+
 libpmg-rs-perl (0.5.2) bullseye; urgency=medium
 
   * add common apt module
