@@ -34,9 +34,9 @@ url = "2"
 perlmod = { version = "0.13", features = [ "exporter" ] }
 
 proxmox-acme-rs = { version = "0.4", features = ["client"] }
-proxmox-apt = "0.8.0"
+proxmox-apt = "0.9"
 proxmox-http = { version = "0.6.3", features = ["client-trait"] }
-proxmox-subscription = "0.1"
+proxmox-subscription = "0.2"
 proxmox-sys = "0.3"
 proxmox-tfa = { version = "2", features = ["api"] }
 proxmox-time = "1.1.3"
