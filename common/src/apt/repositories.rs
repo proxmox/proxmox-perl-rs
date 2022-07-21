@@ -104,7 +104,10 @@ pub mod export {
             );
         }
 
-        if let Some(file) = files.iter_mut().find(|file| file.path.as_ref() == Some(&path)) {
+        if let Some(file) = files
+            .iter_mut()
+            .find(|file| file.path.as_ref() == Some(&path))
+        {
             file.repositories.push(repo);
 
             file.write()?;
@@ -145,7 +148,10 @@ pub mod export {
             bail!("unable to parse file {} - {}", error.path, error.error);
         }
 
-        if let Some(file) = files.iter_mut().find(|file| file.path.as_ref() == Some(&path.to_string())) {
+        if let Some(file) = files
+            .iter_mut()
+            .find(|file| file.path.as_ref() == Some(&path.to_string()))
+        {
             if let Some(repo) = file.repositories.get_mut(index) {
                 if let Some(enabled) = options.enabled {
                     repo.set_enabled(enabled);

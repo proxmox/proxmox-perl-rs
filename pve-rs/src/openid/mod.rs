@@ -1,13 +1,13 @@
 #[perlmod::package(name = "PVE::RS::OpenId", lib = "pve_rs")]
 mod export {
-    use std::sync::Mutex;
     use std::convert::TryFrom;
+    use std::sync::Mutex;
 
     use anyhow::Error;
 
     use perlmod::{to_value, Value};
 
-    use proxmox_openid::{OpenIdConfig, OpenIdAuthenticator, PrivateAuthState};
+    use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig, PrivateAuthState};
 
     const CLASSNAME: &str = "PVE::RS::OpenId";
 
@@ -44,7 +44,6 @@ mod export {
         config: OpenIdConfig,
         redirect_url: &str,
     ) -> Result<Value, Error> {
-
         let open_id = OpenIdAuthenticator::discover(&config, redirect_url)?;
         bless(
             class,
@@ -60,7 +59,6 @@ mod export {
         state_dir: &str,
         realm: &str,
     ) -> Result<String, Error> {
-
         let open_id = this.inner.lock().unwrap();
         open_id.authorize_url(state_dir, realm)
     }
@@ -69,17 +67,16 @@ mod export {
     pub fn verify_public_auth_state(
         state_dir: &str,
         state: &str,
-    )  -> Result<(String, PrivateAuthState), Error> {
+    ) -> Result<(String, PrivateAuthState), Error> {
         OpenIdAuthenticator::verify_public_auth_state(state_dir, state)
     }
 
     #[export(raw_return)]
     pub fn verify_authorization_code(
-       #[try_from_ref] this: &OpenId,
+        #[try_from_ref] this: &OpenId,
         code: &str,
         private_auth_state: PrivateAuthState,
     ) -> Result<Value, Error> {
-
         let open_id = this.inner.lock().unwrap();
         let claims = open_id.verify_authorization_code_simple(code, &private_auth_state)?;
 
