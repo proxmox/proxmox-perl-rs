@@ -38,5 +38,5 @@ proxmox-apt = "0.9"
 proxmox-http = { version = "0.6.4", features = ["client-trait"] }
 proxmox-subscription = "0.2"
 proxmox-sys = "0.3"
-proxmox-tfa = { version = "2", features = ["api"] }
+proxmox-tfa = { version = "2.1", features = ["api"] }
 proxmox-time = "1.1.3"
