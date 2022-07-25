@@ -100,8 +100,11 @@ pve-upload: pve-deb
 	$(call upload_template,pve,pve)
 pmg-upload: pmg-deb
 	$(call upload_template,pmg,pmg)
+
+# need to put into variable to ensure comma isn't interpreted as param separator on call
+common_target=pve,pmg
 common-upload: common-deb
-	$(call upload_template,proxmox,pve\,pmg)
+	$(call upload_template,proxmox,$(common_target))
 
 .PHONY: clean
 clean:
