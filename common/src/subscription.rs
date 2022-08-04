@@ -1,70 +1,3 @@
-mod client {
-    use anyhow::{format_err, Error};
-    use http::Response;
-
-    pub(crate) struct UreqClient {
-        pub user_agent: String,
-        pub proxy: Option<String>,
-    }
-
-    impl UreqClient {
-        fn agent(&self) -> Result<ureq::Agent, Error> {
-            let mut builder = ureq::AgentBuilder::new();
-            if let Some(proxy) = &self.proxy {
-                builder = builder.proxy(ureq::Proxy::new(proxy)?);
-            }
-
-            Ok(builder.build())
-        }
-
-        fn exec_request(
-            &self,
-            req: ureq::Request,
-            body: Option<&str>,
-        ) -> Result<Response<String>, Error> {
-            let req = req.set("User-Agent", &self.user_agent);
-            let res = match body {
-                Some(body) => req.send_string(body),
-                None => req.call(),
-            }?;
-
-            let mut builder = http::response::Builder::new()
-                .status(http::status::StatusCode::from_u16(res.status())?);
-
-            for header in res.headers_names() {
-                if let Some(value) = res.header(&header) {
-                    builder = builder.header(header, value);
-                }
-            }
-            builder
-                .body(res.into_string()?)
-                .map_err(|err| format_err!("Failed to convert HTTP response - {err}"))
-        }
-    }
-
-    impl proxmox_http::HttpClient<String> for UreqClient {
-        fn get(&self, uri: &str) -> Result<Response<String>, Error> {
-            let req = self.agent()?.get(uri);
-
-            self.exec_request(req, None)
-        }
-
-        fn post(
-            &self,
-            uri: &str,
-            body: Option<&str>,
-            content_type: Option<&str>,
-        ) -> Result<Response<String>, Error> {
-            let mut req = self.agent()?.post(uri);
-            if let Some(content_type) = content_type {
-                req = req.set("Content-Type", content_type);
-            }
-
-            self.exec_request(req, body)
-        }
-    }
-}
-
 #[perlmod::package(name = "Proxmox::RS::Subscription")]
 mod export {
     use anyhow::{bail, format_err, Error};
@@ -72,7 +5,9 @@ mod export {
     use proxmox_subscription::SubscriptionInfo;
     use proxmox_sys::fs::CreateOptions;
 
-    use super::client::UreqClient;
+    use proxmox_http::ProxyConfig;
+    use proxmox_http::HttpOptions;
+    use proxmox_http::client::sync::Client;
 
     #[export]
     fn read_subscription(path: String) -> Result<Option<SubscriptionInfo>, Error> {
@@ -130,7 +65,12 @@ mod export {
         user_agent: String,
         proxy: Option<String>,
     ) -> Result<SubscriptionInfo, Error> {
-        let client = UreqClient { user_agent, proxy };
+        let proxy_config = match proxy {
+            Some(url) => Some(ProxyConfig::parse_proxy_url(&url)?),
+            None => None,
+        };
+        let options = HttpOptions { proxy_config, user_agent: Some(user_agent) , ..Default::default() };
+        let client = Client::new(options);
 
         proxmox_subscription::check::check_subscription(key, server_id, product_url, client)
     }

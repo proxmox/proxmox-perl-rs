@@ -19,8 +19,9 @@ Build-Depends:
  librust-proxmox-acme-rs-0.4+client-dev,
  librust-proxmox-acme-rs-0.4+default-dev,
  librust-proxmox-apt-0.9+default-dev,
- librust-proxmox-http-0.6+client-trait-dev (>= 0.6.4-~~),
- librust-proxmox-http-0.6+default-dev (>= 0.6.4-~~),
+ librust-proxmox-http-0.7+client-sync-dev,
+ librust-proxmox-http-0.7+client-trait-dev,
+ librust-proxmox-http-0.7+default-dev,
  librust-proxmox-subscription-0.2+default-dev,
  librust-proxmox-sys-0.4+default-dev,
  librust-proxmox-tfa-2+api-dev (>= 2.1-~~),
@@ -29,8 +30,6 @@ Build-Depends:
  librust-serde-1+default-dev,
  librust-serde-bytes-0.11+default-dev (>= 0.11.3-~~),
  librust-serde-json-1+default-dev,
- librust-ureq-2+default-dev (>= 2.4-~~),
- librust-ureq-2+native-certs-dev (>= 2.4-~~),
  librust-url-2+default-dev,
 Standards-Version: 4.3.0
 Homepage: https://www.proxmox.com
