@@ -1,3 +1,9 @@
+libpmg-rs-perl (0.6.2) bullseye; urgency=medium
+
+  * update to proxmox-subscription 0.3 / proxmox-http 0.7
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 7 Sep 2022 11:54:26 +0200
+
 libpmg-rs-perl (0.6.1) bullseye; urgency=medium
 
   * add 'allow-subdomains' property to webauthn config
