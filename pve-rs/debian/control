@@ -22,7 +22,7 @@ Build-Depends:
  librust-proxmox-http-0.7+client-trait-dev,
  librust-proxmox-http-0.7+default-dev,
  librust-proxmox-openid-0.9+default-dev (>= 0.9.5-~~),
- librust-proxmox-subscription-0.2+default-dev,
+ librust-proxmox-subscription-0.3+default-dev,
  librust-proxmox-sys-0.4+default-dev,
  librust-proxmox-tfa-2+api-dev (>= 2.1-~~),
  librust-proxmox-tfa-2+default-dev (>= 2.1-~~),
