@@ -1,0 +1,2 @@
+Note that these tests are not run during build currently! See the FIXME note in
+resource_scheduling.pl for why.
