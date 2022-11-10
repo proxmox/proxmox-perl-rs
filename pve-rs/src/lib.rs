@@ -5,4 +5,5 @@ pub mod common;
 
 pub mod apt;
 pub mod openid;
+pub mod resource_scheduling;
 pub mod tfa;

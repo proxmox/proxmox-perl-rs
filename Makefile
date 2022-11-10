@@ -56,6 +56,7 @@ gen:
 	perl ./scripts/genpackage.pl PVE \
 	  PVE::RS::APT::Repositories \
 	  PVE::RS::OpenId \
+	  PVE::RS::ResourceScheduling::Static \
 	  PVE::RS::TFA
 	perl ./scripts/genpackage.pl PMG \
 	  PMG::RS::APT::Repositories \

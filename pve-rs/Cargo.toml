@@ -33,6 +33,7 @@ perlmod = { version = "0.13", features = [ "exporter" ] }
 proxmox-apt = "0.9"
 proxmox-http = { version = "0.7", features = ["client-sync", "client-trait"] }
 proxmox-openid = "0.9.5"
+proxmox-resource-scheduling = "0.1"
 proxmox-subscription = "0.3"
 proxmox-sys = "0.4"
 proxmox-tfa = { version = "2.1", features = ["api"] }
