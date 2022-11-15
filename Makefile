@@ -35,8 +35,6 @@ pve pmg:
 
 .PHONY: gen
 gen:
-	$(call package_template,PMG,pmg_rs)
-	$(call package_template,PVE,pve_rs)
 	perl ./scripts/genpackage.pl Common \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
@@ -64,13 +62,13 @@ build:
 	cp -a ./Proxmox ./build
 	cp defines.mk ./build
 	$(MAKE) BUILD_MODE=release -C build -f ../Makefile gen
-	mkdir -p ./build/pve-rs/Proxmox/Lib
-	mv ./build/Proxmox/Lib/PVE.pm ./build/pve-rs/Proxmox/Lib/PVE.pm
-	mkdir -p ./build/pmg-rs/Proxmox/Lib
-	mv ./build/Proxmox/Lib/PMG.pm ./build/pmg-rs/Proxmox/Lib/PMG.pm
 	mv ./build/PVE ./build/pve-rs
 	mv ./build/PMG ./build/pmg-rs
 	mv ./build/Proxmox ./build/common/pkg
+# The template.pm is required by the products to produce their Proxmox::Lib
+	mkdir ./build/Proxmox
+	mkdir ./build/Proxmox/Lib
+	cp ./Proxmox/Lib/template.pm ./build/Proxmox/Lib
 # So the common packages end up in ./build, rather than ./build/common
 	mv ./build/common/pkg ./build/common-pkg
 
