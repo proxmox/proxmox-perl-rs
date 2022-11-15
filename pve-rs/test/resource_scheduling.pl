@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use Test::More;
+
 # FIXME ensure that the just built library is loaded rather than the installed one and add a test
 # target to pve-rs/Makefile afterwards. Issue is that the loader looks into an $PATH/auto directory,
 # so it's not enough to use lib qw(../target/release)
@@ -12,37 +14,19 @@ use warnings;
 #use lib qw(../target/release);
 use PVE::RS::ResourceScheduling::Static;
 
-sub assert_num_eq {
-    my ($left, $right) = @_;
-    my (undef, undef, $line) = caller();
-    die "assertion failed: '$left != $right' at line $line\n" if $left != $right;
-}
-
-sub assert_str_eq {
-    my ($left, $right) = @_;
-    my (undef, undef, $line) = caller();
-    die "assertion failed: '$left ne $right' at line $line\n" if $left ne $right;
-}
-
-sub assert {
-    my ($bool) = @_;
-    my (undef, undef, $line) = caller();
-    die "assertion failed at line $line\n" if !$bool;
-}
-
 my $static = PVE::RS::ResourceScheduling::Static->new();
-assert_num_eq(scalar($static->list_nodes()->@*), 0);
+is(scalar($static->list_nodes()->@*), 0, 'node list empty');
 $static->add_node("A", 10, 100_000_000_000);
-assert_num_eq(scalar($static->list_nodes()->@*), 1);
+is(scalar($static->list_nodes()->@*), 1, '1 node added');
 $static->add_node("B", 20, 200_000_000_000);
-assert_num_eq(scalar($static->list_nodes()->@*), 2);
+is(scalar($static->list_nodes()->@*), 2, '2nd node');
 $static->add_node("C", 30, 300_000_000_000);
-assert_num_eq(scalar($static->list_nodes()->@*), 3);
+is(scalar($static->list_nodes()->@*), 3, '3rd node');
 $static->remove_node("C");
-assert_num_eq(scalar($static->list_nodes()->@*), 2);
-assert($static->contains_node("A"));
-assert($static->contains_node("B"));
-assert(!$static->contains_node("C"));
+is(scalar($static->list_nodes()->@*), 2, '3rd removed should be 2');
+ok($static->contains_node("A"), 'should contain a node A');
+ok($static->contains_node("B"), 'should contain a node B');
+ok(!$static->contains_node("C"), 'should not contain a node C');
 
 my $service = {
     maxcpu => 4,
@@ -59,12 +43,14 @@ for (my $i = 0; $i < 15; $i++) {
     } keys $scores->%*;
 
     if ($i % 3 == 2) {
-	assert_str_eq($nodes[0], "A");
-	assert_str_eq($nodes[1], "B");
+	is($nodes[0], "A", 'first should be A');
+	is($nodes[1], "B", 'second should be A');
     } else {
-	assert_str_eq($nodes[0], "B");
-	assert_str_eq($nodes[1], "A");
+	is($nodes[0], "B", 'first should be B');
+	is($nodes[1], "A", 'second should be A');
     }
 
     $static->add_service_usage_to_node($nodes[0], $service);
 }
+
+done_testing();
