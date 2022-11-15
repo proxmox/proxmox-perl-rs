@@ -1,3 +1,5 @@
+include defines.mk
+
 CARGO ?= cargo
 
 ifeq ($(BUILD_MODE), release)
@@ -6,15 +8,6 @@ DEBUG_LIBPATH :=
 else
 DEBUG_LIBPATH := "-L./target/debug", 
 endif
-
-define package_template
-	sed -r \
-	  -e 's/\{\{PRODUCT\}\}/$(1)/g;' \
-	  -e 's/\{\{LIBRARY\}\}/$(2)/g;' \
-	  -e 's|\{\{DEBUG_LIBPATH\}\}|$(DEBUG_LIBPATH)|g;' \
-	  Proxmox/Lib/template.pm \
-	  >Proxmox/Lib/$(1).pm
-endef
 
 define upload_template
 	cd build; \
