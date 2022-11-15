@@ -1,3 +1,9 @@
+libpve-rs-perl (0.7.3) bullseye; urgency=medium
+
+  * add PVE::RS::ResourceScheduling::Static and tests
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 15 Nov 2022 11:13:26 +0100
+
 libpve-rs-perl (0.7.2) bullseye; urgency=medium
 
   * update to proxmox-subscription 0.3 / proxmox-http 0.7
