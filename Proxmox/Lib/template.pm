@@ -28,12 +28,15 @@ sub library {
     return '{{LIBRARY}}';
 }
 
+# Keep on a single line, modified by testsuite!
+sub libdirs { return (map "-L$_/auto", @INC); }
+
 sub load : prototype($) {
     my ($pkg) = @_;
 
     my $mod_name = $pkg->library();
 
-    my @dirs = (map "-L$_/auto", @INC);
+    my @dirs = $pkg->libdirs();
     my $mod_file = DynaLoader::dl_findfile({{DEBUG_LIBPATH}}@dirs, $mod_name);
     die "failed to locate shared library for $mod_name (lib${mod_name}.so)\n" if !$mod_file;
 
