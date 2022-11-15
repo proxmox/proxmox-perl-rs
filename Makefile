@@ -1,9 +1,5 @@
 CARGO ?= cargo
 
-define to_upper
-$(shell echo "$(1)" | tr '[:lower:]' '[:upper:]')
-endef
-
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 DEBUG_LIBPATH :=
@@ -42,8 +38,7 @@ endif
 
 .PHONY: pve pmg
 pve pmg:
-	@PERLMOD_PRODUCT=$(call to_upper,$@) \
-	  $(CARGO) build $(CARGO_BUILD_ARGS) -p $@-rs
+	$(CARGO) build $(CARGO_BUILD_ARGS) -p $@-rs
 
 .PHONY: gen
 gen:
