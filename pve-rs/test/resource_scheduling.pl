@@ -5,13 +5,6 @@ use warnings;
 
 use Test::More;
 
-# FIXME ensure that the just built library is loaded rather than the installed one and add a test
-# target to pve-rs/Makefile afterwards. Issue is that the loader looks into an $PATH/auto directory,
-# so it's not enough to use lib qw(../target/release)
-# Also might be a good idea to test for existence of the files to avoid surprises if the directory
-# structure changes in the future.
-#use lib qw(..);
-#use lib qw(../target/release);
 use PVE::RS::ResourceScheduling::Static;
 
 my $static = PVE::RS::ResourceScheduling::Static->new();
