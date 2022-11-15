@@ -12,11 +12,18 @@ DEB=${PACKAGE}_${DEB_VERSION}_${ARCH}.deb
 
 DESTDIR=
 
-all:
+# Point to any generated pm file (Proxmox/ dir is already present in this package)
+Proxmox/RS/CalendarEvent.pm: ../scripts/genpackage.pl
+	perl ../scripts/genpackage.pl Common \
+	  Proxmox::RS::APT::Repositories \
+	  Proxmox::RS::CalendarEvent \
+	  Proxmox::RS::Subscription
+
+all: Proxmox/RS/CalendarEvent.pm
 	true
 
 .PHONY: install
-install:
+install: Proxmox/RS/CalendarEvent.pm
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
 	find PVE \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 	find Proxmox \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'

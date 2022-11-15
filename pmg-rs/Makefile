@@ -26,6 +26,14 @@ ifneq ($(BUILD_MODE), skip)
 	cargo build $(CARGO_BUILD_ARGS)
 endif
 
+PMG: ../scripts/genpackage.pl
+	perl ../scripts/genpackage.pl PMG \
+	  PMG::RS::APT::Repositories \
+	  PMG::RS::Acme \
+	  PMG::RS::CSR \
+	  PMG::RS::OpenId \
+	  PMG::RS::TFA
+
 Proxmox/Lib/PMG.pm: ../Proxmox/Lib/template.pm
 	mkdir -p Proxmox/Lib
 	$(call package_template,PMG,pmg_rs,../)
@@ -39,7 +47,7 @@ build:
 	rsync -a debian Makefile Cargo.toml Cargo.lock src target PMG build/
 
 .PHONY: install
-install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm
+install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)

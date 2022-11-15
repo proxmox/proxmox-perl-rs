@@ -22,10 +22,17 @@ ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 endif
 
-all: Proxmox/Lib/PVE.pm
+all: PVE Proxmox/Lib/PVE.pm
 ifneq ($(BUILD_MODE), skip)
 	cargo build $(CARGO_BUILD_ARGS)
 endif
+
+PVE: ../scripts/genpackage.pl
+	perl ../scripts/genpackage.pl PVE \
+	  PVE::RS::APT::Repositories \
+	  PVE::RS::OpenId \
+	  PVE::RS::ResourceScheduling::Static \
+	  PVE::RS::TFA
 
 Proxmox/Lib/PVE.pm: ../Proxmox/Lib/template.pm
 	mkdir -p Proxmox/Lib
@@ -40,7 +47,7 @@ build:
 	rsync -a debian Makefile Cargo.toml Cargo.lock src target PVE build/
 
 .PHONY: install
-install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm
+install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpve_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpve_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)

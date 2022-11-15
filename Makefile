@@ -33,24 +33,6 @@ endif
 pve pmg:
 	$(CARGO) build $(CARGO_BUILD_ARGS) -p $@-rs
 
-.PHONY: gen
-gen:
-	perl ./scripts/genpackage.pl Common \
-	  Proxmox::RS::APT::Repositories \
-	  Proxmox::RS::CalendarEvent \
-	  Proxmox::RS::Subscription
-	perl ./scripts/genpackage.pl PVE \
-	  PVE::RS::APT::Repositories \
-	  PVE::RS::OpenId \
-	  PVE::RS::ResourceScheduling::Static \
-	  PVE::RS::TFA
-	perl ./scripts/genpackage.pl PMG \
-	  PMG::RS::APT::Repositories \
-	  PMG::RS::Acme \
-	  PMG::RS::CSR \
-	  PMG::RS::OpenId \
-	  PMG::RS::TFA
-
 build:
 	rm -rf build
 	mkdir build
@@ -61,9 +43,6 @@ build:
 	cp -a ./pmg-rs ./build
 	cp -a ./Proxmox ./build
 	cp defines.mk ./build
-	$(MAKE) BUILD_MODE=release -C build -f ../Makefile gen
-	mv ./build/PVE ./build/pve-rs
-	mv ./build/PMG ./build/pmg-rs
 	mv ./build/Proxmox ./build/common/pkg
 # The template.pm is required by the products to produce their Proxmox::Lib
 	mkdir ./build/Proxmox
