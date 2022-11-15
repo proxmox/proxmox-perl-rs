@@ -20,11 +20,18 @@ PM_DIR := PVE
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
+TARGET_DIR=release
+else
+TARGET_DIR=debug
 endif
 
 all: PVE Proxmox/Lib/PVE.pm
 ifneq ($(BUILD_MODE), skip)
 	cargo build $(CARGO_BUILD_ARGS)
+	mkdir -p test/Proxmox/Lib
+	sed -r -e \
+	  's@^sub libdirs.*$$@sub libdirs { return ("../target/$(TARGET_DIR)", "../../target/$(TARGET_DIR)"); }@' \
+	  Proxmox/Lib/PVE.pm >test/Proxmox/Lib/PVE.pm
 endif
 
 PVE: ../scripts/genpackage.pl
@@ -37,6 +44,9 @@ PVE: ../scripts/genpackage.pl
 Proxmox/Lib/PVE.pm: ../Proxmox/Lib/template.pm
 	mkdir -p Proxmox/Lib
 	$(call package_template,PVE,pve_rs,../)
+
+check: all
+	$(MAKE) -C test test
 
 # always re-create this dir
 # but also copy the local target/ and PVE/ dirs as a build-cache
