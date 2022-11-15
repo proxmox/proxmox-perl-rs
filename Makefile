@@ -62,6 +62,7 @@ build:
 	cp -a ./pve-rs ./build
 	cp -a ./pmg-rs ./build
 	cp -a ./Proxmox ./build
+	cp defines.mk ./build
 	$(MAKE) BUILD_MODE=release -C build -f ../Makefile gen
 	mkdir -p ./build/pve-rs/Proxmox/Lib
 	mv ./build/Proxmox/Lib/PVE.pm ./build/pve-rs/Proxmox/Lib/PVE.pm

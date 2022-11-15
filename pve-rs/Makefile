@@ -1,3 +1,4 @@
+include ../defines.mk
 include /usr/share/dpkg/default.mk
 
 PACKAGE=libpve-rs-perl
