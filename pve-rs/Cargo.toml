@@ -21,7 +21,7 @@ base64 = "0.13"
 hex = "0.4"
 http = "0.2.7"
 libc = "0.2"
-nix = "0.24"
+nix = "0.26"
 openssl = "0.10.40"
 serde = "1.0"
 serde_bytes = "0.11"
@@ -32,9 +32,9 @@ perlmod = { version = "0.13", features = [ "exporter" ] }
 
 proxmox-apt = "0.9"
 proxmox-http = { version = "0.7", features = ["client-sync", "client-trait"] }
-proxmox-openid = "0.9.5"
+proxmox-openid = "0.9.8"
 proxmox-resource-scheduling = "0.1"
 proxmox-subscription = "0.3"
-proxmox-sys = "0.4"
+proxmox-sys = "0.4.2"
 proxmox-tfa = { version = "2.1", features = ["api"] }
 proxmox-time = "1.1.3"
