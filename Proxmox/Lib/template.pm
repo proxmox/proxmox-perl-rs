@@ -66,6 +66,10 @@ sub bootstrap {
     $boot->();
 }
 
-BEGIN { __PACKAGE__->load(); }
+BEGIN {
+    __PACKAGE__->load();
+    __PACKAGE__->bootstrap();
+    init();
+}
 
 1;
