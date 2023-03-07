@@ -21,7 +21,8 @@ use nix::sys::stat::Mode;
 use serde_json::Value as JsonValue;
 
 pub(self) use proxmox_tfa::api::{
-    RecoveryState, TfaChallenge, TfaConfig, TfaResponse, TfaUserData, U2fConfig, WebauthnConfig,
+    RecoveryState, TfaChallenge, TfaConfig, TfaResponse, TfaUserData, U2fConfig,
+    UserChallengeAccess, WebauthnConfig,
 };
 
 #[perlmod::package(name = "PVE::RS::TFA")]
@@ -173,7 +174,7 @@ mod export {
     ) -> Result<String, Error> {
         let this: &Tfa = (&raw_this).try_into()?;
         let mut inner = this.inner.lock().unwrap();
-        inner.u2f_registration_challenge(UserAccess::new(&raw_this)?, userid, description)
+        inner.u2f_registration_challenge(&UserAccess::new(&raw_this)?, userid, description)
     }
 
     /// Finish a u2f registration. This updates temporary data in `/run` and therefore the config
@@ -188,7 +189,7 @@ mod export {
     ) -> Result<String, Error> {
         let this: &Tfa = (&raw_this).try_into()?;
         let mut inner = this.inner.lock().unwrap();
-        inner.u2f_registration_finish(UserAccess::new(&raw_this)?, userid, challenge, response)
+        inner.u2f_registration_finish(&UserAccess::new(&raw_this)?, userid, challenge, response)
     }
 
     /// Check if a user has any TFA entries of a given type.
@@ -249,7 +250,7 @@ mod export {
         let this: &Tfa = (&raw_this).try_into()?;
         let mut inner = this.inner.lock().unwrap();
         match inner.authentication_challenge(
-            UserAccess::new(&raw_this)?,
+            &UserAccess::new(&raw_this)?,
             userid,
             origin.as_ref(),
         )? {
@@ -292,7 +293,7 @@ mod export {
         let mut inner = this.inner.lock().unwrap();
         inner
             .verify(
-                UserAccess::new(&raw_this)?,
+                &UserAccess::new(&raw_this)?,
                 userid,
                 &challenge,
                 response,
@@ -360,7 +361,7 @@ mod export {
         let this: &Tfa = (&raw_this).try_into()?;
         methods::add_tfa_entry(
             &mut this.inner.lock().unwrap(),
-            UserAccess::new(&raw_this)?,
+            &UserAccess::new(&raw_this)?,
             userid,
             description,
             totp,
@@ -841,9 +842,7 @@ fn challenge_data_path(userid: &str, debug: bool) -> PathBuf {
 }
 
 impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
-    type Data = UserChallengeData;
-
-    fn open(&self, userid: &str) -> Result<UserChallengeData, Error> {
+    fn open(&self, userid: &str) -> Result<Box<dyn UserChallengeAccess>, Error> {
         if self.is_debug() {
             mkdir("./local-tfa-challenges", 0o700)?;
         } else {
@@ -886,15 +885,15 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             }
         };
 
-        Ok(UserChallengeData {
+        Ok(Box::new(UserChallengeData {
             inner,
             path,
             lock: file,
-        })
+        }))
     }
 
     /// `open` without creating the file if it doesn't exist, to finish WA authentications.
-    fn open_no_create(&self, userid: &str) -> Result<Option<UserChallengeData>, Error> {
+    fn open_no_create(&self, userid: &str) -> Result<Option<Box<dyn UserChallengeAccess>>, Error> {
         let path = challenge_data_path(userid, self.is_debug());
 
         let mut file = match std::fs::OpenOptions::new()
@@ -915,11 +914,11 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             format_err!("failed to read challenge data for user {}: {}", userid, err)
         })?;
 
-        Ok(Some(UserChallengeData {
+        Ok(Some(Box::new(UserChallengeData {
             inner,
             path,
             lock: file,
-        }))
+        })))
     }
 
     fn remove(&self, userid: &str) -> Result<bool, Error> {
@@ -947,7 +946,7 @@ impl proxmox_tfa::api::UserChallengeAccess for UserChallengeData {
         &mut self.inner
     }
 
-    fn save(self) -> Result<(), Error> {
+    fn save(&mut self) -> Result<(), Error> {
         UserChallengeData::save(self)
     }
 }
@@ -992,7 +991,7 @@ impl UserChallengeData {
     ///
     /// This currently consumes selfe as we never perform more than 1 insertion/removal, and this
     /// way also unlocks early.
-    fn save(mut self) -> Result<(), Error> {
+    fn save(&mut self) -> Result<(), Error> {
         self.rewind()?;
 
         serde_json::to_writer(&mut &self.lock, &self.inner).map_err(|err| {
