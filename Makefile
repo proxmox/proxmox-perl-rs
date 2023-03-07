@@ -37,6 +37,7 @@ build:
 	rm -rf build
 	mkdir build
 	echo system >build/rust-toolchain
+	cp -a ./Cargo.toml ./build
 	cp -a ./scripts ./build
 	cp -a ./common ./build
 	cp -a ./pve-rs ./build
