@@ -1,3 +1,18 @@
+libpve-rs-perl (0.7.4) bullseye; urgency=medium
+
+  * initialize logging when shared library is loaded
+
+  * update to new TFA crate
+
+  * bump proxmox-resource-scheduling dependency to 0.2 to pull in a fix for
+    usage calculation for homogeneous nodes
+
+  * pve: test: resource scheduling: add test with overcommitted node
+
+  * update nix to 0.26
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 21 Mar 2023 15:28:08 +0100
+
 libpve-rs-perl (0.7.3) bullseye; urgency=medium
 
   * add PVE::RS::ResourceScheduling::Static and tests
