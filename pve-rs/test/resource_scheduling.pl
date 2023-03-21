@@ -86,16 +86,20 @@ sub test_overcommitted {
     is($nodes[3], "A", 'fourth should be A');
 }
 
-sub test_balance_small_memory_difference_with_start_load {
+sub test_balance_small_memory_difference {
+    my ($with_start_load) = @_;
+
     my $static = PVE::RS::ResourceScheduling::Static->new();
     # Memory is different to avoid flaky results with what would otherwise be ties.
     $static->add_node("A", 8, 10_000_000_000);
     $static->add_node("B", 4, 9_000_000_000);
     $static->add_node("C", 4, 8_000_000_000);
 
-    $static->add_service_usage_to_node("A", { maxcpu => 4, maxmem => 1_000_000_000 });
-    $static->add_service_usage_to_node("B", { maxcpu => 2, maxmem => 1_000_000_000 });
-    $static->add_service_usage_to_node("C", { maxcpu => 2, maxmem => 1_000_000_000 });
+    if ($with_start_load) {
+	$static->add_service_usage_to_node("A", { maxcpu => 4, maxmem => 1_000_000_000 });
+	$static->add_service_usage_to_node("B", { maxcpu => 2, maxmem => 1_000_000_000 });
+	$static->add_service_usage_to_node("C", { maxcpu => 2, maxmem => 1_000_000_000 });
+    }
 
     my $service = {
 	maxcpu => 3,
@@ -134,6 +138,7 @@ sub test_balance_small_memory_difference_with_start_load {
 test_basic();
 test_balance();
 test_overcommitted();
-test_balance_small_memory_difference_with_start_load();
+test_balance_small_memory_difference(1);
+test_balance_small_memory_difference(0);
 
 done_testing();
