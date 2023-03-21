@@ -54,7 +54,40 @@ sub test_balance {
     }
 }
 
+sub test_overcommitted {
+    my $static = PVE::RS::ResourceScheduling::Static->new();
+    $static->add_node("A", 4, 4_102_062_080);
+    $static->add_node("B", 4, 4_102_062_080);
+    $static->add_node("C", 4, 4_102_053_888);
+    $static->add_node("D", 4, 4_102_053_888);
+
+    my $service = {
+	maxcpu => 1,
+	maxmem => 536_870_912,
+    };
+
+    $static->add_service_usage_to_node("A", $service);
+    $static->add_service_usage_to_node("A", $service);
+    $static->add_service_usage_to_node("A", $service);
+    $static->add_service_usage_to_node("B", $service);
+    $static->add_service_usage_to_node("A", $service);
+
+    my $score_list = $static->score_nodes_to_start_service($service);
+
+    # imitate HA manager
+    my $scores = { map { $_->[0] => -$_->[1] } $score_list->@* };
+    my @nodes = sort {
+	$scores->{$a} <=> $scores->{$b} || $a cmp $b
+    } keys $scores->%*;
+
+    is($nodes[0], "C", 'first should be C');
+    is($nodes[1], "D", 'second should be D');
+    is($nodes[2], "B", 'third should be B');
+    is($nodes[3], "A", 'fourth should be A');
+}
+
 test_basic();
 test_balance();
+test_overcommitted();
 
 done_testing();
