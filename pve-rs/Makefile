@@ -57,9 +57,9 @@ build:
 	rsync -a debian Makefile Cargo.toml Cargo.lock src target PVE build/
 
 .PHONY: install
-install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
+install: ../target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
-	install -m644 target/release/libpve_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpve_rs.so
+	install -m644 ../target/release/libpve_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpve_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib
 	install -m644 Proxmox/Lib/PVE.pm $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib/PVE.pm
