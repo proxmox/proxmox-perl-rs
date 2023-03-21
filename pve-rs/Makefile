@@ -48,14 +48,6 @@ Proxmox/Lib/PVE.pm: ../Proxmox/Lib/template.pm
 check: all
 	$(MAKE) -C test test
 
-# always re-create this dir
-# but also copy the local target/ and PVE/ dirs as a build-cache
-.PHONY: build
-build:
-	rm -rf build
-	cargo build --release
-	rsync -a debian Makefile Cargo.toml Cargo.lock src target PVE build/
-
 .PHONY: install
 install: ../target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
@@ -65,17 +57,11 @@ install: ../target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
 	install -m644 Proxmox/Lib/PVE.pm $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib/PVE.pm
 	find $(PM_DIR) \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 
-.PHONY: deb
-deb: $(MAIN_DEB)
-$(MAIN_DEB): build
-	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
-	lintian $(DEBS)
-
 distclean: clean
 
 clean:
 	cargo clean
-	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes Cargo.lock build
+	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes Cargo.lock
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
