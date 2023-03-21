@@ -86,8 +86,54 @@ sub test_overcommitted {
     is($nodes[3], "A", 'fourth should be A');
 }
 
+sub test_balance_small_memory_difference_with_start_load {
+    my $static = PVE::RS::ResourceScheduling::Static->new();
+    # Memory is different to avoid flaky results with what would otherwise be ties.
+    $static->add_node("A", 8, 10_000_000_000);
+    $static->add_node("B", 4, 9_000_000_000);
+    $static->add_node("C", 4, 8_000_000_000);
+
+    $static->add_service_usage_to_node("A", { maxcpu => 4, maxmem => 1_000_000_000 });
+    $static->add_service_usage_to_node("B", { maxcpu => 2, maxmem => 1_000_000_000 });
+    $static->add_service_usage_to_node("C", { maxcpu => 2, maxmem => 1_000_000_000 });
+
+    my $service = {
+	maxcpu => 3,
+	maxmem => 16_000_000,
+    };
+
+    for (my $i = 0; $i < 20; $i++) {
+	my $score_list = $static->score_nodes_to_start_service($service);
+
+	# imitate HA manager
+	my $scores = { map { $_->[0] => -$_->[1] } $score_list->@* };
+	my @nodes = sort {
+	    $scores->{$a} <=> $scores->{$b} || $a cmp $b
+	} keys $scores->%*;
+
+	if ($i % 4 <= 1) {
+	    is($nodes[0], "A", 'first should be A');
+	    is($nodes[1], "B", 'second should be B');
+	    is($nodes[2], "C", 'third should be C');
+	} elsif ($i % 4 == 2) {
+	    is($nodes[0], "B", 'first should be B');
+	    is($nodes[1], "C", 'second should be C');
+	    is($nodes[2], "A", 'third should be A');
+	} elsif ($i % 4 == 3) {
+	    is($nodes[0], "C", 'first should be C');
+	    is($nodes[1], "A", 'second should be A');
+	    is($nodes[2], "B", 'third should be B');
+	} else {
+	    die "internal error, got $i % 4 == " . ($i % 4) . "\n";
+	}
+
+	$static->add_service_usage_to_node($nodes[0], $service);
+    }
+}
+
 test_basic();
 test_balance();
 test_overcommitted();
+test_balance_small_memory_difference_with_start_load();
 
 done_testing();
