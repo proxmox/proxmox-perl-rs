@@ -26,7 +26,7 @@ proxmox-acme-rs = { version = "0.4", features = ["client"] }
 proxmox-apt = "0.9"
 proxmox-http = { version = "0.8", features = ["client-sync", "client-trait"] }
 proxmox-openid = "0.9.8"
-proxmox-resource-scheduling = "0.1"
+proxmox-resource-scheduling = "0.2"
 proxmox-subscription = "0.3"
 proxmox-sys = "0.4.2"
 proxmox-tfa = { version = "3", features = ["api"] }
