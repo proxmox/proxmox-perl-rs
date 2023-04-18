@@ -35,7 +35,7 @@ mod export {
     use url::Url;
 
     use perlmod::Value;
-    use proxmox_tfa::api::methods;
+    use proxmox_tfa::api::{methods, TfaResult};
 
     use super::{TfaConfig, UserAccess};
 
@@ -267,10 +267,7 @@ mod export {
             .unwrap()
             .users
             .get(userid)
-            .and_then(|user| {
-                let state = user.recovery_state();
-                state.is_available().then(move || state)
-            })
+            .and_then(|user| user.recovery_state())
     }
 
     /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
@@ -278,6 +275,8 @@ mod export {
     ///
     /// NOTE: This returns a boolean whether the config data needs to be *saved* after this call
     /// (to use up recovery keys!).
+    ///
+    /// WARNING: This method is now deprecated, as it failures were communicated via croaking.
     #[export]
     fn authentication_verify(
         #[raw] raw_this: Value,
@@ -291,15 +290,81 @@ mod export {
         let challenge: super::TfaChallenge = serde_json::from_str(challenge)?;
         let response: super::TfaResponse = response.parse()?;
         let mut inner = this.inner.lock().unwrap();
-        inner
-            .verify(
-                &UserAccess::new(&raw_this)?,
-                userid,
-                &challenge,
-                response,
-                origin.as_ref(),
-            )
-            .map(|save| save.needs_saving())
+        let result = inner.verify(
+            &UserAccess::new(&raw_this)?,
+            userid,
+            &challenge,
+            response,
+            origin.as_ref(),
+        );
+        match result {
+            TfaResult::Success { needs_saving } => Ok(needs_saving),
+            _ => bail!("TFA authentication failed"),
+        }
+    }
+
+    /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
+    /// it.
+    ///
+    /// NOTE: This returns a boolean whether the config data needs to be *saved* after this call
+    /// (to use up recovery keys!).
+    ///
+    /// Returns a result hash of the form:
+    /// ```text
+    /// {
+    ///     "result": bool, // whether TFA was successful
+    ///     "needs-saving": bool, // whether the user config needs saving
+    ///     "tfa-limit-reached": bool, // whether the TFA limit was reached (config needs saving)
+    ///     "totp-limit-reached": bool, // whether the TOTP limit was reached (config needs saving)
+    /// }
+    /// ```
+    #[export]
+    fn authentication_verify2(
+        #[raw] raw_this: Value,
+        //#[try_from_ref] this: &Tfa,
+        userid: &str,
+        challenge: &str, //super::TfaChallenge,
+        response: &str,
+        origin: Option<Url>,
+    ) -> Result<TfaReturnValue, Error> {
+        let this: &Tfa = (&raw_this).try_into()?;
+        let challenge: super::TfaChallenge = serde_json::from_str(challenge)?;
+        let response: super::TfaResponse = response.parse()?;
+        let mut inner = this.inner.lock().unwrap();
+        let result = inner.verify(
+            &UserAccess::new(&raw_this)?,
+            userid,
+            &challenge,
+            response,
+            origin.as_ref(),
+        );
+        Ok(match result {
+            TfaResult::Success { needs_saving } => TfaReturnValue {
+                result: true,
+                needs_saving,
+                ..Default::default()
+            },
+            TfaResult::Locked => TfaReturnValue::default(),
+            TfaResult::Failure {
+                needs_saving,
+                totp_limit_reached,
+                tfa_limit_reached,
+            } => TfaReturnValue {
+                result: false,
+                needs_saving,
+                totp_limit_reached,
+                tfa_limit_reached,
+            },
+        })
+    }
+
+    #[derive(Default, serde::Serialize)]
+    #[serde(rename_all = "kebab-case")]
+    struct TfaReturnValue {
+        result: bool,
+        needs_saving: bool,
+        totp_limit_reached: bool,
+        tfa_limit_reached: bool,
     }
 
     /// DEBUG HELPER: Get the current TOTP value for a given TOTP URI.
@@ -515,6 +580,7 @@ fn decode_old_entry(ty: &[u8], data: &[u8], user: &str) -> Result<TfaUserData, E
         b"oath" => user_data.totp.extend(
             decode_old_oath_entry(value, user)?
                 .into_iter()
+                .map(proxmox_tfa::api::TotpEntry::new)
                 .map(move |entry| proxmox_tfa::api::TfaEntry::from_parts(info.clone(), entry)),
         ),
         b"yubico" => user_data.yubico.extend(
@@ -928,6 +994,11 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(err) => Err(err.into()),
         }
+    }
+
+    /// TODO: Enable this once we can consider most clusters to support the new format.
+    fn enable_lockout() -> bool {
+        false
     }
 }
 

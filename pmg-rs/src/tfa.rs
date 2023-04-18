@@ -32,7 +32,7 @@ mod export {
     use url::Url;
 
     use perlmod::Value;
-    use proxmox_tfa::api::methods;
+    use proxmox_tfa::api::{methods, TfaResult};
 
     use super::{TfaConfig, UserAccess};
 
@@ -221,10 +221,7 @@ mod export {
             .unwrap()
             .users
             .get(userid)
-            .and_then(|user| {
-                let state = user.recovery_state();
-                state.is_available().then(move || state)
-            })
+            .and_then(|user| user.recovery_state())
     }
 
     /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
@@ -245,15 +242,17 @@ mod export {
         let challenge: super::TfaChallenge = serde_json::from_str(challenge)?;
         let response: super::TfaResponse = response.parse()?;
         let mut inner = this.inner.lock().unwrap();
-        inner
-            .verify(
-                &UserAccess::new(&raw_this)?,
-                userid,
-                &challenge,
-                response,
-                origin.as_ref(),
-            )
-            .map(|save| save.needs_saving())
+        let result = inner.verify(
+            &UserAccess::new(&raw_this)?,
+            userid,
+            &challenge,
+            response,
+            origin.as_ref(),
+        );
+        match result {
+            TfaResult::Success { needs_saving } => Ok(needs_saving),
+            _ => bail!("TFA authentication failed"),
+        }
     }
 
     /// DEBUG HELPER: Get the current TOTP value for a given TOTP URI.
@@ -527,6 +526,10 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(err) => Err(err.into()),
         }
+    }
+
+    fn check_valid_totp_code(&self, _: &str, _: i64) -> bool {
+        todo!()
     }
 }
 
