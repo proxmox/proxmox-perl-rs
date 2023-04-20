@@ -255,6 +255,67 @@ mod export {
         }
     }
 
+    /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
+    /// it.
+    ///
+    /// Returns a result hash of the form:
+    /// ```text
+    /// {
+    ///     "result": bool, // whether TFA was successful
+    ///     "needs-saving": bool, // whether the user config needs saving
+    ///     "tfa-limit-reached": bool, // whether the TFA limit was reached (config needs saving)
+    ///     "totp-limit-reached": bool, // whether the TOTP limit was reached (config needs saving)
+    /// }
+    /// ```
+    #[export]
+    fn authentication_verify2(
+        #[raw] raw_this: Value,
+        //#[try_from_ref] this: &Tfa,
+        userid: &str,
+        challenge: &str, //super::TfaChallenge,
+        response: &str,
+        origin: Option<Url>,
+    ) -> Result<TfaReturnValue, Error> {
+        let this: &Tfa = (&raw_this).try_into()?;
+        let challenge: super::TfaChallenge = serde_json::from_str(challenge)?;
+        let response: super::TfaResponse = response.parse()?;
+        let mut inner = this.inner.lock().unwrap();
+        let result = inner.verify(
+            &UserAccess::new(&raw_this)?,
+            userid,
+            &challenge,
+            response,
+            origin.as_ref(),
+        );
+        Ok(match result {
+            TfaResult::Success { needs_saving } => TfaReturnValue {
+                result: true,
+                needs_saving,
+                ..Default::default()
+            },
+            TfaResult::Locked => TfaReturnValue::default(),
+            TfaResult::Failure {
+                needs_saving,
+                totp_limit_reached,
+                tfa_limit_reached,
+            } => TfaReturnValue {
+                result: false,
+                needs_saving,
+                totp_limit_reached,
+                tfa_limit_reached,
+            },
+        })
+    }
+
+    #[derive(Default, serde::Serialize)]
+    #[serde(rename_all = "kebab-case")]
+    struct TfaReturnValue {
+        result: bool,
+        needs_saving: bool,
+        totp_limit_reached: bool,
+        tfa_limit_reached: bool,
+    }
+
     /// DEBUG HELPER: Get the current TOTP value for a given TOTP URI.
     #[export]
     fn get_current_totp_value(otp_uri: &str) -> Result<String, Error> {
@@ -528,8 +589,9 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
         }
     }
 
-    fn check_valid_totp_code(&self, _: &str, _: i64) -> bool {
-        todo!()
+    // TODO: enable once we have UI/API admin stuff to unlock locked accounts
+    fn enable_lockout(&self) -> bool {
+        false
     }
 }
 

@@ -306,9 +306,6 @@ mod export {
     /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
     /// it.
     ///
-    /// NOTE: This returns a boolean whether the config data needs to be *saved* after this call
-    /// (to use up recovery keys!).
-    ///
     /// Returns a result hash of the form:
     /// ```text
     /// {
@@ -997,7 +994,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
     }
 
     /// TODO: Enable this once we can consider most clusters to support the new format.
-    fn enable_lockout() -> bool {
+    fn enable_lockout(&self) -> bool {
         false
     }
 }
