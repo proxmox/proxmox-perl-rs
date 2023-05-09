@@ -1,4 +1,3 @@
-include ../defines.mk
 include /usr/share/dpkg/default.mk
 
 PACKAGE=libpve-rs-perl
@@ -18,6 +17,18 @@ DESTDIR=
 
 PM_DIR := PVE
 
+PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
+	--lib=pve_rs \
+	--lib-tag=proxmox \
+	--lib-package=Proxmox::Lib::PVE \
+	--lib-prefix=PVE
+
+PERLMOD_PACKAGES := \
+	  PVE::RS::APT::Repositories \
+	  PVE::RS::OpenId \
+	  PVE::RS::ResourceScheduling::Static \
+	  PVE::RS::TFA
+
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 TARGET_DIR=release
@@ -25,7 +36,7 @@ else
 TARGET_DIR=debug
 endif
 
-all: PVE Proxmox/Lib/PVE.pm
+all: PVE
 ifneq ($(BUILD_MODE), skip)
 	cargo build $(CARGO_BUILD_ARGS)
 	mkdir -p test/Proxmox/Lib
@@ -34,16 +45,9 @@ ifneq ($(BUILD_MODE), skip)
 	  Proxmox/Lib/PVE.pm >test/Proxmox/Lib/PVE.pm
 endif
 
-PVE: ../scripts/genpackage.pl
-	perl ../scripts/genpackage.pl PVE \
-	  PVE::RS::APT::Repositories \
-	  PVE::RS::OpenId \
-	  PVE::RS::ResourceScheduling::Static \
-	  PVE::RS::TFA
-
-Proxmox/Lib/PVE.pm: ../Proxmox/Lib/template.pm
-	mkdir -p Proxmox/Lib
-	$(call package_template,PVE,pve_rs,../)
+PVE: Proxmox/Lib/PVE.pm
+Proxmox/Lib/PVE.pm:
+	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
 
 check: all
 	$(MAKE) -C test test

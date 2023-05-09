@@ -1,6 +1,6 @@
 //! Rust library for the Proxmox VE code base.
 
-#[path = "../../common/src/mod.rs"]
+#[path = "../common/src/mod.rs"]
 pub mod common;
 
 pub mod apt;

@@ -1,4 +1,4 @@
-#[path = "../../common/src/mod.rs"]
+#[path = "../common/src/mod.rs"]
 pub mod common;
 
 pub mod acme;

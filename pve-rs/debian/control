@@ -4,6 +4,7 @@ Priority: optional
 Build-Depends:
  debhelper (>= 12),
  dh-cargo (>= 24),
+ perlmod-bin,
  cargo:native <!nocheck>,
  rustc:native <!nocheck>,
  libstd-rust-dev <!nocheck>,

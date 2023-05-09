@@ -12,9 +12,15 @@ DEB=${PACKAGE}_${DEB_VERSION}_${ARCH}.deb
 
 DESTDIR=
 
+PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
+	--lib=- \
+	--lib-tag=proxmox \
+	--lib-package=Proxmox::Lib::Common \
+	--lib-prefix=Proxmox
+
 # Point to any generated pm file (Proxmox/ dir is already present in this package)
-Proxmox/RS/CalendarEvent.pm: ../scripts/genpackage.pl
-	perl ../scripts/genpackage.pl Common \
+Proxmox/RS/CalendarEvent.pm:
+	$(PERLMOD_GENPACKAGE) \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
 	  Proxmox::RS::Subscription
@@ -27,7 +33,6 @@ install: Proxmox/RS/CalendarEvent.pm
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
 	find PVE \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 	find Proxmox \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
-	rm $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/Proxmox/Lib/template.pm'
 
 .PHONY: deb
 deb: $(DEB)

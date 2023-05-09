@@ -1,4 +1,3 @@
-include ../defines.mk
 include /usr/share/dpkg/default.mk
 
 PACKAGE=libpmg-rs-perl
@@ -17,26 +16,34 @@ DESTDIR=
 
 PM_DIR := PMG
 
-ifeq ($(BUILD_MODE), release)
-CARGO_BUILD_ARGS += --release
-endif
+PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
+	--lib=pmg_rs \
+	--lib-tag=proxmox \
+	--lib-package=Proxmox::Lib::PMG \
+	--lib-prefix=PMG
 
-all: Proxmox/Lib/PMG.pm
-ifneq ($(BUILD_MODE), skip)
-	cargo build $(CARGO_BUILD_ARGS)
-endif
-
-PMG: ../scripts/genpackage.pl
-	perl ../scripts/genpackage.pl PMG \
+PERLMOD_PACKAGES := \
 	  PMG::RS::APT::Repositories \
 	  PMG::RS::Acme \
 	  PMG::RS::CSR \
 	  PMG::RS::OpenId \
 	  PMG::RS::TFA
 
-Proxmox/Lib/PMG.pm: ../Proxmox/Lib/template.pm
-	mkdir -p Proxmox/Lib
-	$(call package_template,PMG,pmg_rs,../)
+ifeq ($(BUILD_MODE), release)
+CARGO_BUILD_ARGS += --release
+TARGET_DIR=release
+else
+TARGET_DIR=debug
+endif
+
+all:
+ifneq ($(BUILD_MODE), skip)
+	cargo build $(CARGO_BUILD_ARGS)
+endif
+
+PMG: Proxmox/Lib/PMG.pm
+Proxmox/Lib/PMG.pm:
+	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
 
 .PHONY: install
 install: ../target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG

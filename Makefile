@@ -1,5 +1,3 @@
-include defines.mk
-
 CARGO ?= cargo
 
 ifeq ($(BUILD_MODE), release)
@@ -38,17 +36,15 @@ build:
 	mkdir build
 	echo system >build/rust-toolchain
 	cp -a ./Cargo.toml ./build
-	cp -a ./scripts ./build
 	cp -a ./common ./build
 	cp -a ./pve-rs ./build
 	cp -a ./pmg-rs ./build
-	cp -a ./Proxmox ./build
-	cp defines.mk ./build
-	mv ./build/Proxmox ./build/common/pkg
-# The template.pm is required by the products to produce their Proxmox::Lib
-	mkdir ./build/Proxmox
-	mkdir ./build/Proxmox/Lib
-	cp ./Proxmox/Lib/template.pm ./build/Proxmox/Lib
+# Replace the symlinks with copies of the common code in pve/pmg:
+	cd build; for i in pve pmg; do \
+	  rm ./$$i-rs/common ; \
+	  mkdir ./$$i-rs/common ; \
+	  cp -R ./common/src ./$$i-rs/common/src ; \
+	done
 # So the common packages end up in ./build, rather than ./build/common
 	mv ./build/common/pkg ./build/common-pkg
 
