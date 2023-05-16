@@ -1,3 +1,4 @@
+include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/default.mk
 
 PACKAGE=libpve-rs-perl
@@ -12,6 +13,7 @@ PERL_INSTALLVENDORLIB != perl -MConfig -e 'print $$Config{installvendorlib};'
 MAIN_DEB=${PACKAGE}_${DEB_VERSION}_${ARCH}.deb
 DBGSYM_DEB=${PACKAGE}-dbgsym_${DEB_VERSION}_${ARCH}.deb
 DEBS=$(MAIN_DEB) $(DBGSYM_DEB)
+DSC=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}.dsc
 
 DESTDIR=
 
@@ -73,7 +75,17 @@ dinstall: ${DEBS}
 	dpkg -i ${DEBS}
 
 .PHONY: upload
+upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: ${DEBS}
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - ${DEBS} | ssh -X repoman@repo.proxmox.com upload --product pve --dist bullseye
+	tar cf - ${DEBS} | ssh -X repoman@repo.proxmox.com upload --product pve --dist $(DEB_DISTRIBUTION)
+
+.PHONY: dsc
+dsc: ${DSC}
+${DSC}: ${BUILDDIR}
+	cd ${BUILDDIR}; dpkg-buildpackage -S -us -uc -d
+	lintian ${DSC}
+
+sbuild: $(DSC)
+	sbuild $(DSC)
