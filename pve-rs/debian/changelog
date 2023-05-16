@@ -1,3 +1,9 @@
+libpve-rs-perl (0.8.0) bookworm; urgency=medium
+
+  * rebuild for Debian 12 Bookworm based release series
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 16 May 2023 14:26:52 +0200
+
 libpve-rs-perl (0.7.6) bullseye; urgency=medium
 
   * update to new tfa crate

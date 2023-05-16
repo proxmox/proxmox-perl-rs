@@ -24,7 +24,7 @@ Build-Depends:
  librust-proxmox-http-0.8+client-trait-dev,
  librust-proxmox-http-0.8+default-dev,
  librust-proxmox-openid-0.9+default-dev (>= 0.9.8-~~),
- librust-proxmox-resource-scheduling-0.2+default-dev (>= 0.2.1-~~),
+ librust-proxmox-resource-scheduling-0.3+default-dev,
  librust-proxmox-subscription-0.3+default-dev,
  librust-proxmox-sys-0.4+default-dev (>= 0.4.2-~~),
  librust-proxmox-tfa-4+api-dev,
