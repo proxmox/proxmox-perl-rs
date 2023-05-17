@@ -86,6 +86,12 @@ $(BUILDDIR): src debian test common/src Cargo.toml Makefile .cargo/config
 	cp -a -t $(BUILDDIR).tmp/common common/src
 	mv $(BUILDDIR).tmp $(BUILDDIR)
 
+.PHONY: deb
+deb: $(DEBS)
+$(DEBS): $(BUILDDIR)
+	cd $(BUILDDIR); PATH="/usr/local/bin:/usr/bin" dpkg-buildpackage -b -us -uc
+	lintian $(DEBS)
+
 .PHONY: dsc
 dsc: $(DSC)
 $(DSC): $(BUILDDIR)
