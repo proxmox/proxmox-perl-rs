@@ -2,7 +2,8 @@ Source: libproxmox-rs-perl
 Section: perl
 Priority: optional
 Build-Depends:
- debhelper (>= 12),
+ debhelper-compat (= 13),
+ perlmod-bin,
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.5.1
 Vcs-Git: git://git.proxmox.com/git/proxmox-perl-rs.git
