@@ -3,12 +3,11 @@ Section: perl
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends:
- debhelper (>= 12),
+ debhelper-compat (= 13),
  dh-cargo (>= 24),
  perlmod-bin,
  cargo:native <!nocheck>,
  rustc:native <!nocheck>,
- libstd-rust-dev <!nocheck>,
  librust-anyhow-1+default-dev,
  librust-env-logger-0.9+default-dev,
  librust-hex-0.4+default-dev,

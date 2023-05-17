@@ -1,4 +1,4 @@
-include /usr/share/dpkg/default.mk
+include /usr/share/dpkg/pkg-info.mk
 
 PACKAGE=libpmg-rs-perl
 
@@ -8,9 +8,11 @@ export GITVERSION:=$(shell git rev-parse HEAD)
 PERL_INSTALLVENDORARCH != perl -MConfig -e 'print $$Config{installvendorarch};'
 PERL_INSTALLVENDORLIB != perl -MConfig -e 'print $$Config{installvendorlib};'
 
-MAIN_DEB=${PACKAGE}_${DEB_VERSION}_${ARCH}.deb
-DBGSYM_DEB=${PACKAGE}-dbgsym_${DEB_VERSION}_${ARCH}.deb
+MAIN_DEB=$(PACKAGE)_$(DEB_VERSION)_$(ARCH).deb
+DBGSYM_DEB=$(PACKAGE)-dbgsym_$(DEB_VERSION)_$(ARCH).deb
 DEBS=$(MAIN_DEB) $(DBGSYM_DEB)
+DSC=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
+BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
 
 DESTDIR=
 
@@ -36,19 +38,17 @@ else
 TARGET_DIR=debug
 endif
 
-all:
-ifneq ($(BUILD_MODE), skip)
+all: PMG
 	cargo build $(CARGO_BUILD_ARGS)
-endif
 
 PMG: Proxmox/Lib/PMG.pm
 Proxmox/Lib/PMG.pm:
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
 
 .PHONY: install
-install: ../target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
+install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
-	install -m644 ../target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
+	install -m644 target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib
 	install -m644 Proxmox/Lib/PMG.pm $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib/PMG.pm
@@ -59,14 +59,33 @@ distclean: clean
 clean:
 	cargo clean
 	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes Cargo.lock
+	rm -rf $(PACKAGE)-[0-9]*/
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
-dinstall: ${DEBS}
-	dpkg -i ${DEBS}
+dinstall: $(DEBS)
+	dpkg -i $(DEBS)
 
 .PHONY: upload
-upload: ${DEBS}
+upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
+upload: $(DEBS)
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - ${DEBS} | ssh -X repoman@repo.proxmox.com upload --product pmg --dist bullseye
+	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com upload --product pmg --dist $(DEB_DISTRIBUTION)
+
+$(BUILDDIR): src debian common/src Cargo.toml Makefile .cargo/config
+	rm -rf $(BUILDDIR) $(BUILDDIR).tmp
+	mkdir $(BUILDDIR).tmp
+	mkdir $(BUILDDIR).tmp/common
+	cp -a -t $(BUILDDIR).tmp src debian Cargo.toml Makefile .cargo
+	cp -a -t $(BUILDDIR).tmp/common common/src
+	mv $(BUILDDIR).tmp $(BUILDDIR)
+
+.PHONY: dsc
+dsc: $(DSC)
+$(DSC): $(BUILDDIR)
+	cd $(BUILDDIR); PATH="/usr/local/bin:/usr/bin" dpkg-buildpackage -S -us -uc -d
+	lintian $(DSC)
+
+sbuild: $(DSC)
+	sbuild $(DSC)
