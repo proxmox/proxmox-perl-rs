@@ -3,10 +3,10 @@ name = "pve-rs"
 version = "0.7.6"
 description = "PVE parts which have been ported to Rust"
 homepage = "https://www.proxmox.com"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2021"
+license = "AGPL-3"
+repository = "https://git.proxmox.com/?p=proxmox.git"
 
 exclude = [
     "debian",
@@ -16,27 +16,27 @@ exclude = [
 crate-type = [ "cdylib" ]
 
 [dependencies]
-anyhow.workspace = true
-base32.workspace = true
-base64.workspace = true
-env_logger.workspace = true
-hex.workspace = true
-http.workspace = true
-libc.workspace = true
-nix.workspace = true
-openssl.workspace = true
-serde.workspace = true
-serde_bytes.workspace = true
-serde_json.workspace = true
-url.workspace = true
+anyhow = "1.0"
+base32 = "0.4"
+base64 = "0.13"
+env_logger = "0.9"
+hex = "0.4"
+http = "0.2.7"
+libc = "0.2"
+nix = "0.26"
+openssl = "0.10.40"
+serde = "1.0"
+serde_bytes = "0.11"
+serde_json = "1.0"
+url = "2"
 
-perlmod.workspace = true
+perlmod = { version = "0.13", features = [ "exporter" ] }
 
-proxmox-apt.workspace = true
-proxmox-http.workspace = true
-proxmox-openid.workspace = true
-proxmox-resource-scheduling.workspace = true
-proxmox-subscription.workspace = true
-proxmox-sys.workspace = true
-proxmox-tfa.workspace = true
-proxmox-time.workspace = true
+proxmox-apt = "0.9"
+proxmox-http = { version = "0.8", features = ["client-sync", "client-trait"] }
+proxmox-openid = "0.9.8"
+proxmox-resource-scheduling = "0.2.1"
+proxmox-subscription = "0.3"
+proxmox-sys = "0.4.2"
+proxmox-tfa = { version = "4", features = ["api"] }
+proxmox-time = "1.1.3"

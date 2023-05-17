@@ -2,10 +2,11 @@
 name = "pmg-rs"
 version = "0.6.2"
 description = "PMG parts which have been ported to rust"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+homepage = "https://www.proxmox.com"
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2021"
+license = "AGPL-3"
+repository = "https://git.proxmox.com/?p=proxmox.git"
 
 exclude = [
     "build",
@@ -17,24 +18,24 @@ exclude = [
 crate-type = [ "cdylib" ]
 
 [dependencies]
-anyhow.workspace = true
-env_logger.workspace = true
-hex.workspace = true
-http.workspace = true
-libc.workspace = true
-nix.workspace = true
-openssl.workspace = true
-serde.workspace = true
-serde_bytes.workspace = true
-serde_json.workspace = true
-url.workspace = true
+anyhow = "1.0"
+env_logger = "0.9"
+hex = "0.4"
+http = "0.2.7"
+libc = "0.2"
+nix = "0.26"
+openssl = "0.10.40"
+serde = "1.0"
+serde_bytes = "0.11"
+serde_json = "1.0"
+url = "2"
 
-perlmod.workspace = true
+perlmod = { version = "0.13", features = [ "exporter" ] }
 
-proxmox-acme-rs.workspace = true
-proxmox-apt.workspace = true
-proxmox-http.workspace = true
-proxmox-subscription.workspace = true
-proxmox-sys.workspace = true
-proxmox-tfa.workspace = true
-proxmox-time.workspace = true
+proxmox-acme-rs = { version = "0.4", features = ["client"] }
+proxmox-apt = "0.9"
+proxmox-http = { version = "0.8", features = ["client-sync", "client-trait"] }
+proxmox-subscription = "0.3"
+proxmox-sys = "0.4.2"
+proxmox-tfa = { version = "4", features = ["api"] }
+proxmox-time = "1.1.3"

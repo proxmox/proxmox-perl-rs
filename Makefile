@@ -2,18 +2,8 @@ CARGO ?= cargo
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
-DEBUG_LIBPATH :=
 else
-DEBUG_LIBPATH := "-L./target/debug", 
 endif
-
-define upload_template
-	cd build; \
-	    dcmd --deb lib$(1)-rs-perl*.changes \
-	    | grep -v '.changes$$' \
-	    | tar -cf "$@.tar" -T-; \
-	    cat "$@.tar" | ssh -X repoman@repo.proxmox.com upload --product $(2) --dist bullseye
-endef
 
 .PHONY: all
 all:
@@ -26,10 +16,6 @@ else
 	@echo "  - make pve"
 	@echo "  - make pmg"
 endif
-
-.PHONY: pve pmg
-pve pmg:
-	$(CARGO) build $(CARGO_BUILD_ARGS) -p $@-rs
 
 build:
 	rm -rf build
@@ -47,30 +33,13 @@ build:
 	done
 # So the common packages end up in ./build, rather than ./build/common
 	mv ./build/common/pkg ./build/common-pkg
-
-pve-deb: build
-	cd ./build/pve-rs && dpkg-buildpackage -b -uc -us
-	touch $@
-
-pmg-deb: build
-	cd ./build/pmg-rs && dpkg-buildpackage -b -uc -us
-	touch $@
-
-common-deb: build
-	cd ./build/common-pkg && dpkg-buildpackage -b -uc -us
-	touch $@
-
-pve-upload: pve-deb
-	$(call upload_template,pve,pve)
-pmg-upload: pmg-deb
-	$(call upload_template,pmg,pmg)
-
-# need to put into variable to ensure comma isn't interpreted as param separator on call
-common_target=pve,pmg
-common-upload: common-deb
-	$(call upload_template,proxmox,$(common_target))
-
-.PHONY: clean
-clean:
-	cargo clean
-	rm -rf ./build ./PVE ./PMG ./pve-deb ./pmg-deb ./common-deb
+# Copy the workspace root into the sources
+	mkdir build/pve-rs/.workspace
+	cp -t build/pve-rs/.workspace Cargo.toml
+	sed -i -e '/\[package\]/a\workspace = ".workspace"' build/pve-rs/Cargo.toml
+# Clear the member array and replace it with ".."
+	sed -i -e '/^members = \[/,/^]$$/d' build/pve-rs/.workspace/Cargo.toml
+	sed -i -e '/^\[workspace\]/a\members = [ ".." ]' build/pve-rs/.workspace/Cargo.toml
+# Copy the cargo config
+	mkdir build/pve-rs/.cargo
+	cp -t build/pve-rs/.cargo .cargo/config
