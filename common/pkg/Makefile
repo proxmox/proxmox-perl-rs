@@ -63,3 +63,7 @@ upload: $(DEB)
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
 	tar cf - $(DEB) | ssh -X repoman@repo.proxmox.com upload --product pve,pmg --dist $(DEB_DISTRIBUTION)
+
+clean:
+	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes
+	rm -rf $(PACKAGE)-[0-9]*/
