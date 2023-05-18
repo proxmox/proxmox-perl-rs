@@ -55,12 +55,10 @@ install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
 	find $(PM_DIR) \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 
 distclean: clean
-
 clean:
 	cargo clean
-	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes Cargo.lock
+	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes Cargo.lock
 	rm -rf $(PACKAGE)-[0-9]*/
-	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
 dinstall: $(DEBS)
