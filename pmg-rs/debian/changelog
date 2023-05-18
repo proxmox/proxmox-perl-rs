@@ -1,4 +1,4 @@
-libpmg-rs-perl (0.7.0) bullseye; urgency=medium
+libpmg-rs-perl (0.7.0) bookworm; urgency=medium
 
   * rebuild for Debian 12 Bookworm based release series
 
