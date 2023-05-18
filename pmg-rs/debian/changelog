@@ -1,8 +1,8 @@
-libpmg-rs-perl (0.7.0) bookworm; urgency=medium
+libpmg-rs-perl (0.7.1) bookworm; urgency=medium
 
   * rebuild for Debian 12 Bookworm based release series
 
- -- Proxmox Support Team <support@proxmox.com>  Wed, 17 May 2023 15:48:43 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 18 May 2023 12:01:08 +0200
 
 libpmg-rs-perl (0.6.2) bullseye; urgency=medium
 
