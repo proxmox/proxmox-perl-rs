@@ -1,10 +1,31 @@
+# WARNING: this is *NOT* use as canonical source for d/control, but rather occasionally used via
+# an invocation like:
+#   make clean
+#   rm debian/control
+#   debcargo package --config debian/debcargo.toml --changelog-ready --no-overlay-write-back --directory libpmg-rs-perl-0.7.1 pmg-rs 0.7.1
+#   mv libpmg-rs-perl-0.7.1/debian/control debian/control
+# to semi.manually refresh the control file
+#
+# NOTE: debcargo thinks this is a source package, but it isn't! Drop provides, the dependencies of
+# the binary package on rust source packages, Multi-Arch same, and other things that do not make
+# sense for a combined perl + arch-dependent library package.
+
 overlay = "."
 crate_src_path = ".."
 maintainer = "Proxmox Support Team <support@proxmox.com>"
 
 [source]
 section = "perl"
-vcs_git = "git://git.proxmox.com/git/proxmox.git"
-vcs_browser = "https://git.proxmox.com/?p=proxmox.git"
+vcs_git = "git://git.proxmox.com/git/proxmox-perl-rs.git"
+vcs_browser = "https://git.proxmox.com/?p=proxmox-perl-rs.git"
+build_depends = [
+ "perlmod-bin",
+]
 
-[packages.libpmg-rs-perl]
+[packages.bin]
+name = "libpmg-rs-perl"
+summary = "Components of Proxmox Mail Gateway which have been ported to Rust."
+description = """
+Contains parts of Proxmox Mail Gateway which have been ported to, or newly
+implemented in the Rust programming language.
+"""
