@@ -63,9 +63,8 @@ install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
 
 clean:
 	cargo clean
-	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes Cargo.lock *.tar.?z *.build
+	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes Cargo.lock
 	rm -rf $(PACKAGE)-[0-9]*/
-	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
 dinstall: $(DEBS)
