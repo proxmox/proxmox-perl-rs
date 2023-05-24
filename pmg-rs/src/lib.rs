@@ -12,6 +12,6 @@ mod export {
 
     #[export]
     pub fn init() {
-        common::logger::init();
+        common::logger::init("PMG_LOG", "info");
     }
 }

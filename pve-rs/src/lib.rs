@@ -14,6 +14,6 @@ mod export {
 
     #[export]
     pub fn init() {
-        common::logger::init();
+        common::logger::init("PVE_LOG", "info");
     }
 }
