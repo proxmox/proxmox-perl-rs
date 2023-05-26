@@ -484,6 +484,14 @@ mod export {
             Err(methods::EntryNotFound) => bail!("no such entry"),
         }
     }
+
+    #[export]
+    fn api_unlock_tfa(#[try_from_ref] this: &Tfa, userid: &str) -> Result<bool, Error> {
+        Ok(methods::unlock_tfa(
+            &mut this.inner.lock().unwrap(),
+            userid,
+        )?)
+    }
 }
 
 /// Version 1 format of `/etc/pve/priv/tfa.cfg`
@@ -993,9 +1001,8 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
         }
     }
 
-    /// TODO: Enable this once we can consider most clusters to support the new format.
     fn enable_lockout(&self) -> bool {
-        false
+        true
     }
 }
 
