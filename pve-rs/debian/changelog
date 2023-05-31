@@ -1,3 +1,14 @@
+libpve-rs-perl (0.8.1) bookworm; urgency=medium
+
+  * bump proxmox-apt,http,openid,subscription,sys crates to their bookworm
+    versions
+
+  * bump proxmox-tfa to 4.0.1 to include the unlock API
+
+  * enable TFA lockout and provide the `api_unlock_tfa` call
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 31 May 2023 14:17:31 +0200
+
 libpve-rs-perl (0.8.0) bookworm; urgency=medium
 
   * rebuild for Debian 12 Bookworm based release series
