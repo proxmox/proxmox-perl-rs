@@ -1,3 +1,9 @@
+libpve-rs-perl (0.8.2) bookworm; urgency=medium
+
+  * update proxmox-apt which updated repositories info for bookworm
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 04 Jun 2023 18:33:42 +0200
+
 libpve-rs-perl (0.8.1) bookworm; urgency=medium
 
   * bump proxmox-apt,http,openid,subscription,sys crates to their bookworm
