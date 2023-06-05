@@ -1,3 +1,15 @@
+libpve-rs-perl (0.8.3) bookworm; urgency=medium
+
+  * set default log level to 'info'
+
+  * introduce PVE_LOG environment variable to override log level
+
+  * add tfa_lock_status query sub
+
+  * bump proxmox-tfa to 4.0.2
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 05 Jun 2023 12:55:03 +0200
+
 libpve-rs-perl (0.8.2) bookworm; urgency=medium
 
   * update proxmox-apt which updated repositories info for bookworm
