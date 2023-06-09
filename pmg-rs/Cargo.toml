@@ -33,7 +33,7 @@ url = "2"
 perlmod = { version = "0.13", features = [ "exporter" ] }
 
 proxmox-acme-rs = { version = "0.4", features = ["client"] }
-proxmox-apt = "0.9"
+proxmox-apt = "0.9.4"
 proxmox-http = { version = "0.8", features = ["client-sync", "client-trait"] }
 proxmox-subscription = "0.3"
 proxmox-sys = "0.4.2"
