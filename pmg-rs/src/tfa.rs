@@ -24,6 +24,7 @@ pub(self) use proxmox_tfa::api::{
 
 #[perlmod::package(name = "PMG::RS::TFA")]
 mod export {
+    use std::collections::HashMap;
     use std::convert::TryInto;
     use std::sync::Mutex;
 
@@ -434,6 +435,64 @@ mod export {
         ) {
             Ok(()) => Ok(()),
             Err(methods::EntryNotFound) => bail!("no such entry"),
+        }
+    }
+
+    #[export]
+    fn api_unlock_tfa(#[try_from_ref] this: &Tfa, userid: &str) -> Result<bool, Error> {
+        Ok(methods::unlock_tfa(
+            &mut this.inner.lock().unwrap(),
+            userid,
+        )?)
+    }
+
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "kebab-case")]
+    struct TfaLockStatus {
+        /// Once a user runs into a TOTP limit they get locked out of TOTP until they successfully use
+        /// a recovery key.
+        #[serde(skip_serializing_if = "bool_is_false", default)]
+        totp_locked: bool,
+
+        /// If a user hits too many 2nd factor failures, they get completely blocked for a while.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        #[serde(deserialize_with = "filter_expired_timestamp")]
+        tfa_locked_until: Option<i64>,
+    }
+
+    impl From<&proxmox_tfa::api::TfaUserData> for TfaLockStatus {
+        fn from(data: &proxmox_tfa::api::TfaUserData) -> Self {
+            Self {
+                totp_locked: data.totp_locked,
+                tfa_locked_until: data.tfa_locked_until,
+            }
+        }
+    }
+
+    fn bool_is_false(b: &bool) -> bool {
+        !*b
+    }
+
+    #[export]
+    fn tfa_lock_status(
+        #[try_from_ref] this: &Tfa,
+        userid: Option<&str>,
+    ) -> Result<Option<perlmod::Value>, Error> {
+        let this = this.inner.lock().unwrap();
+        if let Some(userid) = userid {
+            if let Some(user) = this.users.get(userid) {
+                Ok(Some(perlmod::to_value(&TfaLockStatus::from(user))?))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(Some(perlmod::to_value(
+                &HashMap::<String, TfaLockStatus>::from_iter(
+                    this.users
+                        .iter()
+                        .map(|(uid, data)| (uid.clone(), TfaLockStatus::from(data))),
+                ),
+            )?))
         }
     }
 }
