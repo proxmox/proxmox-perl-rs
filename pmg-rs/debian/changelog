@@ -1,3 +1,17 @@
+libpmg-rs-perl (0.7.2) bookworm; urgency=medium
+
+  * set default log level to 'info'
+
+  * introduce PMG_LOG environment variable to override log level
+
+  * add tfa_lock_status query sub
+
+  * add api_unlock_tfa sub
+
+  * bump proxmox-tfa to 4.0.2
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 27 Jun 2023 16:01:23 +0200
+
 libpmg-rs-perl (0.7.1) bookworm; urgency=medium
 
   * rebuild for Debian 12 Bookworm based release series
