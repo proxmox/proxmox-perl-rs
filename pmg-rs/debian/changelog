@@ -1,3 +1,9 @@
+libpmg-rs-perl (0.7.3) bookworm; urgency=medium
+
+  * reset failure counts when unlocking second factors
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 05 Jul 2023 13:35:23 +0200
+
 libpmg-rs-perl (0.7.2) bookworm; urgency=medium
 
   * set default log level to 'info'
