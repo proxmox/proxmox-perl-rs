@@ -34,6 +34,15 @@ fn lookup_mail_address(content: &str, user: &str) -> Option<String> {
     }))
 }
 
+fn lookup_datacenter_config_key(content: &str, key: &str) -> Option<String> {
+    let key_prefix = format!("{key}:");
+    normalize_for_return(
+        content
+            .lines()
+            .find_map(|line| line.strip_prefix(&key_prefix)),
+    )
+}
+
 #[derive(Debug)]
 struct PVEContext;
 
@@ -42,11 +51,22 @@ impl Context for PVEContext {
         let content = attempt_file_read("/etc/pve/user.cfg");
         content.and_then(|content| lookup_mail_address(&content, user))
     }
+
+    fn default_sendmail_author(&self) -> String {
+        "Proxmox VE".into()
+    }
+
+    fn default_sendmail_from(&self) -> String {
+        let content = attempt_file_read("/etc/pve/datacenter.cfg");
+        content
+            .and_then(|content| lookup_datacenter_config_key(&content, "mail_from"))
+            .unwrap_or_else(|| String::from("root"))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::notify::lookup_mail_address;
+    use crate::notify::{lookup_datacenter_config_key, lookup_mail_address};
 
     const USER_CONFIG: &str = "
 user:root@pam:1:0:::root@example.com:::
@@ -65,6 +85,18 @@ user:no-mail@pve:1:0::::::
             Some("test@example.com".to_string())
         );
         assert_eq!(lookup_mail_address(USER_CONFIG, "no-mail@pve"), None);
+    }
+
+    const DC_CONFIG: &str = "
+email_from: user@example.com
+keyboard: en-us
+";
+    #[test]
+    fn test_parse_dc_config() {
+        assert_eq!(
+            lookup_datacenter_config_key(DC_CONFIG, "email_from"),
+            Some("user@example.com".to_string())
+        );
     }
 }
 
