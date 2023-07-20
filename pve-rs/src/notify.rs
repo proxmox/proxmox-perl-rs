@@ -62,6 +62,11 @@ impl Context for PVEContext {
             .and_then(|content| lookup_datacenter_config_key(&content, "mail_from"))
             .unwrap_or_else(|| String::from("root"))
     }
+
+    fn http_proxy_config(&self) -> Option<String> {
+        let content = attempt_file_read("/etc/pve/datacenter.cfg");
+        content.and_then(|content| lookup_datacenter_config_key(&content, "http_proxy"))
+    }
 }
 
 #[cfg(test)]
@@ -89,6 +94,7 @@ user:no-mail@pve:1:0::::::
 
     const DC_CONFIG: &str = "
 email_from: user@example.com
+http_proxy: http://localhost:1234
 keyboard: en-us
 ";
     #[test]
@@ -97,6 +103,11 @@ keyboard: en-us
             lookup_datacenter_config_key(DC_CONFIG, "email_from"),
             Some("user@example.com".to_string())
         );
+        assert_eq!(
+            lookup_datacenter_config_key(DC_CONFIG, "http_proxy"),
+            Some("http://localhost:1234".to_string())
+        );
+        assert_eq!(lookup_datacenter_config_key(DC_CONFIG, "foo"), None);
     }
 }
 
