@@ -2,10 +2,10 @@
 mod export {
     use anyhow::{bail, Error};
     use perlmod::Value;
-
+    use serde_json::Value as JSONValue;
     use std::sync::Mutex;
 
-    use proxmox_notify::Config;
+    use proxmox_notify::{api, api::ApiError, Config, Notification, Severity};
 
     pub struct NotificationConfig {
         config: Mutex<Config>,
@@ -70,5 +70,35 @@ mod export {
     fn digest(#[try_from_ref] this: &NotificationConfig) -> String {
         let config = this.config.lock().unwrap();
         hex::encode(config.digest())
+    }
+
+    #[export(serialize_error)]
+    fn send(
+        #[try_from_ref] this: &NotificationConfig,
+        channel: &str,
+        severity: Severity,
+        title: String,
+        body: String,
+        properties: Option<JSONValue>,
+    ) -> Result<(), ApiError> {
+        let config = this.config.lock().unwrap();
+
+        let notification = Notification {
+            severity,
+            title,
+            body,
+            properties,
+        };
+
+        api::common::send(&config, channel, &notification)
+    }
+
+    #[export(serialize_error)]
+    fn test_target(
+        #[try_from_ref] this: &NotificationConfig,
+        target: &str,
+    ) -> Result<(), ApiError> {
+        let config = this.config.lock().unwrap();
+        api::common::test_target(&config, target)
     }
 }
