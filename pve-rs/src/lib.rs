@@ -11,10 +11,11 @@ pub mod tfa;
 
 #[perlmod::package(name = "Proxmox::Lib::PVE", lib = "pve_rs")]
 mod export {
-    use crate::common;
+    use crate::{common, notify};
 
     #[export]
     pub fn init() {
         common::logger::init("PVE_LOG", "info");
+        notify::init();
     }
 }

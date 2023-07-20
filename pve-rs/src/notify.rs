@@ -1,3 +1,79 @@
+use std::path::Path;
+
+use log;
+
+use proxmox_notify::context::Context;
+
+// Some helpers borrowed and slightly adapted from `proxmox-mail-forward`
+
+fn normalize_for_return(s: Option<&str>) -> Option<String> {
+    match s?.trim() {
+        "" => None,
+        s => Some(s.to_string()),
+    }
+}
+
+fn attempt_file_read<P: AsRef<Path>>(path: P) -> Option<String> {
+    match proxmox_sys::fs::file_read_optional_string(path) {
+        Ok(contents) => contents,
+        Err(err) => {
+            log::error!("{err}");
+            None
+        }
+    }
+}
+
+fn lookup_mail_address(content: &str, user: &str) -> Option<String> {
+    normalize_for_return(content.lines().find_map(|line| {
+        let fields: Vec<&str> = line.split(':').collect();
+        #[allow(clippy::get_first)] // to keep expression style consistent
+        match fields.get(0)?.trim() == "user" && fields.get(1)?.trim() == user {
+            true => fields.get(6).copied(),
+            false => None,
+        }
+    }))
+}
+
+#[derive(Debug)]
+struct PVEContext;
+
+impl Context for PVEContext {
+    fn lookup_email_for_user(&self, user: &str) -> Option<String> {
+        let content = attempt_file_read("/etc/pve/user.cfg");
+        content.and_then(|content| lookup_mail_address(&content, user))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::notify::lookup_mail_address;
+
+    const USER_CONFIG: &str = "
+user:root@pam:1:0:::root@example.com:::
+user:test@pve:1:0:::test@example.com:::
+user:no-mail@pve:1:0::::::
+    ";
+
+    #[test]
+    fn test_parse_mail() {
+        assert_eq!(
+            lookup_mail_address(USER_CONFIG, "root@pam"),
+            Some("root@example.com".to_string())
+        );
+        assert_eq!(
+            lookup_mail_address(USER_CONFIG, "test@pve"),
+            Some("test@example.com".to_string())
+        );
+        assert_eq!(lookup_mail_address(USER_CONFIG, "no-mail@pve"), None);
+    }
+}
+
+static CONTEXT: PVEContext = PVEContext;
+
+pub fn init() {
+    proxmox_notify::context::set_context(&CONTEXT)
+}
+
 #[perlmod::package(name = "PVE::RS::Notify")]
 mod export {
     use anyhow::{bail, Error};
@@ -204,7 +280,8 @@ mod export {
     fn add_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: String,
-        mailto: Vec<String>,
+        mailto: Option<Vec<String>>,
+        mailto_user: Option<Vec<String>>,
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
@@ -217,6 +294,7 @@ mod export {
             &SendmailConfig {
                 name,
                 mailto,
+                mailto_user,
                 from_address,
                 author,
                 comment,
@@ -231,6 +309,7 @@ mod export {
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         mailto: Option<Vec<String>>,
+        mailto_user: Option<Vec<String>>,
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
@@ -248,6 +327,7 @@ mod export {
             name,
             &SendmailConfigUpdater {
                 mailto,
+                mailto_user,
                 from_address,
                 author,
                 comment,
