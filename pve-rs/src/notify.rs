@@ -5,6 +5,9 @@ mod export {
     use serde_json::Value as JSONValue;
     use std::sync::Mutex;
 
+    use proxmox_notify::endpoints::sendmail::{
+        DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
+    };
     use proxmox_notify::group::{DeleteableGroupProperty, GroupConfig, GroupConfigUpdater};
     use proxmox_notify::{api, api::ApiError, Config, Notification, Severity};
 
@@ -170,5 +173,90 @@ mod export {
     fn delete_group(#[try_from_ref] this: &NotificationConfig, name: &str) -> Result<(), ApiError> {
         let mut config = this.config.lock().unwrap();
         api::group::delete_group(&mut config, name)
+    }
+
+    #[export(serialize_error)]
+    fn get_sendmail_endpoints(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<SendmailConfig>, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::sendmail::get_endpoints(&config)
+    }
+
+    #[export(serialize_error)]
+    fn get_sendmail_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        id: &str,
+    ) -> Result<SendmailConfig, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::sendmail::get_endpoint(&config, id)
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn add_sendmail_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: String,
+        mailto: Vec<String>,
+        from_address: Option<String>,
+        author: Option<String>,
+        comment: Option<String>,
+        filter: Option<String>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+
+        api::sendmail::add_endpoint(
+            &mut config,
+            &SendmailConfig {
+                name,
+                mailto,
+                from_address,
+                author,
+                comment,
+                filter,
+            },
+        )
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn update_sendmail_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+        mailto: Option<Vec<String>>,
+        from_address: Option<String>,
+        author: Option<String>,
+        comment: Option<String>,
+        filter: Option<String>,
+        delete: Option<Vec<DeleteableSendmailProperty>>,
+        digest: Option<&str>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        let digest = digest.map(hex::decode).transpose().map_err(|e| {
+            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
+        })?;
+
+        api::sendmail::update_endpoint(
+            &mut config,
+            name,
+            &SendmailConfigUpdater {
+                mailto,
+                from_address,
+                author,
+                comment,
+                filter,
+            },
+            delete.as_deref(),
+            digest.as_deref(),
+        )
+    }
+
+    #[export(serialize_error)]
+    fn delete_sendmail_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::sendmail::delete_endpoint(&mut config, name)
     }
 }
