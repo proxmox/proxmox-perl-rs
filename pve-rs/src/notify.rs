@@ -548,4 +548,13 @@ mod export {
         let mut config = this.config.lock().unwrap();
         api::filter::delete_filter(&mut config, name)
     }
+
+    #[export]
+    fn get_referenced_entities(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<Vec<String>, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::common::get_referenced_entities(&config, name)
+    }
 }
