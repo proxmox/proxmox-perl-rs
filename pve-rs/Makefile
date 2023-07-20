@@ -27,6 +27,7 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 
 PERLMOD_PACKAGES := \
 	  PVE::RS::APT::Repositories \
+	  PVE::RS::Notify \
 	  PVE::RS::OpenId \
 	  PVE::RS::ResourceScheduling::Static \
 	  PVE::RS::TFA
