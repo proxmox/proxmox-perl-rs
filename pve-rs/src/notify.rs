@@ -5,6 +5,10 @@ mod export {
     use serde_json::Value as JSONValue;
     use std::sync::Mutex;
 
+    use proxmox_notify::endpoints::gotify::{
+        DeleteableGotifyProperty, GotifyConfig, GotifyConfigUpdater, GotifyPrivateConfig,
+        GotifyPrivateConfigUpdater,
+    };
     use proxmox_notify::endpoints::sendmail::{
         DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
     };
@@ -258,5 +262,84 @@ mod export {
     ) -> Result<(), ApiError> {
         let mut config = this.config.lock().unwrap();
         api::sendmail::delete_endpoint(&mut config, name)
+    }
+
+    #[export(serialize_error)]
+    fn get_gotify_endpoints(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<GotifyConfig>, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::gotify::get_endpoints(&config)
+    }
+
+    #[export(serialize_error)]
+    fn get_gotify_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        id: &str,
+    ) -> Result<GotifyConfig, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::gotify::get_endpoint(&config, id)
+    }
+
+    #[export(serialize_error)]
+    fn add_gotify_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: String,
+        server: String,
+        token: String,
+        comment: Option<String>,
+        filter: Option<String>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::gotify::add_endpoint(
+            &mut config,
+            &GotifyConfig {
+                name: name.clone(),
+                server,
+                comment,
+                filter,
+            },
+            &GotifyPrivateConfig { name, token },
+        )
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn update_gotify_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+        server: Option<String>,
+        token: Option<String>,
+        comment: Option<String>,
+        filter: Option<String>,
+        delete: Option<Vec<DeleteableGotifyProperty>>,
+        digest: Option<&str>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        let digest = digest.map(hex::decode).transpose().map_err(|e| {
+            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
+        })?;
+
+        api::gotify::update_endpoint(
+            &mut config,
+            name,
+            &GotifyConfigUpdater {
+                server,
+                comment,
+                filter,
+            },
+            &GotifyPrivateConfigUpdater { token },
+            delete.as_deref(),
+            digest.as_deref(),
+        )
+    }
+
+    #[export(serialize_error)]
+    fn delete_gotify_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::gotify::delete_gotify_endpoint(&mut config, name)
     }
 }
