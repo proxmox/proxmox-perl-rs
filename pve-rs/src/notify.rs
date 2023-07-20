@@ -12,6 +12,9 @@ mod export {
     use proxmox_notify::endpoints::sendmail::{
         DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
     };
+    use proxmox_notify::filter::{
+        DeleteableFilterProperty, FilterConfig, FilterConfigUpdater, FilterModeOperator,
+    };
     use proxmox_notify::group::{DeleteableGroupProperty, GroupConfig, GroupConfigUpdater};
     use proxmox_notify::{api, api::ApiError, Config, Notification, Severity};
 
@@ -341,5 +344,85 @@ mod export {
     ) -> Result<(), ApiError> {
         let mut config = this.config.lock().unwrap();
         api::gotify::delete_gotify_endpoint(&mut config, name)
+    }
+
+    #[export(serialize_error)]
+    fn get_filters(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<FilterConfig>, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::filter::get_filters(&config)
+    }
+
+    #[export(serialize_error)]
+    fn get_filter(
+        #[try_from_ref] this: &NotificationConfig,
+        id: &str,
+    ) -> Result<FilterConfig, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::filter::get_filter(&config, id)
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn add_filter(
+        #[try_from_ref] this: &NotificationConfig,
+        name: String,
+        min_severity: Option<Severity>,
+        mode: Option<FilterModeOperator>,
+        invert_match: Option<bool>,
+        comment: Option<String>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::filter::add_filter(
+            &mut config,
+            &FilterConfig {
+                name,
+                min_severity,
+                mode,
+                invert_match,
+                comment,
+            },
+        )
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn update_filter(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+        min_severity: Option<Severity>,
+        mode: Option<FilterModeOperator>,
+        invert_match: Option<bool>,
+        comment: Option<String>,
+        delete: Option<Vec<DeleteableFilterProperty>>,
+        digest: Option<&str>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        let digest = digest.map(hex::decode).transpose().map_err(|e| {
+            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
+        })?;
+
+        api::filter::update_filter(
+            &mut config,
+            name,
+            &FilterConfigUpdater {
+                min_severity,
+                mode,
+                invert_match,
+                comment,
+            },
+            delete.as_deref(),
+            digest.as_deref(),
+        )
+    }
+
+    #[export(serialize_error)]
+    fn delete_filter(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::filter::delete_filter(&mut config, name)
     }
 }
