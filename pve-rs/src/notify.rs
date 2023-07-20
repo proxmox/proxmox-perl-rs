@@ -5,6 +5,7 @@ mod export {
     use serde_json::Value as JSONValue;
     use std::sync::Mutex;
 
+    use proxmox_notify::group::{DeleteableGroupProperty, GroupConfig, GroupConfigUpdater};
     use proxmox_notify::{api, api::ApiError, Config, Notification, Severity};
 
     pub struct NotificationConfig {
@@ -100,5 +101,74 @@ mod export {
     ) -> Result<(), ApiError> {
         let config = this.config.lock().unwrap();
         api::common::test_target(&config, target)
+    }
+
+    #[export(serialize_error)]
+    fn get_groups(#[try_from_ref] this: &NotificationConfig) -> Result<Vec<GroupConfig>, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::group::get_groups(&config)
+    }
+
+    #[export(serialize_error)]
+    fn get_group(
+        #[try_from_ref] this: &NotificationConfig,
+        id: &str,
+    ) -> Result<GroupConfig, ApiError> {
+        let config = this.config.lock().unwrap();
+        api::group::get_group(&config, id)
+    }
+
+    #[export(serialize_error)]
+    fn add_group(
+        #[try_from_ref] this: &NotificationConfig,
+        name: String,
+        endpoints: Vec<String>,
+        comment: Option<String>,
+        filter: Option<String>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::group::add_group(
+            &mut config,
+            &GroupConfig {
+                name,
+                endpoint: endpoints,
+                comment,
+                filter,
+            },
+        )
+    }
+
+    #[export(serialize_error)]
+    fn update_group(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+        endpoints: Option<Vec<String>>,
+        comment: Option<String>,
+        filter: Option<String>,
+        delete: Option<Vec<DeleteableGroupProperty>>,
+        digest: Option<&str>,
+    ) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        let digest = digest.map(hex::decode).transpose().map_err(|e| {
+            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
+        })?;
+
+        api::group::update_group(
+            &mut config,
+            name,
+            &GroupConfigUpdater {
+                endpoint: endpoints,
+                comment,
+                filter,
+            },
+            delete.as_deref(),
+            digest.as_deref(),
+        )
+    }
+
+    #[export(serialize_error)]
+    fn delete_group(#[try_from_ref] this: &NotificationConfig, name: &str) -> Result<(), ApiError> {
+        let mut config = this.config.lock().unwrap();
+        api::group::delete_group(&mut config, name)
     }
 }
