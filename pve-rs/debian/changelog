@@ -1,3 +1,9 @@
+libpve-rs-perl (0.8.5) UNRELEASED; urgency=medium
+
+  * add PVE::RS::Notify module
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 24 Jul 2023 11:18:56 +0200
+
 libpve-rs-perl (0.8.4) bookworm; urgency=medium
 
   * reset failure counts when unlocking second factors
