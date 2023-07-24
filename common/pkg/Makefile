@@ -25,6 +25,7 @@ Proxmox/RS/CalendarEvent.pm:
 	$(PERLMOD_GENPACKAGE) \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
+	  Proxmox::RS::Notify \
 	  Proxmox::RS::Subscription
 
 all: Proxmox/RS/CalendarEvent.pm
