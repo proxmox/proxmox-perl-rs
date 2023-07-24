@@ -1,3 +1,9 @@
+libproxmox-rs-perl (0.3.1) bookworm; urgency=medium
+
+  * add Proxmox::RS::Notify module
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 24 Jul 2023 14:02:17 +0200
+
 libproxmox-rs-perl (0.3.0) bookworm; urgency=medium
 
   * rebuild for Debian 12 Bookworm based release series
