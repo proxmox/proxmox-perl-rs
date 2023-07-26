@@ -5,6 +5,7 @@ mod export {
     use serde_json::Value as JSONValue;
     use std::sync::Mutex;
 
+    use proxmox_http_error::HttpError;
     use proxmox_notify::endpoints::gotify::{
         DeleteableGotifyProperty, GotifyConfig, GotifyConfigUpdater, GotifyPrivateConfig,
         GotifyPrivateConfigUpdater,
@@ -16,7 +17,7 @@ mod export {
         DeleteableFilterProperty, FilterConfig, FilterConfigUpdater, FilterModeOperator,
     };
     use proxmox_notify::group::{DeleteableGroupProperty, GroupConfig, GroupConfigUpdater};
-    use proxmox_notify::{api, api::ApiError, Config, Notification, Severity};
+    use proxmox_notify::{api, Config, Notification, Severity};
 
     pub struct NotificationConfig {
         config: Mutex<Config>,
@@ -91,7 +92,7 @@ mod export {
         title: String,
         body: String,
         properties: Option<JSONValue>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let config = this.config.lock().unwrap();
 
         let notification = Notification {
@@ -108,13 +109,15 @@ mod export {
     fn test_target(
         #[try_from_ref] this: &NotificationConfig,
         target: &str,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let config = this.config.lock().unwrap();
         api::common::test_target(&config, target)
     }
 
     #[export(serialize_error)]
-    fn get_groups(#[try_from_ref] this: &NotificationConfig) -> Result<Vec<GroupConfig>, ApiError> {
+    fn get_groups(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<GroupConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::group::get_groups(&config)
     }
@@ -123,7 +126,7 @@ mod export {
     fn get_group(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
-    ) -> Result<GroupConfig, ApiError> {
+    ) -> Result<GroupConfig, HttpError> {
         let config = this.config.lock().unwrap();
         api::group::get_group(&config, id)
     }
@@ -135,7 +138,7 @@ mod export {
         endpoints: Vec<String>,
         comment: Option<String>,
         filter: Option<String>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::group::add_group(
             &mut config,
@@ -157,11 +160,9 @@ mod export {
         filter: Option<String>,
         delete: Option<Vec<DeleteableGroupProperty>>,
         digest: Option<&str>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = digest.map(hex::decode).transpose().map_err(|e| {
-            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
-        })?;
+        let digest = decode_digest(digest)?;
 
         api::group::update_group(
             &mut config,
@@ -177,7 +178,10 @@ mod export {
     }
 
     #[export(serialize_error)]
-    fn delete_group(#[try_from_ref] this: &NotificationConfig, name: &str) -> Result<(), ApiError> {
+    fn delete_group(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::group::delete_group(&mut config, name)
     }
@@ -185,7 +189,7 @@ mod export {
     #[export(serialize_error)]
     fn get_sendmail_endpoints(
         #[try_from_ref] this: &NotificationConfig,
-    ) -> Result<Vec<SendmailConfig>, ApiError> {
+    ) -> Result<Vec<SendmailConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::sendmail::get_endpoints(&config)
     }
@@ -194,7 +198,7 @@ mod export {
     fn get_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
-    ) -> Result<SendmailConfig, ApiError> {
+    ) -> Result<SendmailConfig, HttpError> {
         let config = this.config.lock().unwrap();
         api::sendmail::get_endpoint(&config, id)
     }
@@ -210,7 +214,7 @@ mod export {
         author: Option<String>,
         comment: Option<String>,
         filter: Option<String>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
 
         api::sendmail::add_endpoint(
@@ -240,11 +244,9 @@ mod export {
         filter: Option<String>,
         delete: Option<Vec<DeleteableSendmailProperty>>,
         digest: Option<&str>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = digest.map(hex::decode).transpose().map_err(|e| {
-            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
-        })?;
+        let digest = decode_digest(digest)?;
 
         api::sendmail::update_endpoint(
             &mut config,
@@ -266,7 +268,7 @@ mod export {
     fn delete_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::sendmail::delete_endpoint(&mut config, name)
     }
@@ -274,7 +276,7 @@ mod export {
     #[export(serialize_error)]
     fn get_gotify_endpoints(
         #[try_from_ref] this: &NotificationConfig,
-    ) -> Result<Vec<GotifyConfig>, ApiError> {
+    ) -> Result<Vec<GotifyConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::gotify::get_endpoints(&config)
     }
@@ -283,7 +285,7 @@ mod export {
     fn get_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
-    ) -> Result<GotifyConfig, ApiError> {
+    ) -> Result<GotifyConfig, HttpError> {
         let config = this.config.lock().unwrap();
         api::gotify::get_endpoint(&config, id)
     }
@@ -296,7 +298,7 @@ mod export {
         token: String,
         comment: Option<String>,
         filter: Option<String>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::gotify::add_endpoint(
             &mut config,
@@ -321,11 +323,9 @@ mod export {
         filter: Option<String>,
         delete: Option<Vec<DeleteableGotifyProperty>>,
         digest: Option<&str>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = digest.map(hex::decode).transpose().map_err(|e| {
-            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
-        })?;
+        let digest = decode_digest(digest)?;
 
         api::gotify::update_endpoint(
             &mut config,
@@ -345,7 +345,7 @@ mod export {
     fn delete_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::gotify::delete_gotify_endpoint(&mut config, name)
     }
@@ -353,7 +353,7 @@ mod export {
     #[export(serialize_error)]
     fn get_filters(
         #[try_from_ref] this: &NotificationConfig,
-    ) -> Result<Vec<FilterConfig>, ApiError> {
+    ) -> Result<Vec<FilterConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::filter::get_filters(&config)
     }
@@ -362,7 +362,7 @@ mod export {
     fn get_filter(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
-    ) -> Result<FilterConfig, ApiError> {
+    ) -> Result<FilterConfig, HttpError> {
         let config = this.config.lock().unwrap();
         api::filter::get_filter(&config, id)
     }
@@ -376,7 +376,7 @@ mod export {
         mode: Option<FilterModeOperator>,
         invert_match: Option<bool>,
         comment: Option<String>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::filter::add_filter(
             &mut config,
@@ -401,11 +401,9 @@ mod export {
         comment: Option<String>,
         delete: Option<Vec<DeleteableFilterProperty>>,
         digest: Option<&str>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = digest.map(hex::decode).transpose().map_err(|e| {
-            ApiError::internal_server_error(format!("invalid digest: {e}"), Some(Box::new(e)))
-        })?;
+        let digest = decode_digest(digest)?;
 
         api::filter::update_filter(
             &mut config,
@@ -425,7 +423,7 @@ mod export {
     fn delete_filter(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::filter::delete_filter(&mut config, name)
     }
@@ -434,8 +432,15 @@ mod export {
     fn get_referenced_entities(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-    ) -> Result<Vec<String>, ApiError> {
+    ) -> Result<Vec<String>, HttpError> {
         let config = this.config.lock().unwrap();
         api::common::get_referenced_entities(&config, name)
+    }
+
+    fn decode_digest(digest: Option<&str>) -> Result<Option<Vec<u8>>, HttpError> {
+        digest
+            .map(hex::decode)
+            .transpose()
+            .map_err(|e| api::http_err!(BAD_REQUEST, "invalid digest: {e}"))
     }
 }
