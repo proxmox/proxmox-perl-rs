@@ -36,7 +36,7 @@ perlmod = { version = "0.13", features = [ "exporter" ] }
 proxmox-apt = "0.10"
 proxmox-http = { version = "0.9", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "0.1.0"
-proxmox-notify = "0.1"
+proxmox-notify = "0.2"
 proxmox-openid = "0.10"
 proxmox-resource-scheduling = "0.3.0"
 proxmox-subscription = "0.4"
