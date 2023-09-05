@@ -1,6 +1,6 @@
 [package]
 name = "pve-rs"
-version = "0.8.5"
+version = "0.8.6"
 description = "PVE parts which have been ported to Rust"
 homepage = "https://www.proxmox.com"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
@@ -33,7 +33,7 @@ url = "2"
 
 perlmod = { version = "0.13", features = [ "exporter" ] }
 
-proxmox-apt = "0.10"
+proxmox-apt = "0.10.6"
 proxmox-http = { version = "0.9", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "0.1.0"
 proxmox-notify = "0.2"
