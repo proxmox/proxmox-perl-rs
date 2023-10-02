@@ -58,7 +58,7 @@ impl Context for PVEContext {
     fn default_sendmail_from(&self) -> String {
         let content = attempt_file_read("/etc/pve/datacenter.cfg");
         content
-            .and_then(|content| lookup_datacenter_config_key(&content, "mail_from"))
+            .and_then(|content| lookup_datacenter_config_key(&content, "email_from"))
             .unwrap_or_else(|| String::from("root"))
     }
 
