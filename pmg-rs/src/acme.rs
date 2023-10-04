@@ -182,7 +182,6 @@ impl Inner {
 #[perlmod::package(name = "PMG::RS::Acme")]
 pub mod export {
     use std::collections::HashMap;
-    use std::convert::TryFrom;
     use std::sync::Mutex;
 
     use anyhow::Error;
@@ -195,54 +194,33 @@ pub mod export {
 
     use super::{AccountData, Inner};
 
-    const CLASSNAME: &str = "PMG::RS::Acme";
+    perlmod::declare_magic!(Box<Acme> : &Acme as "PMG::RS::Acme");
 
     /// An Acme client instance.
     pub struct Acme {
         inner: Mutex<Inner>,
     }
 
-    impl<'a> TryFrom<&'a Value> for &'a Acme {
-        type Error = Error;
-
-        fn try_from(value: &'a Value) -> Result<&'a Acme, Error> {
-            Ok(unsafe { value.from_blessed_box(CLASSNAME)? })
-        }
-    }
-
-    fn bless(class: Value, mut ptr: Box<Acme>) -> Result<Value, Error> {
-        let value = Value::new_pointer::<Acme>(&mut *ptr);
-        let value = Value::new_ref(&value);
-        let this = value.bless_sv(&class)?;
-        let _perl = Box::leak(ptr);
-        Ok(this)
-    }
-
     /// Create a new ACME client instance given an account path and an API directory URL.
     #[export(raw_return)]
     pub fn new(#[raw] class: Value, api_directory: String) -> Result<Value, Error> {
-        bless(
-            class,
-            Box::new(Acme {
+        Ok(perlmod::instantiate_magic!(
+            &class,
+            MAGIC => Box::new(Acme {
                 inner: Mutex::new(Inner::new(api_directory)?),
-            }),
-        )
+            })
+        ))
     }
 
     /// Load an existing account.
     #[export(raw_return)]
     pub fn load(#[raw] class: Value, account_path: String) -> Result<Value, Error> {
-        bless(
-            class,
-            Box::new(Acme {
+        Ok(perlmod::instantiate_magic!(
+            &class,
+            MAGIC => Box::new(Acme {
                 inner: Mutex::new(Inner::load(account_path)?),
-            }),
-        )
-    }
-
-    #[export(name = "DESTROY")]
-    fn destroy(#[raw] this: Value) {
-        perlmod::destructor!(this, Acme: CLASSNAME);
+            })
+        ))
     }
 
     /// Create a new account.
