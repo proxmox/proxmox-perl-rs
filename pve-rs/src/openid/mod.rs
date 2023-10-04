@@ -1,6 +1,5 @@
 #[perlmod::package(name = "PVE::RS::OpenId", lib = "pve_rs")]
 mod export {
-    use std::convert::TryFrom;
     use std::sync::Mutex;
 
     use anyhow::Error;
@@ -9,32 +8,11 @@ mod export {
 
     use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig, PrivateAuthState};
 
-    const CLASSNAME: &str = "PVE::RS::OpenId";
+    perlmod::declare_magic!(Box<OpenId> : &OpenId as "PVE::RS::OpenId");
 
     /// An OpenIdAuthenticator client instance.
     pub struct OpenId {
         inner: Mutex<OpenIdAuthenticator>,
-    }
-
-    impl<'a> TryFrom<&'a Value> for &'a OpenId {
-        type Error = Error;
-
-        fn try_from(value: &'a Value) -> Result<&'a OpenId, Error> {
-            Ok(unsafe { value.from_blessed_box(CLASSNAME)? })
-        }
-    }
-
-    fn bless(class: Value, mut ptr: Box<OpenId>) -> Result<Value, Error> {
-        let value = Value::new_pointer::<OpenId>(&mut *ptr);
-        let value = Value::new_ref(&value);
-        let this = value.bless_sv(&class)?;
-        let _perl = Box::leak(ptr);
-        Ok(this)
-    }
-
-    #[export(name = "DESTROY")]
-    fn destroy(#[raw] this: Value) {
-        perlmod::destructor!(this, OpenId: CLASSNAME);
     }
 
     /// Create a new OpenId client instance
@@ -45,12 +23,12 @@ mod export {
         redirect_url: &str,
     ) -> Result<Value, Error> {
         let open_id = OpenIdAuthenticator::discover(&config, redirect_url)?;
-        bless(
-            class,
-            Box::new(OpenId {
+        Ok(perlmod::instantiate_magic!(
+            &class,
+            MAGIC => Box::new(OpenId {
                 inner: Mutex::new(open_id),
-            }),
-        )
+            })
+        ))
     }
 
     #[export]
