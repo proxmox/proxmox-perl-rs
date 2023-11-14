@@ -15,6 +15,10 @@ mod export {
     use proxmox_notify::endpoints::sendmail::{
         DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
     };
+    use proxmox_notify::endpoints::smtp::{
+        DeleteableSmtpProperty, SmtpConfig, SmtpConfigUpdater, SmtpMode, SmtpPrivateConfig,
+        SmtpPrivateConfigUpdater,
+    };
     use proxmox_notify::matcher::{
         CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
         MatcherConfigUpdater, SeverityMatcher,
@@ -269,6 +273,108 @@ mod export {
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::gotify::delete_gotify_endpoint(&mut config, name)
+    }
+
+    #[export(serialize_error)]
+    fn get_smtp_endpoints(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<SmtpConfig>, HttpError> {
+        let config = this.config.lock().unwrap();
+        api::smtp::get_endpoints(&config)
+    }
+
+    #[export(serialize_error)]
+    fn get_smtp_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        id: &str,
+    ) -> Result<SmtpConfig, HttpError> {
+        let config = this.config.lock().unwrap();
+        api::smtp::get_endpoint(&config, id)
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn add_smtp_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: String,
+        server: String,
+        port: Option<u16>,
+        mode: Option<SmtpMode>,
+        username: Option<String>,
+        password: Option<String>,
+        mailto: Option<Vec<String>>,
+        mailto_user: Option<Vec<String>>,
+        from_address: String,
+        author: Option<String>,
+        comment: Option<String>,
+    ) -> Result<(), HttpError> {
+        let mut config = this.config.lock().unwrap();
+        api::smtp::add_endpoint(
+            &mut config,
+            &SmtpConfig {
+                name: name.clone(),
+                server,
+                port,
+                mode,
+                username,
+                mailto,
+                mailto_user,
+                from_address,
+                author,
+                comment,
+            },
+            &SmtpPrivateConfig { name, password },
+        )
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn update_smtp_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+        server: Option<String>,
+        port: Option<u16>,
+        mode: Option<SmtpMode>,
+        username: Option<String>,
+        password: Option<String>,
+        mailto: Option<Vec<String>>,
+        mailto_user: Option<Vec<String>>,
+        from_address: Option<String>,
+        author: Option<String>,
+        comment: Option<String>,
+        delete: Option<Vec<DeleteableSmtpProperty>>,
+        digest: Option<&str>,
+    ) -> Result<(), HttpError> {
+        let mut config = this.config.lock().unwrap();
+        let digest = decode_digest(digest)?;
+
+        api::smtp::update_endpoint(
+            &mut config,
+            name,
+            &SmtpConfigUpdater {
+                server,
+                port,
+                mode,
+                username,
+                mailto,
+                mailto_user,
+                from_address,
+                author,
+                comment,
+            },
+            &SmtpPrivateConfigUpdater { password },
+            delete.as_deref(),
+            digest.as_deref(),
+        )
+    }
+
+    #[export(serialize_error)]
+    fn delete_smtp_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<(), HttpError> {
+        let mut config = this.config.lock().unwrap();
+        api::smtp::delete_endpoint(&mut config, name)
     }
 
     #[export(serialize_error)]
