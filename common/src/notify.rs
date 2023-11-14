@@ -147,6 +147,7 @@ mod export {
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
+        disable: Option<bool>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
 
@@ -159,7 +160,7 @@ mod export {
                 from_address,
                 author,
                 comment,
-                filter: None,
+                disable,
             },
         )
     }
@@ -174,6 +175,7 @@ mod export {
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
+        disable: Option<bool>,
         delete: Option<Vec<DeleteableSendmailProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -189,6 +191,7 @@ mod export {
                 from_address,
                 author,
                 comment,
+                disable,
             },
             delete.as_deref(),
             digest.as_deref(),
@@ -228,6 +231,7 @@ mod export {
         server: String,
         token: String,
         comment: Option<String>,
+        disable: Option<bool>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::gotify::add_endpoint(
@@ -236,6 +240,7 @@ mod export {
                 name: name.clone(),
                 server,
                 comment,
+                disable,
                 filter: None,
             },
             &GotifyPrivateConfig { name, token },
@@ -250,6 +255,7 @@ mod export {
         server: Option<String>,
         token: Option<String>,
         comment: Option<String>,
+        disable: Option<bool>,
         delete: Option<Vec<DeleteableGotifyProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -259,7 +265,11 @@ mod export {
         api::gotify::update_endpoint(
             &mut config,
             name,
-            &GotifyConfigUpdater { server, comment },
+            &GotifyConfigUpdater {
+                server,
+                comment,
+                disable,
+            },
             &GotifyPrivateConfigUpdater { token },
             delete.as_deref(),
             digest.as_deref(),
@@ -307,6 +317,7 @@ mod export {
         from_address: String,
         author: Option<String>,
         comment: Option<String>,
+        disable: Option<bool>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::smtp::add_endpoint(
@@ -322,6 +333,7 @@ mod export {
                 from_address,
                 author,
                 comment,
+                disable,
             },
             &SmtpPrivateConfig { name, password },
         )
@@ -342,6 +354,7 @@ mod export {
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
+        disable: Option<bool>,
         delete: Option<Vec<DeleteableSmtpProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -361,6 +374,7 @@ mod export {
                 from_address,
                 author,
                 comment,
+                disable,
             },
             &SmtpPrivateConfigUpdater { password },
             delete.as_deref(),
@@ -406,6 +420,7 @@ mod export {
         mode: Option<MatchModeOperator>,
         invert_match: Option<bool>,
         comment: Option<String>,
+        disable: Option<bool>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::matcher::add_matcher(
@@ -419,6 +434,7 @@ mod export {
                 mode,
                 invert_match,
                 comment,
+                disable,
             },
         )
     }
@@ -435,6 +451,7 @@ mod export {
         mode: Option<MatchModeOperator>,
         invert_match: Option<bool>,
         comment: Option<String>,
+        disable: Option<bool>,
         delete: Option<Vec<DeleteableMatcherProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -452,6 +469,7 @@ mod export {
                 mode,
                 invert_match,
                 comment,
+                disable,
             },
             delete.as_deref(),
             digest.as_deref(),
