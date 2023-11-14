@@ -161,6 +161,8 @@ mod export {
                 author,
                 comment,
                 disable,
+                filter: None,
+                origin: None,
             },
         )
     }
@@ -242,6 +244,7 @@ mod export {
                 comment,
                 disable,
                 filter: None,
+                origin: None,
             },
             &GotifyPrivateConfig { name, token },
         )
@@ -334,6 +337,7 @@ mod export {
                 author,
                 comment,
                 disable,
+                origin: None,
             },
             &SmtpPrivateConfig { name, password },
         )
@@ -435,6 +439,7 @@ mod export {
                 invert_match,
                 comment,
                 disable,
+                origin: None,
             },
         )
     }
