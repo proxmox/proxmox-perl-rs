@@ -1,10 +1,12 @@
 #[perlmod::package(name = "Proxmox::RS::Notify")]
 mod export {
-    use anyhow::{bail, Error};
-    use perlmod::Value;
-    use serde_json::Value as JSONValue;
+    use std::collections::HashMap;
     use std::sync::Mutex;
 
+    use anyhow::{bail, Error};
+    use serde_json::Value as JSONValue;
+
+    use perlmod::Value;
     use proxmox_http_error::HttpError;
     use proxmox_notify::endpoints::gotify::{
         DeleteableGotifyProperty, GotifyConfig, GotifyConfigUpdater, GotifyPrivateConfig,
@@ -13,10 +15,10 @@ mod export {
     use proxmox_notify::endpoints::sendmail::{
         DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
     };
-    use proxmox_notify::filter::{
-        DeleteableFilterProperty, FilterConfig, FilterConfigUpdater, FilterModeOperator,
+    use proxmox_notify::matcher::{
+        CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
+        MatcherConfigUpdater, SeverityMatcher,
     };
-    use proxmox_notify::group::{DeleteableGroupProperty, GroupConfig, GroupConfigUpdater};
     use proxmox_notify::{api, Config, Notification, Severity};
 
     pub struct NotificationConfig {
@@ -87,22 +89,22 @@ mod export {
     #[export(serialize_error)]
     fn send(
         #[try_from_ref] this: &NotificationConfig,
-        channel: &str,
         severity: Severity,
         title: String,
         body: String,
-        properties: Option<JSONValue>,
+        template_data: Option<JSONValue>,
+        fields: Option<HashMap<String, String>>,
     ) -> Result<(), HttpError> {
         let config = this.config.lock().unwrap();
-
-        let notification = Notification {
+        let notification = Notification::new_templated(
             severity,
             title,
             body,
-            properties,
-        };
+            template_data.unwrap_or_default(),
+            fields.unwrap_or_default(),
+        );
 
-        api::common::send(&config, channel, &notification)
+        api::common::send(&config, &notification)
     }
 
     #[export(serialize_error)]
@@ -112,78 +114,6 @@ mod export {
     ) -> Result<(), HttpError> {
         let config = this.config.lock().unwrap();
         api::common::test_target(&config, target)
-    }
-
-    #[export(serialize_error)]
-    fn get_groups(
-        #[try_from_ref] this: &NotificationConfig,
-    ) -> Result<Vec<GroupConfig>, HttpError> {
-        let config = this.config.lock().unwrap();
-        api::group::get_groups(&config)
-    }
-
-    #[export(serialize_error)]
-    fn get_group(
-        #[try_from_ref] this: &NotificationConfig,
-        id: &str,
-    ) -> Result<GroupConfig, HttpError> {
-        let config = this.config.lock().unwrap();
-        api::group::get_group(&config, id)
-    }
-
-    #[export(serialize_error)]
-    fn add_group(
-        #[try_from_ref] this: &NotificationConfig,
-        name: String,
-        endpoints: Vec<String>,
-        comment: Option<String>,
-        filter: Option<String>,
-    ) -> Result<(), HttpError> {
-        let mut config = this.config.lock().unwrap();
-        api::group::add_group(
-            &mut config,
-            &GroupConfig {
-                name,
-                endpoint: endpoints,
-                comment,
-                filter,
-            },
-        )
-    }
-
-    #[export(serialize_error)]
-    fn update_group(
-        #[try_from_ref] this: &NotificationConfig,
-        name: &str,
-        endpoints: Option<Vec<String>>,
-        comment: Option<String>,
-        filter: Option<String>,
-        delete: Option<Vec<DeleteableGroupProperty>>,
-        digest: Option<&str>,
-    ) -> Result<(), HttpError> {
-        let mut config = this.config.lock().unwrap();
-        let digest = decode_digest(digest)?;
-
-        api::group::update_group(
-            &mut config,
-            name,
-            &GroupConfigUpdater {
-                endpoint: endpoints,
-                comment,
-                filter,
-            },
-            delete.as_deref(),
-            digest.as_deref(),
-        )
-    }
-
-    #[export(serialize_error)]
-    fn delete_group(
-        #[try_from_ref] this: &NotificationConfig,
-        name: &str,
-    ) -> Result<(), HttpError> {
-        let mut config = this.config.lock().unwrap();
-        api::group::delete_group(&mut config, name)
     }
 
     #[export(serialize_error)]
@@ -213,7 +143,6 @@ mod export {
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
-        filter: Option<String>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
 
@@ -226,7 +155,7 @@ mod export {
                 from_address,
                 author,
                 comment,
-                filter,
+                filter: None,
             },
         )
     }
@@ -241,7 +170,6 @@ mod export {
         from_address: Option<String>,
         author: Option<String>,
         comment: Option<String>,
-        filter: Option<String>,
         delete: Option<Vec<DeleteableSendmailProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -257,7 +185,6 @@ mod export {
                 from_address,
                 author,
                 comment,
-                filter,
             },
             delete.as_deref(),
             digest.as_deref(),
@@ -297,7 +224,6 @@ mod export {
         server: String,
         token: String,
         comment: Option<String>,
-        filter: Option<String>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::gotify::add_endpoint(
@@ -306,7 +232,7 @@ mod export {
                 name: name.clone(),
                 server,
                 comment,
-                filter,
+                filter: None,
             },
             &GotifyPrivateConfig { name, token },
         )
@@ -320,7 +246,6 @@ mod export {
         server: Option<String>,
         token: Option<String>,
         comment: Option<String>,
-        filter: Option<String>,
         delete: Option<Vec<DeleteableGotifyProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -330,11 +255,7 @@ mod export {
         api::gotify::update_endpoint(
             &mut config,
             name,
-            &GotifyConfigUpdater {
-                server,
-                comment,
-                filter,
-            },
+            &GotifyConfigUpdater { server, comment },
             &GotifyPrivateConfigUpdater { token },
             delete.as_deref(),
             digest.as_deref(),
@@ -351,38 +272,44 @@ mod export {
     }
 
     #[export(serialize_error)]
-    fn get_filters(
+    fn get_matchers(
         #[try_from_ref] this: &NotificationConfig,
-    ) -> Result<Vec<FilterConfig>, HttpError> {
+    ) -> Result<Vec<MatcherConfig>, HttpError> {
         let config = this.config.lock().unwrap();
-        api::filter::get_filters(&config)
+        api::matcher::get_matchers(&config)
     }
 
     #[export(serialize_error)]
-    fn get_filter(
+    fn get_matcher(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
-    ) -> Result<FilterConfig, HttpError> {
+    ) -> Result<MatcherConfig, HttpError> {
         let config = this.config.lock().unwrap();
-        api::filter::get_filter(&config, id)
+        api::matcher::get_matcher(&config, id)
     }
 
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn add_filter(
+    fn add_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: String,
-        min_severity: Option<Severity>,
-        mode: Option<FilterModeOperator>,
+        target: Option<Vec<String>>,
+        match_severity: Option<Vec<SeverityMatcher>>,
+        match_field: Option<Vec<FieldMatcher>>,
+        match_calendar: Option<Vec<CalendarMatcher>>,
+        mode: Option<MatchModeOperator>,
         invert_match: Option<bool>,
         comment: Option<String>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        api::filter::add_filter(
+        api::matcher::add_matcher(
             &mut config,
-            &FilterConfig {
+            &MatcherConfig {
                 name,
-                min_severity,
+                match_severity,
+                match_field,
+                match_calendar,
+                target,
                 mode,
                 invert_match,
                 comment,
@@ -392,24 +319,30 @@ mod export {
 
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn update_filter(
+    fn update_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-        min_severity: Option<Severity>,
-        mode: Option<FilterModeOperator>,
+        target: Option<Vec<String>>,
+        match_severity: Option<Vec<SeverityMatcher>>,
+        match_field: Option<Vec<FieldMatcher>>,
+        match_calendar: Option<Vec<CalendarMatcher>>,
+        mode: Option<MatchModeOperator>,
         invert_match: Option<bool>,
         comment: Option<String>,
-        delete: Option<Vec<DeleteableFilterProperty>>,
+        delete: Option<Vec<DeleteableMatcherProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         let digest = decode_digest(digest)?;
 
-        api::filter::update_filter(
+        api::matcher::update_matcher(
             &mut config,
             name,
-            &FilterConfigUpdater {
-                min_severity,
+            &MatcherConfigUpdater {
+                match_severity,
+                match_field,
+                match_calendar,
+                target,
                 mode,
                 invert_match,
                 comment,
@@ -420,12 +353,12 @@ mod export {
     }
 
     #[export(serialize_error)]
-    fn delete_filter(
+    fn delete_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        api::filter::delete_filter(&mut config, name)
+        api::matcher::delete_matcher(&mut config, name)
     }
 
     #[export]
