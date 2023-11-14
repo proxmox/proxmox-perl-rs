@@ -79,6 +79,7 @@ impl Inner {
         tos_agreed: bool,
         contact: Vec<String>,
         rsa_bits: Option<u32>,
+        eab_creds: Option<(String, String)>,
     ) -> Result<(), Error> {
         self.tos = if tos_agreed {
             self.client.terms_of_service_url()?.map(str::to_owned)
@@ -86,7 +87,9 @@ impl Inner {
             None
         };
 
-        let _account = self.client.new_account(contact, tos_agreed, rsa_bits)?;
+        let _account = self
+            .client
+            .new_account(contact, tos_agreed, rsa_bits, eab_creds)?;
         let file = OpenOptions::new()
             .write(true)
             .create(true)
@@ -238,11 +241,16 @@ pub mod export {
         tos_agreed: bool,
         contact: Vec<String>,
         rsa_bits: Option<u32>,
+        eab_kid: Option<String>,
+        eab_hmac_key: Option<String>,
     ) -> Result<(), Error> {
-        this.inner
-            .lock()
-            .unwrap()
-            .new_account(account_path, tos_agreed, contact, rsa_bits)
+        this.inner.lock().unwrap().new_account(
+            account_path,
+            tos_agreed,
+            contact,
+            rsa_bits,
+            eab_kid.zip(eab_hmac_key),
+        )
     }
 
     /// Get the directory's meta information.
