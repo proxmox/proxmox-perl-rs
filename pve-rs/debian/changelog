@@ -1,3 +1,17 @@
+libpve-rs-perl (0.8.7) bookworm; urgency=medium
+
+  * notify: adapt to new matcher-based notification routing
+
+  * notify: add bindings for smtp API calls
+
+  * pve-rs: notify: remove notify_context for PVE
+
+  * notify: add 'disable' parameter
+
+  * notify: support 'origin' paramter
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 17 Nov 2023 13:41:17 +0100
+
 libpve-rs-perl (0.8.6) bookworm; urgency=medium
 
   * re-build with newer proxmox-apt depenceny to make Ceph Reef repo available
