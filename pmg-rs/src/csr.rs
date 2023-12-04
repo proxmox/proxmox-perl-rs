@@ -5,7 +5,7 @@ pub mod export {
     use anyhow::Error;
     use serde_bytes::ByteBuf;
 
-    use proxmox_acme_rs::util::Csr;
+    use proxmox_acme::util::Csr;
 
     /// Generates a CSR and its accompanying private key.
     ///

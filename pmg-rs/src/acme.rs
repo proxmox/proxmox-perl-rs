@@ -9,8 +9,8 @@ use std::os::unix::fs::OpenOptionsExt;
 use anyhow::{format_err, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_acme_rs::account::AccountData as AcmeAccountData;
-use proxmox_acme_rs::{Account, Client};
+use proxmox_acme::account::AccountData as AcmeAccountData;
+use proxmox_acme::{Account, Client};
 
 /// Our on-disk format inherited from PVE's proxmox-acme code.
 #[derive(Deserialize, Serialize)]
@@ -188,9 +188,9 @@ pub mod export {
     use serde_bytes::{ByteBuf, Bytes};
 
     use perlmod::Value;
-    use proxmox_acme_rs::directory::Meta;
-    use proxmox_acme_rs::order::OrderData;
-    use proxmox_acme_rs::{Authorization, Challenge, Order};
+    use proxmox_acme::directory::Meta;
+    use proxmox_acme::order::OrderData;
+    use proxmox_acme::{Authorization, Challenge, Order};
 
     use super::{AccountData, Inner};
 
