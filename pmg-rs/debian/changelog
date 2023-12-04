@@ -1,3 +1,13 @@
+libpmg-rs-perl (0.7.4) bookworm; urgency=medium
+
+  * update to env logger 0.10
+
+  * use declare_magic for ACME
+
+  * add Promox::Lib::PMG::use_safe_putenv
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 Dec 2023 11:22:56 +0100
+
 libpmg-rs-perl (0.7.3) bookworm; urgency=medium
 
   * reset failure counts when unlocking second factors
