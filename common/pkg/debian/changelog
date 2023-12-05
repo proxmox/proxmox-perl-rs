@@ -1,3 +1,9 @@
+libproxmox-rs-perl (0.3.2) bookworm; urgency=medium
+
+  * add Proxmox::Lib::Common::probe_ssl_vars() helper
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 05 Dec 2023 10:46:39 +0100
+
 libproxmox-rs-perl (0.3.1) bookworm; urgency=medium
 
   * add Proxmox::RS::Notify module
