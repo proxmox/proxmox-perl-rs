@@ -1,3 +1,13 @@
+libpmg-rs-perl (0.7.5) bookworm; urgency=medium
+
+  * add EAB binding support to ACME
+
+  * make Proxmox::Lib::PMG pull in Proxmox::Lib::SslProbe to work around
+    an issue where the openssl-probe crate calls setenv() and messes up perl's
+    view of the environment
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 07 Dec 2023 09:57:43 +0100
+
 libpmg-rs-perl (0.7.4) bookworm; urgency=medium
 
   * update to env logger 0.10
