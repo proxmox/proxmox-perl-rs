@@ -45,9 +45,10 @@ all: PVE
 	  's@^sub libdirs.*$$@sub libdirs { return ("./target/$(TARGET_DIR)", "./../target/$(TARGET_DIR)"); }@' \
 	  Proxmox/Lib/PVE.pm >test/Proxmox/Lib/PVE.pm
 
-PVE: Proxmox/Lib/PVE.pm
-Proxmox/Lib/PVE.pm:
+Proxmox PVE: Proxmox/Lib/PVE.pm
+Proxmox/Lib/PVE.pm: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
+	sed -i -e '/package Proxmox/rFixup.pm' Proxmox/Lib/PMG.pm
 
 check: all
 	$(MAKE) -C test test
@@ -62,6 +63,7 @@ install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
 	find $(PM_DIR) \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 
 clean:
+	rm -rf PVE Proxmox
 	cargo clean
 	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes Cargo.lock
 	rm -rf $(PACKAGE)-[0-9]*/
