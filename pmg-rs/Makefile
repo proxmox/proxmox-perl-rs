@@ -41,9 +41,10 @@ endif
 all: PMG
 	cargo build $(CARGO_BUILD_ARGS)
 
-PMG: Proxmox/Lib/PMG.pm
-Proxmox/Lib/PMG.pm:
+Proxmox PMG: Proxmox/Lib/PMG.pm
+Proxmox/Lib/PMG.pm: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
+	sed -i -e '/package Proxmox/rFixup.pm' Proxmox/Lib/PMG.pm
 
 .PHONY: install
 install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
@@ -56,6 +57,7 @@ install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
 
 distclean: clean
 clean:
+	rm -rf PMG Proxmox
 	cargo clean
 	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes Cargo.lock
 	rm -rf $(PACKAGE)-[0-9]*/
@@ -75,7 +77,7 @@ $(BUILDDIR): src debian common/src Cargo.toml Makefile .cargo/config
 	rm -rf $(BUILDDIR) $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp/common
-	cp -a -t $(BUILDDIR).tmp src debian Cargo.toml Makefile .cargo
+	cp -a -t $(BUILDDIR).tmp src debian Cargo.toml Makefile .cargo Fixup.pm
 	cp -a -t $(BUILDDIR).tmp/common common/src
 	mv $(BUILDDIR).tmp $(BUILDDIR)
 
