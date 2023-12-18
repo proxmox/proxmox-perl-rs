@@ -34,7 +34,7 @@ Build-Depends: cargo:native <!nocheck>,
                librust-serde-json-1+default-dev,
                librust-url-2+default-dev,
                libstd-rust-dev <!nocheck>,
-               perlmod-bin,
+               perlmod-bin (>= 0.2.0-~~),
                rustc:native <!nocheck>,
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.6.1

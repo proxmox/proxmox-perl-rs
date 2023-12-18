@@ -23,7 +23,8 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 	--lib=pve_rs \
 	--lib-tag=proxmox \
 	--lib-package=Proxmox::Lib::PVE \
-	--lib-prefix=PVE
+	--lib-prefix=PVE \
+	--include-file=Fixup.pm
 
 PERLMOD_PACKAGES := \
 	  PVE::RS::APT::Repositories \
@@ -48,7 +49,6 @@ all: PVE
 Proxmox PVE: Proxmox/Lib/PVE.pm
 Proxmox/Lib/PVE.pm: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
-	sed -i -e '/package Proxmox/rFixup.pm' Proxmox/Lib/PVE.pm
 
 check: all
 	$(MAKE) -C test test
