@@ -48,7 +48,7 @@ all: PVE
 Proxmox PVE: Proxmox/Lib/PVE.pm
 Proxmox/Lib/PVE.pm: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
-	sed -i -e '/package Proxmox/rFixup.pm' Proxmox/Lib/PMG.pm
+	sed -i -e '/package Proxmox/rFixup.pm' Proxmox/Lib/PVE.pm
 
 check: all
 	$(MAKE) -C test test
@@ -83,7 +83,7 @@ $(BUILDDIR): src debian test common/src Cargo.toml Makefile .cargo/config
 	rm -rf $(BUILDDIR) $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp/common
-	cp -a -t $(BUILDDIR).tmp src debian test Cargo.toml Makefile .cargo
+	cp -a -t $(BUILDDIR).tmp src debian test Cargo.toml Makefile .cargo Fixup.pm
 	cp -a -t $(BUILDDIR).tmp/common common/src
 	mv $(BUILDDIR).tmp $(BUILDDIR)
 
