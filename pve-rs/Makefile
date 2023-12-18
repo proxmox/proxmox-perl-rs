@@ -43,7 +43,7 @@ all: PVE
 	cargo build $(CARGO_BUILD_ARGS)
 	mkdir -p test/Proxmox/Lib
 	sed -r -e \
-	  's@^sub libdirs.*$$@sub libdirs { return ("./target/$(TARGET_DIR)", "./../target/$(TARGET_DIR)"); }@' \
+	  's@^sub libfile.*$$@sub libfile { "$(shell pwd)/target/$(TARGET_DIR)/libpve_rs.so"; }@' \
 	  Proxmox/Lib/PVE.pm >test/Proxmox/Lib/PVE.pm
 
 Proxmox PVE: Proxmox/Lib/PVE.pm
