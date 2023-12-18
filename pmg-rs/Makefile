@@ -22,7 +22,8 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 	--lib=pmg_rs \
 	--lib-tag=proxmox \
 	--lib-package=Proxmox::Lib::PMG \
-	--lib-prefix=PMG
+	--lib-prefix=PMG \
+	--include-file=Fixup.pm
 
 PERLMOD_PACKAGES := \
 	  PMG::RS::APT::Repositories \
@@ -44,7 +45,6 @@ all: PMG
 Proxmox PMG: Proxmox/Lib/PMG.pm
 Proxmox/Lib/PMG.pm: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
-	sed -i -e '/package Proxmox/rFixup.pm' Proxmox/Lib/PMG.pm
 
 .PHONY: install
 install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
