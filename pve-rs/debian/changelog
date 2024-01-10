@@ -1,3 +1,15 @@
+libpve-rs-perl (0.8.8) bookworm; urgency=medium
+
+  * notify: include 'hostname' and 'type' metadata fields for forwarded mails
+
+  * notify: smtp: forward original message instead of nesting
+
+  * notify: smtp: add 'Auto-Submitted' header to email body
+
+  * notify: api: allow resetting built-in targets if used by a matcher
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Jan 2024 14:19:47 +0100
+
 libpve-rs-perl (0.8.7) bookworm; urgency=medium
 
   * notify: adapt to new matcher-based notification routing
