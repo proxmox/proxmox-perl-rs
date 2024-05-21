@@ -94,16 +94,14 @@ mod export {
     fn send(
         #[try_from_ref] this: &NotificationConfig,
         severity: Severity,
-        title: String,
-        body: String,
+        template_name: String,
         template_data: Option<JSONValue>,
         fields: Option<HashMap<String, String>>,
     ) -> Result<(), HttpError> {
         let config = this.config.lock().unwrap();
-        let notification = Notification::new_templated(
+        let notification = Notification::from_template(
             severity,
-            title,
-            body,
+            template_name,
             template_data.unwrap_or_default(),
             fields.unwrap_or_default(),
         );
