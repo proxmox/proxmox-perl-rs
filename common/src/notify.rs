@@ -151,7 +151,7 @@ mod export {
 
         api::sendmail::add_endpoint(
             &mut config,
-            &SendmailConfig {
+            SendmailConfig {
                 name,
                 mailto,
                 mailto_user,
@@ -185,7 +185,7 @@ mod export {
         api::sendmail::update_endpoint(
             &mut config,
             name,
-            &SendmailConfigUpdater {
+            SendmailConfigUpdater {
                 mailto,
                 mailto_user,
                 from_address,
@@ -236,7 +236,7 @@ mod export {
         let mut config = this.config.lock().unwrap();
         api::gotify::add_endpoint(
             &mut config,
-            &GotifyConfig {
+            GotifyConfig {
                 name: name.clone(),
                 server,
                 comment,
@@ -244,7 +244,7 @@ mod export {
                 filter: None,
                 origin: None,
             },
-            &GotifyPrivateConfig { name, token },
+            GotifyPrivateConfig { name, token },
         )
     }
 
@@ -266,12 +266,12 @@ mod export {
         api::gotify::update_endpoint(
             &mut config,
             name,
-            &GotifyConfigUpdater {
+            GotifyConfigUpdater {
                 server,
                 comment,
                 disable,
             },
-            &GotifyPrivateConfigUpdater { token },
+            GotifyPrivateConfigUpdater { token },
             delete.as_deref(),
             digest.as_deref(),
         )
@@ -323,7 +323,7 @@ mod export {
         let mut config = this.config.lock().unwrap();
         api::smtp::add_endpoint(
             &mut config,
-            &SmtpConfig {
+            SmtpConfig {
                 name: name.clone(),
                 server,
                 port,
@@ -337,7 +337,7 @@ mod export {
                 disable,
                 origin: None,
             },
-            &SmtpPrivateConfig { name, password },
+            SmtpPrivateConfig { name, password },
         )
     }
 
@@ -366,7 +366,7 @@ mod export {
         api::smtp::update_endpoint(
             &mut config,
             name,
-            &SmtpConfigUpdater {
+            SmtpConfigUpdater {
                 server,
                 port,
                 mode,
@@ -378,7 +378,7 @@ mod export {
                 comment,
                 disable,
             },
-            &SmtpPrivateConfigUpdater { password },
+            SmtpPrivateConfigUpdater { password },
             delete.as_deref(),
             digest.as_deref(),
         )
@@ -427,7 +427,7 @@ mod export {
         let mut config = this.config.lock().unwrap();
         api::matcher::add_matcher(
             &mut config,
-            &MatcherConfig {
+            MatcherConfig {
                 name,
                 match_severity,
                 match_field,
@@ -464,7 +464,7 @@ mod export {
         api::matcher::update_matcher(
             &mut config,
             name,
-            &MatcherConfigUpdater {
+            MatcherConfigUpdater {
                 match_severity,
                 match_field,
                 match_calendar,
