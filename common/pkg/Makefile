@@ -20,19 +20,23 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 	--lib-package=Proxmox::Lib::Common \
 	--lib-prefix=Proxmox
 
-# Point to any generated pm file (Proxmox/ dir is already present in this package)
-Proxmox/RS/CalendarEvent.pm:
-	$(PERLMOD_GENPACKAGE) \
+PERLMOD_PACKAGES := \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
 	  Proxmox::RS::Notify \
 	  Proxmox::RS::Subscription
 
-all: Proxmox/RS/CalendarEvent.pm
+PERLMOD_PACKAGE_FILES := $(addsuffix .pm,$(subst ::,/,$(PERLMOD_PACKAGES)))
+
+Proxmox/RS: $(PERLMOD_PACKAGE_FILES)
+$(PERLMOD_PACKAGE_FILES) &:
+	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
+
+all: Proxmox/RS
 	true
 
 .PHONY: install
-install: Proxmox/RS/CalendarEvent.pm
+install: Proxmox/RS
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
 	find PVE \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'
 	find Proxmox \! -type d -print -exec install -Dm644 '{}' $(DESTDIR)$(PERL_INSTALLVENDORLIB)'/{}' ';'

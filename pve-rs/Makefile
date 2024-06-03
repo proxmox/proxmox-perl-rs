@@ -32,6 +32,8 @@ PERLMOD_PACKAGES := \
 	  PVE::RS::ResourceScheduling::Static \
 	  PVE::RS::TFA
 
+PERLMOD_PACKAGE_FILES := $(addsuffix .pm,$(subst ::,/,$(PERLMOD_PACKAGES)))
+
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 TARGET_DIR=release
@@ -46,15 +48,16 @@ all: PVE
 	  's@^sub libfile.*$$@sub libfile { "$(shell pwd)/target/$(TARGET_DIR)/libpve_rs.so"; }@' \
 	  Proxmox/Lib/PVE.pm >test/Proxmox/Lib/PVE.pm
 
-Proxmox PVE: Proxmox/Lib/PVE.pm
-Proxmox/Lib/PVE.pm: Fixup.pm
+Proxmox: Proxmox/Lib/PVE.pm
+PVE: $(PERLMOD_PACKAGE_FILES)
+Proxmox/Lib/PVE.pm $(PERLMOD_PACKAGE_FILES) &: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
 
 check: all
 	$(MAKE) -C test test
 
 .PHONY: install
-install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm PVE
+install: target/release/libpve_rs.so Proxmox/Lib/PVE.pm $(PERLMOD_PACKAGE_FILES)
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpve_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpve_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)

@@ -32,6 +32,8 @@ PERLMOD_PACKAGES := \
 	  PMG::RS::OpenId \
 	  PMG::RS::TFA
 
+PERLMOD_PACKAGE_FILES := $(addsuffix .pm,$(subst ::,/,$(PERLMOD_PACKAGES)))
+
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 TARGET_DIR=release
@@ -42,12 +44,13 @@ endif
 all: PMG
 	cargo build $(CARGO_BUILD_ARGS)
 
-Proxmox PMG: Proxmox/Lib/PMG.pm
-Proxmox/Lib/PMG.pm: Fixup.pm
+Proxmox: Proxmox/Lib/PMG.pm
+PMG: $(PERLMOD_PACKAGE_FILES)
+Proxmox/Lib/PMG.pm $(PERLMOD_PACKAGE_FILES) &: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
 
 .PHONY: install
-install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm PMG
+install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm $(PERLMOD_PACKAGE_FILES)
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
 	install -m644 target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
