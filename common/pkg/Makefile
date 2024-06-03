@@ -68,3 +68,4 @@ upload: $(DEB)
 clean:
 	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes
 	rm -rf $(PACKAGE)-[0-9]*/
+	rm -rf Proxmox/RS
