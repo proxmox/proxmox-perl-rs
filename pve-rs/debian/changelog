@@ -1,3 +1,9 @@
+libpve-rs-perl (0.8.9) bookworm; urgency=medium
+
+  * update to notify 0.4: use file based notification templates
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 04 Jun 2024 11:01:03 +0200
+
 libpve-rs-perl (0.8.8) bookworm; urgency=medium
 
   * notify: include 'hostname' and 'type' metadata fields for forwarded mails
