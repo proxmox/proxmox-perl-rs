@@ -9,7 +9,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use anyhow::{format_err, Error};
 use serde::{Deserialize, Serialize};
 
-use proxmox_acme::account::AccountData as AcmeAccountData;
+use proxmox_acme::types::AccountData as AcmeAccountData;
 use proxmox_acme::{Account, Client};
 
 /// Our on-disk format inherited from PVE's proxmox-acme code.
