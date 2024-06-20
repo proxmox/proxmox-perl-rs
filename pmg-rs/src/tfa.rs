@@ -441,11 +441,11 @@ mod export {
     #[export]
     fn api_unlock_tfa(#[raw] raw_this: Value, userid: &str) -> Result<bool, Error> {
         let this: &Tfa = (&raw_this).try_into()?;
-        Ok(methods::unlock_and_reset_tfa(
+        methods::unlock_and_reset_tfa(
             &mut this.inner.lock().unwrap(),
             &UserAccess::new(&raw_this)?,
             userid,
-        )?)
+        )
     }
 
     #[derive(serde::Serialize)]
