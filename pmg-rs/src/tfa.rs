@@ -178,7 +178,7 @@ mod export {
         #[try_from_ref] this: &Tfa,
     ) -> Result<(Option<String>, Option<super::WebauthnConfig>), Error> {
         Ok(match this.inner.lock().unwrap().webauthn.clone() {
-            Some(config) => (Some(hex::encode(config.digest())), Some(config.into())),
+            Some(config) => (Some(hex::encode(config.digest())), Some(config)),
             None => (None, None),
         })
     }
