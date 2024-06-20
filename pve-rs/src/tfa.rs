@@ -802,7 +802,7 @@ fn usize_from_perl(value: JsonValue) -> Option<usize> {
 fn trim_ascii_whitespace_start(data: &[u8]) -> &[u8] {
     match data.iter().position(|&c| !c.is_ascii_whitespace()) {
         Some(from) => &data[from..],
-        None => &data[..],
+        None => data,
     }
 }
 
