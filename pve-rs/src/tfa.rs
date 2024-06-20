@@ -20,7 +20,7 @@ use nix::errno::Errno;
 use nix::sys::stat::Mode;
 use serde_json::Value as JsonValue;
 
-pub(self) use proxmox_tfa::api::{
+use proxmox_tfa::api::{
     RecoveryState, TfaChallenge, TfaConfig, TfaResponse, TfaUserData, U2fConfig,
     UserChallengeAccess, WebauthnConfig,
 };
