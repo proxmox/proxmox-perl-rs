@@ -403,7 +403,7 @@ pub mod export {
         this.inner
             .lock()
             .unwrap()
-            .revoke_certificate(&data, reason)?;
+            .revoke_certificate(data, reason)?;
         Ok(())
     }
 
