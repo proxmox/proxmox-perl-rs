@@ -2,11 +2,9 @@
 //!
 //! The functions in here are perl bindings.
 
-use std::fs::OpenOptions;
-use std::io::{self, Write};
-use std::os::unix::fs::OpenOptionsExt;
-
 use anyhow::{format_err, Error};
+use nix::sys::stat::Mode;
+use proxmox_sys::fs::CreateOptions;
 use serde::{Deserialize, Serialize};
 
 use proxmox_acme::types::AccountData as AcmeAccountData;
@@ -90,19 +88,12 @@ impl Inner {
         let _account = self
             .client
             .new_account(contact, tos_agreed, rsa_bits, eab_creds)?;
-        let file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .mode(0o600)
-            .open(&account_path)
-            .map_err(|err| format_err!("failed to open {:?} for writing: {}", account_path, err))?;
-        self.write_to(file).map_err(|err| {
-            format_err!(
-                "failed to write acme account to {:?}: {}",
-                account_path,
-                err
-            )
-        })?;
+
+        let data = serde_json::to_vec(&self.to_account_data()?)?;
+        let create_options = CreateOptions::new().perm(Mode::from_bits_truncate(0o600));
+        proxmox_sys::fs::replace_file(&account_path, &data, create_options, true)
+            .map_err(|err| format_err!("failed to replace ACME account config: {err}"))?;
+
         self.account_path = Some(account_path);
 
         Ok(())
@@ -131,12 +122,6 @@ impl Inner {
         })
     }
 
-    fn write_to<T: io::Write>(&mut self, out: T) -> Result<(), Error> {
-        let data = self.to_account_data()?;
-
-        Ok(serde_json::to_writer_pretty(out, &data)?)
-    }
-
     pub fn update_account<T: Serialize>(&mut self, data: &T) -> Result<(), Error> {
         let account_path = self
             .account_path
@@ -144,32 +129,11 @@ impl Inner {
             .ok_or_else(|| format_err!("missing account path"))?;
         self.client.update_account(data)?;
 
-        let tmp_path = format!("{}.tmp", account_path);
-        // FIXME: move proxmox::tools::replace_file & make_temp out into a nice *little* crate...
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .mode(0o600)
-            .open(&tmp_path)
-            .map_err(|err| format_err!("failed to open {:?} for writing: {}", tmp_path, err))?;
-        self.write_to(&mut file).map_err(|err| {
-            format_err!("failed to write acme account to {:?}: {}", tmp_path, err)
-        })?;
-        file.flush().map_err(|err| {
-            format_err!("failed to flush acme account file {:?}: {}", tmp_path, err)
-        })?;
+        let data = serde_json::to_vec(&self.to_account_data()?)?;
+        let create_options = CreateOptions::new().perm(Mode::from_bits_truncate(0o600));
+        proxmox_sys::fs::replace_file(account_path, &data, create_options, true)
+            .map_err(|err| format_err!("failed to replace ACME account config: {err}"))?;
 
-        // re-borrow since we needed `self` as mut earlier
-        let account_path = self.account_path.as_deref().unwrap();
-        std::fs::rename(&tmp_path, account_path).map_err(|err| {
-            format_err!(
-                "failed to rotate temp file into place ({:?} -> {:?}): {}",
-                &tmp_path,
-                account_path,
-                err
-            )
-        })?;
-        drop(file);
         Ok(())
     }
 
