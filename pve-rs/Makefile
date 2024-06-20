@@ -82,7 +82,7 @@ upload: $(DEBS)
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
 	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com upload --product pve --dist $(DEB_DISTRIBUTION)
 
-$(BUILDDIR): src debian test common/src Cargo.toml Makefile .cargo/config
+$(BUILDDIR): src debian test common/src Cargo.toml Makefile .cargo/config.toml
 	rm -rf $(BUILDDIR) $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp/common
