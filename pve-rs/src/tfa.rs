@@ -736,10 +736,10 @@ fn decode_old_oath_entry(
         let key = unsafe { std::str::from_utf8_unchecked(key) };
 
         // See PVE::OTP::oath_verify_otp
-        let key = if key.starts_with("v2-0x") {
-            hex::decode(&key[5..]).map_err(|_| format_err!("bad v2 hex key in oath entry"))?
-        } else if key.starts_with("v2-") {
-            base32::decode(base32::Alphabet::RFC4648 { padding: true }, &key[3..])
+        let key = if let Some(key) = key.strip_prefix("v2-0x") {
+            hex::decode(key).map_err(|_| format_err!("bad v2 hex key in oath entry"))?
+        } else if let Some(key) = key.strip_prefix("v2-") {
+            base32::decode(base32::Alphabet::RFC4648 { padding: true }, key)
                 .ok_or_else(|| format_err!("bad v2 base32 key in oath entry"))?
         } else if key.len() == 16 {
             base32::decode(base32::Alphabet::RFC4648 { padding: true }, key)
