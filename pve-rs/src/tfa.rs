@@ -831,7 +831,7 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
     let users = Hash::new();
 
     for (user, data) in &config.users {
-        if let Some(u2f) = data.u2f.get(0) {
+        if let Some(u2f) = data.u2f.first() {
             let data = Hash::new();
             data.insert(
                 "publicKey",
@@ -850,7 +850,7 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
             continue;
         }
 
-        if let Some(totp) = data.totp.get(0) {
+        if let Some(totp) = data.totp.first() {
             let totp = &totp.entry;
             let config = Hash::new();
             config.insert("digits", Value::new_int(isize::from(totp.digits())));
@@ -873,7 +873,7 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
             continue;
         }
 
-        if let Some(entry) = data.yubico.get(0) {
+        if let Some(entry) = data.yubico.first() {
             let mut keys = entry.entry.clone();
 
             for entry in data.yubico.iter().skip(1) {
