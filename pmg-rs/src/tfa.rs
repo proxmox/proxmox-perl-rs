@@ -17,7 +17,7 @@ use anyhow::{bail, format_err, Error};
 use nix::errno::Errno;
 use nix::sys::stat::Mode;
 
-pub(self) use proxmox_tfa::api::{
+use proxmox_tfa::api::{
     RecoveryState, TfaChallenge, TfaConfig, TfaResponse, U2fConfig, UserChallengeAccess,
     WebauthnConfig,
 };
