@@ -178,7 +178,7 @@ mod export {
         #[try_from_ref] this: &Tfa,
     ) -> Result<(Option<String>, Option<super::WebauthnConfig>), Error> {
         Ok(match this.inner.lock().unwrap().webauthn.clone() {
-            Some(config) => (Some(hex::encode(&config.digest())), Some(config.into())),
+            Some(config) => (Some(hex::encode(config.digest())), Some(config.into())),
             None => (None, None),
         })
     }
@@ -644,7 +644,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
 
     fn remove(&self, userid: &str) -> Result<bool, Error> {
         let path = challenge_data_path(userid, self.is_debug());
-        match std::fs::remove_file(&path) {
+        match std::fs::remove_file(path) {
             Ok(()) => Ok(true),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(err) => Err(err.into()),
