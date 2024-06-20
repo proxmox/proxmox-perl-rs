@@ -361,6 +361,7 @@ mod export {
         methods::list_tfa(&this.inner.lock().unwrap(), authid, top_level_allowed)
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[export]
     fn api_add_tfa_entry(
         #[raw] raw_this: Value,
