@@ -1,12 +1,14 @@
 #[perlmod::package(name = "PMG::RS::APT::Repositories")]
 mod export {
     use anyhow::Error;
+    use proxmox_apt_api_types::APTRepositoriesResult;
+    use proxmox_config_digest::ConfigDigest;
 
     use crate::common::apt::repositories::export as common;
 
     /// Get information about configured and standard repositories.
     #[export]
-    pub fn repositories() -> Result<common::RepositoriesResult, Error> {
+    pub fn repositories() -> Result<APTRepositoriesResult, Error> {
         common::repositories("pmg")
     }
 
@@ -15,7 +17,7 @@ mod export {
     ///
     /// The `digest` parameter asserts that the configuration has not been modified.
     #[export]
-    pub fn add_repository(handle: &str, digest: Option<&str>) -> Result<(), Error> {
+    pub fn add_repository(handle: &str, digest: Option<ConfigDigest>) -> Result<(), Error> {
         common::add_repository(handle, "pmg", digest)
     }
 
@@ -27,7 +29,7 @@ mod export {
         path: &str,
         index: usize,
         options: common::ChangeProperties,
-        digest: Option<&str>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
         common::change_repository(path, index, options, digest)
     }

@@ -1,34 +1,12 @@
 #[perlmod::package(name = "Proxmox::RS::APT::Repositories")]
 pub mod export {
-    use std::convert::TryInto;
 
     use anyhow::{bail, Error};
     use serde::{Deserialize, Serialize};
 
-    use proxmox_apt::repositories::{
-        APTRepositoryFile, APTRepositoryFileError, APTRepositoryHandle, APTRepositoryInfo,
-        APTStandardRepository,
-    };
-
-    #[derive(Deserialize, Serialize)]
-    #[serde(rename_all = "kebab-case")]
-    /// Result for the repositories() function
-    pub struct RepositoriesResult {
-        /// Successfully parsed files.
-        pub files: Vec<APTRepositoryFile>,
-
-        /// Errors for files that could not be parsed or read.
-        pub errors: Vec<APTRepositoryFileError>,
-
-        /// Common digest for successfully parsed files.
-        pub digest: String,
-
-        /// Additional information/warnings about repositories.
-        pub infos: Vec<APTRepositoryInfo>,
-
-        /// Standard repositories and their configuration status.
-        pub standard_repos: Vec<APTStandardRepository>,
-    }
+    use proxmox_apt::repositories::{APTRepositoryFileImpl, APTRepositoryImpl};
+    use proxmox_apt_api_types::{APTRepositoriesResult, APTRepositoryFile, APTRepositoryHandle};
+    use proxmox_config_digest::ConfigDigest;
 
     #[derive(Deserialize, Serialize)]
     #[serde(rename_all = "kebab-case")]
@@ -40,9 +18,8 @@ pub mod export {
 
     /// Get information about configured repositories and standard repositories for `product`.
     #[export]
-    pub fn repositories(product: &str) -> Result<RepositoriesResult, Error> {
+    pub fn repositories(product: &str) -> Result<APTRepositoriesResult, Error> {
         let (files, errors, digest) = proxmox_apt::repositories::repositories()?;
-        let digest = hex::encode(&digest);
 
         let suite = proxmox_apt::repositories::get_current_release_codename()?;
 
@@ -50,7 +27,7 @@ pub mod export {
         let standard_repos =
             proxmox_apt::repositories::standard_repositories(&files, product, suite);
 
-        Ok(RepositoriesResult {
+        Ok(APTRepositoriesResult {
             files,
             errors,
             digest,
@@ -64,18 +41,17 @@ pub mod export {
     ///
     /// The `digest` parameter asserts that the configuration has not been modified.
     #[export]
-    pub fn add_repository(handle: &str, product: &str, digest: Option<&str>) -> Result<(), Error> {
+    pub fn add_repository(
+        handle: &str,
+        product: &str,
+        digest: Option<ConfigDigest>,
+    ) -> Result<(), Error> {
         let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
 
-        let handle: APTRepositoryHandle = handle.try_into()?;
+        let handle: APTRepositoryHandle = handle.parse()?;
         let suite = proxmox_apt::repositories::get_current_release_codename()?;
 
-        if let Some(digest) = digest {
-            let expected_digest = hex::decode(digest)?;
-            if expected_digest != current_digest {
-                bail!("detected modified configuration - file changed by other user? Try again.");
-            }
-        }
+        current_digest.detect_modification(digest.as_ref())?;
 
         // check if it's already configured first
         for file in files.iter_mut() {
@@ -133,16 +109,11 @@ pub mod export {
         path: &str,
         index: usize,
         options: ChangeProperties,
-        digest: Option<&str>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
         let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
 
-        if let Some(digest) = digest {
-            let expected_digest = hex::decode(digest)?;
-            if expected_digest != current_digest {
-                bail!("detected modified configuration - file changed by other user? Try again.");
-            }
-        }
+        current_digest.detect_modification(digest.as_ref())?;
 
         if let Some(error) = errors.iter().find(|error| error.path == path) {
             bail!("unable to parse file {} - {}", error.path, error.error);
