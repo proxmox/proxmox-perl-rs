@@ -17,6 +17,6 @@ mod export {
     #[export]
     pub fn init() {
         common::logger::init("PVE_LOG", "info");
-        proxmox_notify::context::set_context(&PVE_CONTEXT)
+        proxmox_notify::context::set_context(&PVE_CONTEXT);
     }
 }
