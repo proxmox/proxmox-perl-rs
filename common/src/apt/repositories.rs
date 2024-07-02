@@ -1,39 +1,17 @@
 #[perlmod::package(name = "Proxmox::RS::APT::Repositories")]
 pub mod export {
 
-    use anyhow::{bail, Error};
-    use serde::{Deserialize, Serialize};
+    use anyhow::Error;
 
-    use proxmox_apt::repositories::{APTRepositoryFileImpl, APTRepositoryImpl};
-    use proxmox_apt_api_types::{APTRepositoriesResult, APTRepositoryFile, APTRepositoryHandle};
+    use proxmox_apt_api_types::{
+        APTChangeRepositoryOptions, APTRepositoriesResult, APTRepositoryHandle,
+    };
     use proxmox_config_digest::ConfigDigest;
-
-    #[derive(Deserialize, Serialize)]
-    #[serde(rename_all = "kebab-case")]
-    /// For changing an existing repository.
-    pub struct ChangeProperties {
-        /// Whether the repository should be enabled or not.
-        pub enabled: Option<bool>,
-    }
 
     /// Get information about configured repositories and standard repositories for `product`.
     #[export]
     pub fn repositories(product: &str) -> Result<APTRepositoriesResult, Error> {
-        let (files, errors, digest) = proxmox_apt::repositories::repositories()?;
-
-        let suite = proxmox_apt::repositories::get_current_release_codename()?;
-
-        let infos = proxmox_apt::repositories::check_repositories(&files, suite);
-        let standard_repos =
-            proxmox_apt::repositories::standard_repositories(&files, product, suite);
-
-        Ok(APTRepositoriesResult {
-            files,
-            errors,
-            digest,
-            infos,
-            standard_repos,
-        })
+        proxmox_apt::list_repositories(product)
     }
 
     /// Add the repository identified by the `handle` and `product`.
@@ -42,63 +20,11 @@ pub mod export {
     /// The `digest` parameter asserts that the configuration has not been modified.
     #[export]
     pub fn add_repository(
-        handle: &str,
+        handle: APTRepositoryHandle,
         product: &str,
         digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
-        let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
-
-        let handle: APTRepositoryHandle = handle.parse()?;
-        let suite = proxmox_apt::repositories::get_current_release_codename()?;
-
-        current_digest.detect_modification(digest.as_ref())?;
-
-        // check if it's already configured first
-        for file in files.iter_mut() {
-            for repo in file.repositories.iter_mut() {
-                if repo.is_referenced_repository(handle, product, &suite.to_string()) {
-                    if repo.enabled {
-                        return Ok(());
-                    }
-
-                    repo.set_enabled(true);
-                    file.write()?;
-
-                    return Ok(());
-                }
-            }
-        }
-
-        let (repo, path) =
-            proxmox_apt::repositories::get_standard_repository(handle, product, suite);
-
-        if let Some(error) = errors.iter().find(|error| error.path == path) {
-            bail!(
-                "unable to parse existing file {} - {}",
-                error.path,
-                error.error,
-            );
-        }
-
-        if let Some(file) = files
-            .iter_mut()
-            .find(|file| file.path.as_ref() == Some(&path))
-        {
-            file.repositories.push(repo);
-
-            file.write()?;
-        } else {
-            let mut file = match APTRepositoryFile::new(&path)? {
-                Some(file) => file,
-                None => bail!("invalid path - {}", path),
-            };
-
-            file.repositories.push(repo);
-
-            file.write()?;
-        }
-
-        Ok(())
+        proxmox_apt::add_repository_handle(product, handle, digest)
     }
 
     /// Change the properties of the specified repository.
@@ -108,34 +34,9 @@ pub mod export {
     pub fn change_repository(
         path: &str,
         index: usize,
-        options: ChangeProperties,
+        options: APTChangeRepositoryOptions,
         digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
-        let (mut files, errors, current_digest) = proxmox_apt::repositories::repositories()?;
-
-        current_digest.detect_modification(digest.as_ref())?;
-
-        if let Some(error) = errors.iter().find(|error| error.path == path) {
-            bail!("unable to parse file {} - {}", error.path, error.error);
-        }
-
-        if let Some(file) = files
-            .iter_mut()
-            .find(|file| file.path.as_ref() == Some(&path.to_string()))
-        {
-            if let Some(repo) = file.repositories.get_mut(index) {
-                if let Some(enabled) = options.enabled {
-                    repo.set_enabled(enabled);
-                }
-
-                file.write()?;
-            } else {
-                bail!("invalid index - {}", index);
-            }
-        } else {
-            bail!("invalid path - {}", path);
-        }
-
-        Ok(())
+        proxmox_apt::change_repository(path, index, &options, digest)
     }
 }
