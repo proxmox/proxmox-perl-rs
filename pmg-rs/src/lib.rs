@@ -6,6 +6,10 @@ pub mod apt;
 pub mod csr;
 pub mod tfa;
 
+use anyhow::Error;
+
+use proxmox_apt_api_types::APTUpdateInfo;
+
 #[perlmod::package(name = "Proxmox::Lib::PMG", lib = "pmg_rs")]
 mod export {
     use crate::common;
@@ -22,4 +26,10 @@ mod export {
     pub fn use_safe_putenv() {
         perlmod::ffi::use_safe_putenv(true);
     }
+}
+
+pub fn send_updates_available(_updates: &[&APTUpdateInfo]) -> Result<(), Error> {
+    log::warn!("update notifications are not implemented for PMG yet");
+
+    Ok(())
 }

@@ -63,8 +63,9 @@ pub mod export {
         proxmox_apt::update_database(
             apt_state_file,
             &options,
-            |_updates: &[&APTUpdateInfo]| -> Result<(), Error> {
+            |updates: &[&APTUpdateInfo]| -> Result<(), Error> {
                 // fixme: howto send notifgications?
+                crate::send_updates_available(updates)?;
                 Ok(())
             },
         )
