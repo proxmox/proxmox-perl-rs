@@ -39,5 +39,5 @@ proxmox-http-error = "0.1.0"
 proxmox-notify = "0.4"
 proxmox-subscription = "0.4"
 proxmox-sys = "0.5"
-proxmox-tfa = { version = "4.0.4", features = ["api"] }
+proxmox-tfa = { version = "5", features = ["api"] }
 proxmox-time = "2"
