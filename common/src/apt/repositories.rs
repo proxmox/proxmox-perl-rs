@@ -77,9 +77,8 @@ pub mod export {
         product_virtual_package: &str,
         api_server_package: &str,
         running_api_server_version: &str,
-        package_list: Vec<String>,
+        package_list: Vec<&str>,
     ) -> Result<Vec<APTUpdateInfo>, Error> {
-        let package_list: Vec<&str> = package_list.iter().map(|s| s.as_ref()).collect();
         proxmox_apt::get_package_versions(
             product_virtual_package,
             api_server_package,
