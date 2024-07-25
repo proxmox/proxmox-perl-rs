@@ -36,7 +36,7 @@ proxmox-apt-api-types = "1.0"
 proxmox-config-digest = "0.1"
 proxmox-http = { version = "0.9", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "0.1.0"
-proxmox-log = "0.1"
+proxmox-log = "0.2"
 proxmox-notify = { version = "0.4", features = ["pve-context"] }
 proxmox-openid = "0.10"
 proxmox-resource-scheduling = "0.3.0"
