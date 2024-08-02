@@ -5,9 +5,9 @@ mod export {
     use proxmox_subscription::SubscriptionInfo;
     use proxmox_sys::fs::CreateOptions;
 
-    use proxmox_http::ProxyConfig;
-    use proxmox_http::HttpOptions;
     use proxmox_http::client::sync::Client;
+    use proxmox_http::HttpOptions;
+    use proxmox_http::ProxyConfig;
 
     #[export]
     fn read_subscription(path: String) -> Result<Option<SubscriptionInfo>, Error> {
@@ -69,7 +69,11 @@ mod export {
             Some(url) => Some(ProxyConfig::parse_proxy_url(&url)?),
             None => None,
         };
-        let options = HttpOptions { proxy_config, user_agent: Some(user_agent) , ..Default::default() };
+        let options = HttpOptions {
+            proxy_config,
+            user_agent: Some(user_agent),
+            ..Default::default()
+        };
         let client = Client::new(options);
 
         proxmox_subscription::check::check_subscription(key, server_id, product_url, client)

@@ -8,6 +8,7 @@ mod export {
 
     use perlmod::Value;
     use proxmox_http_error::HttpError;
+    use proxmox_notify::api::Target;
     use proxmox_notify::endpoints::gotify::{
         DeleteableGotifyProperty, GotifyConfig, GotifyConfigUpdater, GotifyPrivateConfig,
         GotifyPrivateConfigUpdater,
@@ -27,7 +28,6 @@ mod export {
         MatcherConfigUpdater, SeverityMatcher,
     };
     use proxmox_notify::{api, Config, Notification, Severity};
-    use proxmox_notify::api::Target;
 
     pub struct NotificationConfig {
         config: Mutex<Config>,
@@ -114,9 +114,7 @@ mod export {
     }
 
     #[export(serialize_error)]
-    fn get_targets(
-        #[try_from_ref] this: &NotificationConfig,
-    ) -> Result<Vec<Target>, HttpError> {
+    fn get_targets(#[try_from_ref] this: &NotificationConfig) -> Result<Vec<Target>, HttpError> {
         let config = this.config.lock().unwrap();
         api::get_targets(&config)
     }
@@ -429,10 +427,7 @@ mod export {
         endpoint_config: WebhookConfig,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        api::webhook::add_endpoint(
-            &mut config,
-            endpoint_config,
-        )
+        api::webhook::add_endpoint(&mut config, endpoint_config)
     }
 
     #[export(serialize_error)]
