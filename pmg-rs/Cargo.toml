@@ -37,6 +37,7 @@ proxmox-http = { version = "0.9", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "0.1.0"
 proxmox-log = "0.2"
 proxmox-notify = "0.4"
+proxmox-shared-cache = "0.1.0"
 proxmox-subscription = "0.4"
 proxmox-sys = "0.6"
 proxmox-tfa = { version = "5", features = ["api"] }

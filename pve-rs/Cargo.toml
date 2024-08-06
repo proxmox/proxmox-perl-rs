@@ -40,6 +40,7 @@ proxmox-log = "0.2"
 proxmox-notify = { version = "0.4", features = ["pve-context"] }
 proxmox-openid = "0.10"
 proxmox-resource-scheduling = "0.3.0"
+proxmox-shared-cache = "0.1.0"
 proxmox-subscription = "0.4"
 proxmox-sys = "0.6"
 proxmox-tfa = { version = "5", features = ["api"] }

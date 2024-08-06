@@ -24,6 +24,7 @@ PERLMOD_PACKAGES := \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
 	  Proxmox::RS::Notify \
+	  Proxmox::RS::SharedCache \
 	  Proxmox::RS::Subscription
 
 PERLMOD_PACKAGE_FILES := $(addsuffix .pm,$(subst ::,/,$(PERLMOD_PACKAGES)))
