@@ -1,3 +1,15 @@
+libpve-rs-perl (0.8.10) bookworm; urgency=medium
+
+  * use apt api implementation from the proxmox-apt crate
+
+  * send apt update notification via proxmox-notify
+
+  * add bindings for proxmox-shared-cache crate
+
+  * update to current proxmox-time/tfa/sys/log crates
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Aug 2024 13:42:38 +0200
+
 libpve-rs-perl (0.8.9) bookworm; urgency=medium
 
   * update to notify 0.4: use file based notification templates
