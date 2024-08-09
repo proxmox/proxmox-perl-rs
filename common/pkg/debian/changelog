@@ -1,3 +1,9 @@
+libproxmox-rs-perl (0.3.4) bookworm; urgency=medium
+
+  * add bindings for proxmox-shared-cache crate
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Aug 2024 14:21:41 +0200
+
 libproxmox-rs-perl (0.3.3) bookworm; urgency=medium
 
   * move ssl var probing to Proxmox::Lib::SslProbe
