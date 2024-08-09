@@ -1,3 +1,13 @@
+libpmg-rs-perl (0.7.6) bookworm; urgency=medium
+
+  * upgrade to current rust crates or perlmod and proxmox-sys/tfa/apt/notify
+
+  * add bindings for proxmox-shared-cache crate
+
+  * use apt api method implementation from proxmox-apt crate
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Aug 2024 14:19:56 +0200
+
 libpmg-rs-perl (0.7.5) bookworm; urgency=medium
 
   * add EAB binding support to ACME

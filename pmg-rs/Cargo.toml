@@ -1,6 +1,6 @@
 [package]
 name = "pmg-rs"
-version = "0.7.5"
+version = "0.7.6"
 description = "PMG parts which have been ported to rust"
 homepage = "https://www.proxmox.com"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
