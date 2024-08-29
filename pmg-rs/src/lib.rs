@@ -1,3 +1,7 @@
+use anyhow::Error;
+
+use proxmox_apt_api_types::APTUpdateInfo;
+
 #[path = "../common/src/mod.rs"]
 pub mod common;
 
@@ -5,10 +9,6 @@ pub mod acme;
 pub mod apt;
 pub mod csr;
 pub mod tfa;
-
-use anyhow::Error;
-
-use proxmox_apt_api_types::APTUpdateInfo;
 
 #[perlmod::package(name = "Proxmox::Lib::PMG", lib = "pmg_rs")]
 mod export {

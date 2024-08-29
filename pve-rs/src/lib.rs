@@ -1,5 +1,13 @@
 //! Rust library for the Proxmox VE code base.
 
+use std::collections::HashMap;
+
+use anyhow::Error;
+use serde_json::json;
+
+use proxmox_apt_api_types::APTUpdateInfo;
+use proxmox_notify::{Config, Notification, Severity};
+
 #[path = "../common/src/mod.rs"]
 pub mod common;
 
@@ -7,14 +15,6 @@ pub mod apt;
 pub mod openid;
 pub mod resource_scheduling;
 pub mod tfa;
-
-use std::collections::HashMap;
-
-use anyhow::Error;
-
-use proxmox_apt_api_types::APTUpdateInfo;
-use proxmox_notify::{Config, Notification, Severity};
-use serde_json::json;
 
 #[perlmod::package(name = "Proxmox::Lib::PVE", lib = "pve_rs")]
 mod export {
