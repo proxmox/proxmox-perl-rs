@@ -2,7 +2,7 @@ include /usr/share/dpkg/pkg-info.mk
 
 PACKAGE=libproxmox-rs-perl
 
-ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
+ARCH:=all
 export GITVERSION:=$(shell git rev-parse HEAD)
 
 PERL_INSTALLVENDORARCH != perl -MConfig -e 'print $$Config{installvendorarch};'

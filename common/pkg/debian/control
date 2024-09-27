@@ -10,13 +10,12 @@ Homepage: https://www.proxmox.com
 Rules-Requires-Root: no
 
 Package: libproxmox-rs-perl
-Architecture: any
+Architecture: all
 # always bump both versioned Depends and Breaks, otherwise systems with both
 # libpmg-rs-perl and libpve-rs-perl might load an outdated lib and break
 Depends: libpve-rs-perl (>= 0.8.10) | libpmg-rs-perl (>= 0.7.6),
          ${misc:Depends},
          ${perl:Depends},
-         ${shlibs:Depends},
 Breaks: libpmg-rs-perl (<< 0.6.2), libpve-rs-perl (<< 0.7.2),
 Replaces: libpve-rs-perl (<< 0.6.0),
 Description: PVE/PMG common perl parts for Rust perlmod bindings
