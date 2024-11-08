@@ -27,6 +27,7 @@ mod export {
         MatcherConfigUpdater, SeverityMatcher,
     };
     use proxmox_notify::{api, Config, Notification, Severity};
+    use proxmox_notify::api::Target;
 
     pub struct NotificationConfig {
         config: Mutex<Config>,
@@ -110,6 +111,14 @@ mod export {
         );
 
         api::common::send(&config, &notification)
+    }
+
+    #[export(serialize_error)]
+    fn get_targets(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<Target>, HttpError> {
+        let config = this.config.lock().unwrap();
+        api::get_targets(&config)
     }
 
     #[export(serialize_error)]
