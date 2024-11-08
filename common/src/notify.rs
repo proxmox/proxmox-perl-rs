@@ -19,6 +19,9 @@ mod export {
         DeleteableSmtpProperty, SmtpConfig, SmtpConfigUpdater, SmtpMode, SmtpPrivateConfig,
         SmtpPrivateConfigUpdater,
     };
+    use proxmox_notify::endpoints::webhook::{
+        DeleteableWebhookProperty, WebhookConfig, WebhookConfigUpdater,
+    };
     use proxmox_notify::matcher::{
         CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
         MatcherConfigUpdater, SeverityMatcher,
@@ -391,6 +394,66 @@ mod export {
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
         api::smtp::delete_endpoint(&mut config, name)
+    }
+
+    #[export(serialize_error)]
+    fn get_webhook_endpoints(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<WebhookConfig>, HttpError> {
+        let config = this.config.lock().unwrap();
+        api::webhook::get_endpoints(&config)
+    }
+
+    #[export(serialize_error)]
+    fn get_webhook_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        id: &str,
+    ) -> Result<WebhookConfig, HttpError> {
+        let config = this.config.lock().unwrap();
+        api::webhook::get_endpoint(&config, id)
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn add_webhook_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        endpoint_config: WebhookConfig,
+    ) -> Result<(), HttpError> {
+        let mut config = this.config.lock().unwrap();
+        api::webhook::add_endpoint(
+            &mut config,
+            endpoint_config,
+        )
+    }
+
+    #[export(serialize_error)]
+    #[allow(clippy::too_many_arguments)]
+    fn update_webhook_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+        config_updater: WebhookConfigUpdater,
+        delete: Option<Vec<DeleteableWebhookProperty>>,
+        digest: Option<&str>,
+    ) -> Result<(), HttpError> {
+        let mut config = this.config.lock().unwrap();
+        let digest = decode_digest(digest)?;
+
+        api::webhook::update_endpoint(
+            &mut config,
+            name,
+            config_updater,
+            delete.as_deref(),
+            digest.as_deref(),
+        )
+    }
+
+    #[export(serialize_error)]
+    fn delete_webhook_endpoint(
+        #[try_from_ref] this: &NotificationConfig,
+        name: &str,
+    ) -> Result<(), HttpError> {
+        let mut config = this.config.lock().unwrap();
+        api::webhook::delete_endpoint(&mut config, name)
     }
 
     #[export(serialize_error)]
