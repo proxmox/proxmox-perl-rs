@@ -41,7 +41,7 @@ proxmox-notify = { version = "0.5", features = ["pve-context"] }
 proxmox-openid = "0.10"
 proxmox-resource-scheduling = "0.3.0"
 proxmox-shared-cache = "0.1.0"
-proxmox-subscription = "0.4"
+proxmox-subscription = "0.5"
 proxmox-sys = "0.6"
 proxmox-tfa = { version = "5", features = ["api"] }
 proxmox-time = "2"
