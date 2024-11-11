@@ -1,3 +1,17 @@
+libpve-rs-perl (0.8.11) bookworm; urgency=medium
+
+  * update proxmox-subscription to 0.5
+
+  * pve: update proxmox-apt to >= 0.11.4 to ensure new Ceph Squid repos are
+    available
+
+  * notify: add bindings for webhook API routes
+
+  * notify: add bindings for get_targets, which allows us to drop the impl of
+    that function on the perl side.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 11 Nov 2024 20:41:54 +0100
+
 libpve-rs-perl (0.8.10) bookworm; urgency=medium
 
   * use apt api implementation from the proxmox-apt crate
