@@ -12,6 +12,7 @@ use proxmox_notify::{Config, Notification, Severity};
 pub mod common;
 
 pub mod apt;
+pub mod firewall;
 pub mod openid;
 pub mod resource_scheduling;
 pub mod tfa;
