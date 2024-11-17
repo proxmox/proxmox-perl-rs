@@ -1,3 +1,9 @@
+libpve-rs-perl (0.8.12) bookworm; urgency=medium
+
+  * add PVE::RS::Firewall::SDN module
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 17 Nov 2024 12:18:54 +0100
+
 libpve-rs-perl (0.8.11) bookworm; urgency=medium
 
   * update proxmox-subscription to 0.5
