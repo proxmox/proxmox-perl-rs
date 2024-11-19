@@ -1,3 +1,9 @@
+libpve-rs-perl (0.8.13) bookworm; urgency=medium
+
+  * sdn: use new IPAM state path with fallback to legacy one
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 19 Nov 2024 16:11:04 +0100
+
 libpve-rs-perl (0.8.12) bookworm; urgency=medium
 
   * add PVE::RS::Firewall::SDN module
