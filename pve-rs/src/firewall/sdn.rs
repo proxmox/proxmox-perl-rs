@@ -86,7 +86,8 @@ mod export {
     }
 
     const SDN_RUNNING_CONFIG: &str = "/etc/pve/sdn/.running-config";
-    const SDN_IPAM: &str = "/etc/pve/priv/ipam.db";
+    const SDN_IPAM: &str = "/etc/pve/sdn/pve-ipam-state.json";
+    const SDN_IPAM_LEGACY: &str = "/etc/pve/priv/ipam.db"; // TODO: remove with PVE 9+
 
     #[export]
     pub fn config(
@@ -110,16 +111,25 @@ mod export {
             }
         };
 
-        match fs::read_to_string(SDN_IPAM) {
-            Ok(data) => {
-                let ipam_json: IpamJson = serde_json::from_str(&data)?;
-                let ipam: Ipam = Ipam::try_from(ipam_json)
-                    .with_context(|| "Failed to parse IPAM".to_string())?;
+        let add_ipam_ipsets = |data: String| -> Result<(), Error> {
+            let ipam_json: IpamJson = serde_json::from_str(&data)?;
+            let ipam: Ipam =
+                Ipam::try_from(ipam_json).with_context(|| "Failed to parse IPAM".to_string())?;
 
-                let allowlist = vm_filter.map(Allowlist::from_iter);
-                refs.extend_ipsets(ipam.ipsets(allowlist.as_ref()));
+            let allowlist = vm_filter.map(Allowlist::from_iter);
+            refs.extend_ipsets(ipam.ipsets(allowlist.as_ref()));
+            Ok(())
+        };
+        match fs::read_to_string(SDN_IPAM) {
+            Ok(data) => add_ipam_ipsets(data)?,
+            // Fallback to legacy path for transition from priv/ to sdn/ folder for cache/state
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                match fs::read_to_string(SDN_IPAM_LEGACY) {
+                    Ok(data) => add_ipam_ipsets(data)?,
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => (),
+                    Err(e) => bail!("Cannot open legacy IPAM database: {e:#}"),
+                }
             }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => (),
             Err(e) => {
                 bail!("Cannot open IPAM database: {e:#}");
             }
