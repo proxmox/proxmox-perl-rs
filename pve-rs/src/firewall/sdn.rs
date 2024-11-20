@@ -127,6 +127,7 @@ mod export {
                 match fs::read_to_string(SDN_IPAM_LEGACY) {
                     Ok(data) => add_ipam_ipsets(data)?,
                     Err(e) if e.kind() == io::ErrorKind::NotFound => (),
+                    Err(e) if e.kind() == io::ErrorKind::PermissionDenied => (),
                     Err(e) => bail!("Cannot open legacy IPAM database: {e:#}"),
                 }
             }
