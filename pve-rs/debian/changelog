@@ -1,3 +1,9 @@
+libpve-rs-perl (0.9.1) bookworm; urgency=medium
+
+  * fix #5927: firewall: alias: lowercase names of aliases
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 25 Nov 2024 22:10:29 +0100
+
 libpve-rs-perl (0.9.0) bookworm; urgency=medium
 
   * firewall: sdn: ignore EPERM when reading the legacy IPAM file
