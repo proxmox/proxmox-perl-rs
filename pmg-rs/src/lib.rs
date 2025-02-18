@@ -29,7 +29,7 @@ mod export {
 }
 
 pub fn send_updates_available(_updates: &[&APTUpdateInfo]) -> Result<(), Error> {
-    log::warn!("update notifications are not implemented for PMG yet");
+    tracing::warn!("update notifications are not implemented for PMG yet");
 
     Ok(())
 }
