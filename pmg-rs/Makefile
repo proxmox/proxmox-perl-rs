@@ -29,7 +29,6 @@ PERLMOD_PACKAGES := \
 	  PMG::RS::APT::Repositories \
 	  PMG::RS::Acme \
 	  PMG::RS::CSR \
-	  PMG::RS::OpenId \
 	  PMG::RS::TFA
 
 PERLMOD_PACKAGE_FILES := $(addsuffix .pm,$(subst ::,/,$(PERLMOD_PACKAGES)))
