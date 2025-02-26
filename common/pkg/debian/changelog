@@ -1,3 +1,10 @@
+libproxmox-rs-perl (0.3.5) bookworm; urgency=medium
+
+  * move openid code from pve-rs to common as new module with backward compat
+    wrapper.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 26 Feb 2025 17:42:38 +0100
+
 libproxmox-rs-perl (0.3.4) bookworm; urgency=medium
 
   * add bindings for proxmox-shared-cache crate

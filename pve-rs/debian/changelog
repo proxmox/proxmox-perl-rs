@@ -1,3 +1,9 @@
+libpve-rs-perl (0.9.2) bookworm; urgency=medium
+
+  * move openid code from pve-rs to common with backward compatible wrappers
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 26 Feb 2025 17:41:51 +0100
+
 libpve-rs-perl (0.9.1) bookworm; urgency=medium
 
   * fix #5927: firewall: alias: lowercase names of aliases

@@ -1,3 +1,9 @@
+libpmg-rs-perl (0.7.7) bookworm; urgency=medium
+
+  * move openid code from pve-rs to common
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 26 Feb 2025 17:41:25 +0100
+
 libpmg-rs-perl (0.7.6) bookworm; urgency=medium
 
   * upgrade to current rust crates or perlmod and proxmox-sys/tfa/apt/notify
