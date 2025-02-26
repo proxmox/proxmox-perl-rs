@@ -24,6 +24,7 @@ PERLMOD_PACKAGES := \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
 	  Proxmox::RS::Notify \
+	  Proxmox::RS::OIDC \
 	  Proxmox::RS::SharedCache \
 	  Proxmox::RS::Subscription
 

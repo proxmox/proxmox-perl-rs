@@ -1,19 +1,13 @@
 #[perlmod::package(name = "PVE::RS::OpenId", lib = "pve_rs")]
 mod export {
-    use std::sync::Mutex;
-
     use anyhow::Error;
 
-    use perlmod::{to_value, Value};
+    use perlmod::Value;
 
-    use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig, PrivateAuthState};
+    use proxmox_openid::{OpenIdConfig, PrivateAuthState};
 
-    perlmod::declare_magic!(Box<OpenId> : &OpenId as "PVE::RS::OpenId");
-
-    /// An OpenIdAuthenticator client instance.
-    pub struct OpenId {
-        inner: Mutex<OpenIdAuthenticator>,
-    }
+    use crate::common::oidc::export as common;
+    use crate::common::oidc::export::OIDC as OpenId;
 
     /// Create a new OpenId client instance
     #[export(raw_return)]
@@ -22,13 +16,7 @@ mod export {
         config: OpenIdConfig,
         redirect_url: &str,
     ) -> Result<Value, Error> {
-        let open_id = OpenIdAuthenticator::discover(&config, redirect_url)?;
-        Ok(perlmod::instantiate_magic!(
-            &class,
-            MAGIC => Box::new(OpenId {
-                inner: Mutex::new(open_id),
-            })
-        ))
+        common::discover(class, config, redirect_url)
     }
 
     #[export]
@@ -37,8 +25,7 @@ mod export {
         state_dir: &str,
         realm: &str,
     ) -> Result<String, Error> {
-        let open_id = this.inner.lock().unwrap();
-        open_id.authorize_url(state_dir, realm)
+        common::authorize_url(this, state_dir, realm)
     }
 
     #[export]
@@ -46,7 +33,7 @@ mod export {
         state_dir: &str,
         state: &str,
     ) -> Result<(String, PrivateAuthState), Error> {
-        OpenIdAuthenticator::verify_public_auth_state(state_dir, state)
+        common::verify_public_auth_state(state_dir, state)
     }
 
     #[export(raw_return)]
@@ -55,9 +42,6 @@ mod export {
         code: &str,
         private_auth_state: PrivateAuthState,
     ) -> Result<Value, Error> {
-        let open_id = this.inner.lock().unwrap();
-        let claims = open_id.verify_authorization_code_simple(code, &private_auth_state)?;
-
-        Ok(to_value(&claims)?)
+        common::verify_authorization_code(this, code, private_auth_state)
     }
 }
