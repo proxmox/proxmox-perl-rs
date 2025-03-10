@@ -4,7 +4,7 @@ version = "0.7.7"
 description = "PMG parts which have been ported to rust"
 homepage = "https://www.proxmox.com"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
-edition = "2021"
+edition = "2024"
 license = "AGPL-3"
 repository = "https://git.proxmox.com/?p=proxmox.git"
 
