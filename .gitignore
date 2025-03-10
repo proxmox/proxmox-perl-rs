@@ -11,3 +11,5 @@ Cargo.lock
 /common-deb
 /pve-deb
 /pmg-deb
+/pve-rs/libpve-rs-perl*[0-9]*
+/pmg-rs/libpmg-rs-perl*[0-9]*
