@@ -726,7 +726,7 @@ fn decode_old_oath_entry(
     let mut out = Vec::new();
 
     let keys = take_json_string(&mut obj, "keys", "oath")?;
-    for key in keys.split(|c| c == ',' || c == ';' || c == ' ') {
+    for key in keys.split([',', ';', ' ']) {
         let key = trim_ascii_whitespace(key.as_bytes());
         if key.is_empty() {
             continue;
@@ -765,7 +765,7 @@ fn decode_old_yubico_entry(data: JsonValue) -> Result<Vec<String>, Error> {
     let mut out = Vec::new();
 
     let keys = take_json_string(&mut obj, "keys", "yubico")?;
-    for key in keys.split(|c| c == ',' || c == ';' || c == ' ') {
+    for key in keys.split([',', ';', ' ']) {
         let key = trim_ascii_whitespace(key.as_bytes());
         if key.is_empty() {
             continue;
