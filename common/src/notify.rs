@@ -3,7 +3,7 @@ mod export {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{bail, Error};
+    use anyhow::{Error, bail};
     use serde_json::Value as JSONValue;
 
     use perlmod::Value;
@@ -27,7 +27,7 @@ mod export {
         CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
         MatcherConfigUpdater, SeverityMatcher,
     };
-    use proxmox_notify::{api, Config, Notification, Severity};
+    use proxmox_notify::{Config, Notification, Severity, api};
 
     pub struct NotificationConfig {
         config: Mutex<Config>,

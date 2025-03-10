@@ -2,7 +2,7 @@
 //!
 //! The functions in here are perl bindings.
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use nix::sys::stat::Mode;
 use proxmox_sys::fs::CreateOptions;
 use serde::{Deserialize, Serialize};

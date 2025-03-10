@@ -1,13 +1,13 @@
 #[perlmod::package(name = "Proxmox::RS::Subscription")]
 mod export {
-    use anyhow::{bail, format_err, Error};
+    use anyhow::{Error, bail, format_err};
 
     use proxmox_subscription::SubscriptionInfo;
     use proxmox_sys::fs::CreateOptions;
 
-    use proxmox_http::client::sync::Client;
     use proxmox_http::HttpOptions;
     use proxmox_http::ProxyConfig;
+    use proxmox_http::client::sync::Client;
 
     #[export]
     fn read_subscription(path: String) -> Result<Option<SubscriptionInfo>, Error> {
