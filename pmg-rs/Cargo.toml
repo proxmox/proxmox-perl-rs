@@ -41,4 +41,4 @@ proxmox-subscription = "0.5"
 proxmox-sys = "0.6"
 proxmox-tfa = { version = "5", features = ["api"] }
 proxmox-time = "2"
-proxmox-openid =  "0.10.0"
+proxmox-openid =  "0.10.4"

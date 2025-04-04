@@ -37,7 +37,7 @@ proxmox-http = { version = "0.9", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "0.1.0"
 proxmox-log = "0.2"
 proxmox-notify = { version = "0.5", features = ["pve-context"] }
-proxmox-openid = "0.10"
+proxmox-openid = "0.10.4"
 proxmox-resource-scheduling = "0.3.0"
 proxmox-shared-cache = "0.1.0"
 proxmox-subscription = "0.5"
