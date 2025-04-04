@@ -41,7 +41,8 @@ mod export {
         #[try_from_ref] this: &OpenId,
         code: &str,
         private_auth_state: PrivateAuthState,
+        query_userinfo: Option<bool>,
     ) -> Result<Value, Error> {
-        common::verify_authorization_code(this, code, private_auth_state)
+        common::verify_authorization_code(this, code, private_auth_state, query_userinfo)
     }
 }

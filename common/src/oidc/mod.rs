@@ -54,9 +54,14 @@ pub mod export {
         #[try_from_ref] this: &OIDC,
         code: &str,
         private_auth_state: PrivateAuthState,
+        query_userinfo: Option<bool>,
     ) -> Result<Value, Error> {
         let oidc = this.inner.lock().unwrap();
-        let claims = oidc.verify_authorization_code_simple(code, &private_auth_state)?;
+        let claims = oidc.verify_authorization_code_simple_userinfo(
+            code,
+            &private_auth_state,
+            query_userinfo.unwrap_or(true),
+        )?;
 
         Ok(to_value(&claims)?)
     }
