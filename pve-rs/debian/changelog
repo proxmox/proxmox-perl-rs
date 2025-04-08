@@ -1,3 +1,12 @@
+libpve-rs-perl (0.9.4) bookworm; urgency=medium
+
+  * rebuild with proxmox-notify version 0.5.4:
+    + ensures a bug fix for the missing Content-Length header for webhook
+      notification is included.
+    + fix #6143: notify: allow overriding notification templates.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 08 Apr 2025 12:56:07 +0200
+
 libpve-rs-perl (0.9.3) bookworm; urgency=medium
 
   * fix #4234: openid: adjust openid verification function for userinfo option
