@@ -93,7 +93,7 @@ $(BUILDDIR): src debian test common/src Cargo.toml Makefile .cargo/config.toml
 
 .PHONY: deb
 deb: $(DEBS)
-$(DEBS): $(BUILDDIR)
+$(DEBS) &: $(BUILDDIR)
 	cd $(BUILDDIR); PATH="/usr/local/bin:/usr/bin" dpkg-buildpackage -b -us -uc
 	lintian $(DEBS)
 
