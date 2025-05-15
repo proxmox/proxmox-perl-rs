@@ -11,7 +11,6 @@ use proxmox_notify::{Config, Notification, Severity};
 #[path = "../common/src/mod.rs"]
 pub mod common;
 
-pub mod apt;
 pub mod firewall;
 pub mod openid;
 pub mod resource_scheduling;

@@ -27,7 +27,6 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 	--include-file=Fixup.pm
 
 PERLMOD_PACKAGES := \
-	  PVE::RS::APT::Repositories \
 	  PVE::RS::Firewall::SDN \
 	  PVE::RS::OpenId \
 	  PVE::RS::ResourceScheduling::Static \
