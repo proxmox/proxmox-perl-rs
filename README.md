@@ -1,3 +1,32 @@
+# Code Organization
+
+In order to have accessible documentation, all the perl packages should be put
+into the `bindings` module and exported by their package name converted to
+snake case (with every double colons replaced by a single underscore).
+
+To view the documentation, simply run:
+
+   ```
+   $ cargo doc --no-deps --open
+   ```
+
+The module/package documentation should include the perl package name, so it is more obvious.
+
+Opening the `bindings` module's documentation should immediately provide a list
+of *all* exported packages.
+
+Any non-export-specific code should be *outside* the `bindings` submodule.
+
+## Code Documentation
+
+Regular rust function documentation rules apply.
+
+Additionally:
+
+- Exports which are simple wrappers should link to their implementing rust
+  documentation via a `See ...` note in their documentation.
+- Exports should use a prefix for "class methods" (`Class method:`) or instance methods (`Method:`).
+
 # Hints for development:
 
 With the current perlmod, the `.pm` files don't actually change anymore, since the exported method

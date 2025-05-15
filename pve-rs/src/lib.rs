@@ -9,26 +9,14 @@ use proxmox_apt_api_types::APTUpdateInfo;
 use proxmox_notify::{Config, Notification, Severity};
 
 #[path = "../common/src/mod.rs"]
-pub mod common;
+mod common;
 
 pub mod apt;
 pub mod firewall;
 pub mod openid;
 pub mod resource_scheduling;
-pub mod tfa;
 
-#[perlmod::package(name = "Proxmox::Lib::PVE", lib = "pve_rs")]
-mod export {
-    use proxmox_notify::context::pve::PVE_CONTEXT;
-
-    use crate::common;
-
-    #[export]
-    pub fn init() {
-        common::logger::init("PVE_LOG", "info");
-        proxmox_notify::context::set_context(&PVE_CONTEXT);
-    }
-}
+pub mod bindings;
 
 fn send_notification(notification: &Notification) -> Result<(), Error> {
     let config = proxmox_sys::fs::file_read_optional_string("/etc/pve/notifications.cfg")?

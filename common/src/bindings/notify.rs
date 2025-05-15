@@ -1,9 +1,18 @@
 #[perlmod::package(name = "Proxmox::RS::Notify")]
-mod export {
+pub mod proxmox_rs_notify {
+    //! The `Proxmox::RS::Notify` package.
+    //!
+    //! This implements the new notification API and support code.
+    //!
+    //! # Note
+    //!
+    //! This package provides `STORABLE_freeze` and `STORABLE_attach` subs for `dclone` support,
+    //! since this object will be put into `PVE::Cluster`'s `ccache`!
+
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{Error, bail};
+    use anyhow::{bail, Error};
     use serde_json::Value as JSONValue;
 
     use perlmod::Value;
@@ -27,17 +36,20 @@ mod export {
         CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
         MatcherConfigUpdater, SeverityMatcher,
     };
-    use proxmox_notify::{Config, Notification, Severity, api};
+    use proxmox_notify::{api, Config, Notification, Severity};
 
+    /// A notification catalog instance.
+    ///
+    /// See [`Config`].
     pub struct NotificationConfig {
         config: Mutex<Config>,
     }
 
     perlmod::declare_magic!(Box<NotificationConfig> : &NotificationConfig as "Proxmox::RS::Notify");
 
-    /// Support `dclone` so this can be put into the `ccache` of `PVE::Cluster`.
+    /// Method: Support `dclone` so this can be put into the `ccache` of `PVE::Cluster`.
     #[export(name = "STORABLE_freeze", raw_return)]
-    fn storable_freeze(
+    pub fn storable_freeze(
         #[try_from_ref] this: &NotificationConfig,
         cloning: bool,
     ) -> Result<Value, Error> {
@@ -53,9 +65,9 @@ mod export {
         Ok(value)
     }
 
-    /// Instead of `thaw` we implement `attach` for `dclone`.
+    /// Class method: Instead of `thaw` we implement `attach` for `dclone`.
     #[export(name = "STORABLE_attach", raw_return)]
-    fn storable_attach(
+    pub fn storable_attach(
         #[raw] class: Value,
         cloning: bool,
         #[raw] serialized: Value,
@@ -67,12 +79,16 @@ mod export {
         Ok(perlmod::instantiate_magic!(&class, MAGIC => data))
     }
 
+    type NotificationConfigInstance = Value;
+
+    /// Class method: Parse the notification configurations to produce a [`NotificationConfig`]
+    /// instance.
     #[export(raw_return)]
-    fn parse_config(
+    pub fn parse_config(
         #[raw] class: Value,
         raw_config: &[u8],
         raw_private_config: &[u8],
-    ) -> Result<Value, Error> {
+    ) -> Result<NotificationConfigInstance, Error> {
         let raw_config = std::str::from_utf8(raw_config)?;
         let raw_private_config = std::str::from_utf8(raw_private_config)?;
 
@@ -83,19 +99,31 @@ mod export {
         )))
     }
 
+    /// Method: Write the notification config out as a string.
     #[export]
-    fn write_config(#[try_from_ref] this: &NotificationConfig) -> Result<(String, String), Error> {
+    pub fn write_config(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<(String, String), Error> {
         Ok(this.config.lock().unwrap().write()?)
     }
 
+    /// Method: Returns the SHA256 digest of the configuration.
+    ///
+    /// The digest is only computed once when the configuration deserialized.
     #[export]
-    fn digest(#[try_from_ref] this: &NotificationConfig) -> String {
+    pub fn digest(#[try_from_ref] this: &NotificationConfig) -> String {
         let config = this.config.lock().unwrap();
         hex::encode(config.digest())
     }
 
+    /// Method: Send a notification from a template.
+    ///
+    /// This instantiates a [`Notification`] via [`from_template`](Notification::from_template())
+    /// and sends it according to the configuration.
+    ///
+    /// See [`api::common::send`].
     #[export(serialize_error)]
-    fn send(
+    pub fn send(
         #[try_from_ref] this: &NotificationConfig,
         severity: Severity,
         template_name: String,
@@ -113,14 +141,20 @@ mod export {
         api::common::send(&config, &notification)
     }
 
+    /// Method: Get a list of all notification targets.
+    ///
+    /// See [`api::get_targets`].
     #[export(serialize_error)]
-    fn get_targets(#[try_from_ref] this: &NotificationConfig) -> Result<Vec<Target>, HttpError> {
+    pub fn get_targets(
+        #[try_from_ref] this: &NotificationConfig,
+    ) -> Result<Vec<Target>, HttpError> {
         let config = this.config.lock().unwrap();
         api::get_targets(&config)
     }
 
+    /// Method: Test a target, see [`api::common::test_target`].
     #[export(serialize_error)]
-    fn test_target(
+    pub fn test_target(
         #[try_from_ref] this: &NotificationConfig,
         target: &str,
     ) -> Result<(), HttpError> {
@@ -128,16 +162,22 @@ mod export {
         api::common::test_target(&config, target)
     }
 
+    /// Method: Get sendmail endpoints.
+    ///
+    /// See [`api::sendmail::get_endpoints`].
     #[export(serialize_error)]
-    fn get_sendmail_endpoints(
+    pub fn get_sendmail_endpoints(
         #[try_from_ref] this: &NotificationConfig,
     ) -> Result<Vec<SendmailConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::sendmail::get_endpoints(&config)
     }
 
+    /// Method: Get a single sendmail endpoint by id.
+    ///
+    /// See [`api::sendmail::get_endpoint`].
     #[export(serialize_error)]
-    fn get_sendmail_endpoint(
+    pub fn get_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
     ) -> Result<SendmailConfig, HttpError> {
@@ -145,9 +185,12 @@ mod export {
         api::sendmail::get_endpoint(&config, id)
     }
 
+    /// Method: Add a sendmail endpoint.
+    ///
+    /// See [`api::sendmail::add_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn add_sendmail_endpoint(
+    pub fn add_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: String,
         mailto: Option<Vec<String>>,
@@ -175,9 +218,12 @@ mod export {
         )
     }
 
+    /// Method: Update a sendmail endpoint.
+    ///
+    /// See [`api::sendmail::update_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn update_sendmail_endpoint(
+    pub fn update_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         mailto: Option<Vec<String>>,
@@ -208,8 +254,11 @@ mod export {
         )
     }
 
+    /// Method: Delete a sendmail endpoint.
+    ///
+    /// See [`api::sendmail::delete_endpoint`].
     #[export(serialize_error)]
-    fn delete_sendmail_endpoint(
+    pub fn delete_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<(), HttpError> {
@@ -217,16 +266,22 @@ mod export {
         api::sendmail::delete_endpoint(&mut config, name)
     }
 
+    /// Method: Get 'gotify' endpoints.
+    ///
+    /// See [`api::gotify::get_endpoints`].
     #[export(serialize_error)]
-    fn get_gotify_endpoints(
+    pub fn get_gotify_endpoints(
         #[try_from_ref] this: &NotificationConfig,
     ) -> Result<Vec<GotifyConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::gotify::get_endpoints(&config)
     }
 
+    /// Method: Get a single 'gotify' endpoint by id.
+    ///
+    /// See [`api::gotify::get_endpoint`].
     #[export(serialize_error)]
-    fn get_gotify_endpoint(
+    pub fn get_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
     ) -> Result<GotifyConfig, HttpError> {
@@ -234,8 +289,11 @@ mod export {
         api::gotify::get_endpoint(&config, id)
     }
 
+    /// Method: Add a 'gotify' endpoint.
+    ///
+    /// See [`api::gotify::add_endpoint`].
     #[export(serialize_error)]
-    fn add_gotify_endpoint(
+    pub fn add_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: String,
         server: String,
@@ -258,9 +316,12 @@ mod export {
         )
     }
 
+    /// Method: Update a 'gotify' endpoint.
+    ///
+    /// See [`api::gotify::update_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn update_gotify_endpoint(
+    pub fn update_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         server: Option<String>,
@@ -287,8 +348,11 @@ mod export {
         )
     }
 
+    /// Method: Delete a 'gotify' endpoint.
+    ///
+    /// See [`api::gotify::delete_gotify_endpoint`].
     #[export(serialize_error)]
-    fn delete_gotify_endpoint(
+    pub fn delete_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<(), HttpError> {
@@ -296,16 +360,22 @@ mod export {
         api::gotify::delete_gotify_endpoint(&mut config, name)
     }
 
+    /// Method: Get SMTP endpoints.
+    ///
+    /// See [`api::smtp::get_endpoints`].
     #[export(serialize_error)]
-    fn get_smtp_endpoints(
+    pub fn get_smtp_endpoints(
         #[try_from_ref] this: &NotificationConfig,
     ) -> Result<Vec<SmtpConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::smtp::get_endpoints(&config)
     }
 
+    /// Method: Get a single SMTP endpoint by id.
+    ///
+    /// See [`api::smtp::get_endpoint`].
     #[export(serialize_error)]
-    fn get_smtp_endpoint(
+    pub fn get_smtp_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
     ) -> Result<SmtpConfig, HttpError> {
@@ -313,9 +383,12 @@ mod export {
         api::smtp::get_endpoint(&config, id)
     }
 
+    /// Method: Add an SMTP endpoint.
+    ///
+    /// See [`api::smtp::add_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn add_smtp_endpoint(
+    pub fn add_smtp_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: String,
         server: String,
@@ -351,9 +424,12 @@ mod export {
         )
     }
 
+    /// Method: Update an SMTP endpoint.
+    ///
+    /// See [`api::smtp::update_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn update_smtp_endpoint(
+    pub fn update_smtp_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         server: Option<String>,
@@ -394,8 +470,11 @@ mod export {
         )
     }
 
+    /// Method: Delete an SMTP endpoint.
+    ///
+    /// See [`api::smtp::delete_endpoint`].
     #[export(serialize_error)]
-    fn delete_smtp_endpoint(
+    pub fn delete_smtp_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<(), HttpError> {
@@ -403,16 +482,22 @@ mod export {
         api::smtp::delete_endpoint(&mut config, name)
     }
 
+    /// Method: Get webhook endpoints.
+    ///
+    /// See [`api::webhook::get_endpoints`].
     #[export(serialize_error)]
-    fn get_webhook_endpoints(
+    pub fn get_webhook_endpoints(
         #[try_from_ref] this: &NotificationConfig,
     ) -> Result<Vec<WebhookConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::webhook::get_endpoints(&config)
     }
 
+    /// Method: Get a single webhook endpoint by id.
+    ///
+    /// See [`api::webhook::get_endpoint`].
     #[export(serialize_error)]
-    fn get_webhook_endpoint(
+    pub fn get_webhook_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
     ) -> Result<WebhookConfig, HttpError> {
@@ -420,9 +505,12 @@ mod export {
         api::webhook::get_endpoint(&config, id)
     }
 
+    /// Method: Add a webhook endpoint.
+    ///
+    /// See [`api::webhook::add_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn add_webhook_endpoint(
+    pub fn add_webhook_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         endpoint_config: WebhookConfig,
     ) -> Result<(), HttpError> {
@@ -430,9 +518,12 @@ mod export {
         api::webhook::add_endpoint(&mut config, endpoint_config)
     }
 
+    /// Method: Update a webhook endpoint.
+    ///
+    /// See [`api::webhook::update_endpoint`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn update_webhook_endpoint(
+    pub fn update_webhook_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         config_updater: WebhookConfigUpdater,
@@ -451,8 +542,11 @@ mod export {
         )
     }
 
+    /// Method: Delete a webhook endpoint.
+    ///
+    /// See [`api::webhook::delete_endpoint`].
     #[export(serialize_error)]
-    fn delete_webhook_endpoint(
+    pub fn delete_webhook_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<(), HttpError> {
@@ -460,16 +554,22 @@ mod export {
         api::webhook::delete_endpoint(&mut config, name)
     }
 
+    /// Method: Get a list of all matchers.
+    ///
+    /// See [`api::matcher::get_matchers`].
     #[export(serialize_error)]
-    fn get_matchers(
+    pub fn get_matchers(
         #[try_from_ref] this: &NotificationConfig,
     ) -> Result<Vec<MatcherConfig>, HttpError> {
         let config = this.config.lock().unwrap();
         api::matcher::get_matchers(&config)
     }
 
+    /// Method: Get a single matchers by id.
+    ///
+    /// See [`api::matcher::get_matcher`].
     #[export(serialize_error)]
-    fn get_matcher(
+    pub fn get_matcher(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
     ) -> Result<MatcherConfig, HttpError> {
@@ -477,9 +577,12 @@ mod export {
         api::matcher::get_matcher(&config, id)
     }
 
+    /// Method: Add a matcher.
+    ///
+    /// See [`api::matcher::add_matcher`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn add_matcher(
+    pub fn add_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: String,
         target: Option<Vec<String>>,
@@ -509,9 +612,12 @@ mod export {
         )
     }
 
+    /// Method: Update a matcher.
+    ///
+    /// See [`api::matcher::update_matcher`].
     #[export(serialize_error)]
     #[allow(clippy::too_many_arguments)]
-    fn update_matcher(
+    pub fn update_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         target: Option<Vec<String>>,
@@ -546,8 +652,11 @@ mod export {
         )
     }
 
+    /// Method: Delete a matcher.
+    ///
+    /// See [`api::matcher::delete_matcher`].
     #[export(serialize_error)]
-    fn delete_matcher(
+    pub fn delete_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<(), HttpError> {
@@ -555,8 +664,11 @@ mod export {
         api::matcher::delete_matcher(&mut config, name)
     }
 
+    /// Method: Get a list of referenced entities for an entity.
+    ///
+    /// See [`api::common::get_referenced_entities`].
     #[export]
-    fn get_referenced_entities(
+    pub fn get_referenced_entities(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
     ) -> Result<Vec<String>, HttpError> {

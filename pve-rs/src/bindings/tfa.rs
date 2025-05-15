@@ -15,7 +15,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 
-use anyhow::{Error, bail, format_err};
+use anyhow::{bail, format_err, Error};
 use nix::errno::Errno;
 use nix::sys::stat::Mode;
 use serde_json::Value as JsonValue;
@@ -26,17 +26,26 @@ use proxmox_tfa::api::{
 };
 
 #[perlmod::package(name = "PVE::RS::TFA")]
-mod export {
+pub mod pve_rs_tfa {
+    //! The `PVE::RS::TFA` package.
+    //!
+    //! This provides the [`Tfa`] type to implement the TFA API side.
+    //!
+    //! # Note
+    //!
+    //! This package provides `STORABLE_freeze` and `STORABLE_attach` subs for `dclone` support,
+    //! since this object will be put into `PVE::Cluster`'s `ccache`!
+
     use std::collections::HashMap;
     use std::convert::TryInto;
     use std::sync::Mutex;
 
-    use anyhow::{Error, bail, format_err};
+    use anyhow::{bail, format_err, Error};
     use serde_bytes::ByteBuf;
     use url::Url;
 
     use perlmod::Value;
-    use proxmox_tfa::api::{TfaResult, methods};
+    use proxmox_tfa::api::{methods, TfaResult};
 
     use super::{TfaConfig, UserAccess};
 
@@ -47,9 +56,9 @@ mod export {
         inner: Mutex<TfaConfig>,
     }
 
-    /// Support `dclone` so this can be put into the `ccache` of `PVE::Cluster`.
+    /// Method: Support `dclone` so this can be put into the `ccache` of `PVE::Cluster`.
     #[export(name = "STORABLE_freeze", raw_return)]
-    fn storable_freeze(#[try_from_ref] this: &Tfa, cloning: bool) -> Result<Value, Error> {
+    pub fn storable_freeze(#[try_from_ref] this: &Tfa, cloning: bool) -> Result<Value, Error> {
         if !cloning {
             bail!("freezing TFA config not supported!");
         }
@@ -66,9 +75,9 @@ mod export {
         Ok(value)
     }
 
-    /// Instead of `thaw` we implement `attach` for `dclone`.
+    /// Class method: Instead of `thaw` we implement `attach` for `dclone`.
     #[export(name = "STORABLE_attach", raw_return)]
-    fn storable_attach(
+    pub fn storable_attach(
         #[raw] class: Value,
         cloning: bool,
         #[raw] serialized: Value,
@@ -90,9 +99,11 @@ mod export {
         // Ok(perlmod::instantiate_magic!(&class, MAGIC => data))
     }
 
-    /// Parse a TFA configuration.
+    type TfaInstance = Value;
+
+    /// Class method: Parse a TFA configuration and produce a [`Tfa`] instance.
     #[export(raw_return)]
-    fn new(#[raw] class: Value, config: &[u8]) -> Result<Value, Error> {
+    pub fn new(#[raw] class: Value, config: &[u8]) -> Result<TfaInstance, Error> {
         let mut inner: TfaConfig = serde_json::from_slice(config)
             .map_err(Error::from)
             .or_else(|_err| super::parse_old_config(config))
@@ -121,9 +132,9 @@ mod export {
         // ))
     }
 
-    /// Write the configuration out into a JSON string.
+    /// Method: Write the configuration out into a JSON string.
     #[export]
-    fn write(#[try_from_ref] this: &Tfa) -> Result<serde_bytes::ByteBuf, Error> {
+    pub fn write(#[try_from_ref] this: &Tfa) -> Result<serde_bytes::ByteBuf, Error> {
         let mut inner = this.inner.lock().unwrap();
         let u2f = inner.u2f.take();
         let webauthn = inner.webauthn.take();
@@ -133,9 +144,9 @@ mod export {
         Ok(ByteBuf::from(output?))
     }
 
-    /// Debug helper: serialize the TFA user data into a perl value.
+    /// Method: Debug helper: serialize the TFA user data into a perl value.
     #[export]
-    fn to_perl(#[try_from_ref] this: &Tfa) -> Result<Value, Error> {
+    pub fn to_perl(#[try_from_ref] this: &Tfa) -> Result<Value, Error> {
         let mut inner = this.inner.lock().unwrap();
         let u2f = inner.u2f.take();
         let webauthn = inner.webauthn.take();
@@ -145,29 +156,29 @@ mod export {
         output
     }
 
-    /// Get a list of all the user names in this config.
+    /// Method: Get a list of all the user names in this config.
     /// PVE uses this to verify users and purge the invalid ones.
     #[export]
-    fn users(#[try_from_ref] this: &Tfa) -> Result<Vec<String>, Error> {
+    pub fn users(#[try_from_ref] this: &Tfa) -> Result<Vec<String>, Error> {
         Ok(this.inner.lock().unwrap().users.keys().cloned().collect())
     }
 
-    /// Remove a user from the TFA configuration.
+    /// Method: Remove a user from the TFA configuration.
     #[export]
-    fn remove_user(#[try_from_ref] this: &Tfa, userid: &str) -> Result<bool, Error> {
+    pub fn remove_user(#[try_from_ref] this: &Tfa, userid: &str) -> Result<bool, Error> {
         Ok(this.inner.lock().unwrap().users.remove(userid).is_some())
     }
 
-    /// Get the TFA data for a specific user.
+    /// Method: Get the TFA data for a specific user.
     #[export(raw_return)]
-    fn get_user(#[try_from_ref] this: &Tfa, userid: &str) -> Result<Value, perlmod::Error> {
+    pub fn get_user(#[try_from_ref] this: &Tfa, userid: &str) -> Result<Value, perlmod::Error> {
         perlmod::to_value(&this.inner.lock().unwrap().users.get(userid))
     }
 
-    /// Add a u2f registration. This modifies the config (adds the user to it), so it needs be
-    /// written out.
+    /// Method: Add a u2f registration. This modifies the config (adds the user to it), so it needs
+    /// be written out.
     #[export]
-    fn add_u2f_registration(
+    pub fn add_u2f_registration(
         #[raw] raw_this: Value,
         //#[try_from_ref] this: &Tfa,
         userid: &str,
@@ -178,10 +189,10 @@ mod export {
         inner.u2f_registration_challenge(&UserAccess::new(&raw_this)?, userid, description)
     }
 
-    /// Finish a u2f registration. This updates temporary data in `/run` and therefore the config
-    /// needs to be written out!
+    /// Method: Finish a u2f registration. This updates temporary data in `/run` and therefore the
+    /// config needs to be written out!
     #[export]
-    fn finish_u2f_registration(
+    pub fn finish_u2f_registration(
         #[raw] raw_this: Value,
         //#[try_from_ref] this: &Tfa,
         userid: &str,
@@ -193,9 +204,13 @@ mod export {
         inner.u2f_registration_finish(&UserAccess::new(&raw_this)?, userid, challenge, response)
     }
 
-    /// Check if a user has any TFA entries of a given type.
+    /// Method: Check if a user has any TFA entries of a given type.
     #[export]
-    fn has_type(#[try_from_ref] this: &Tfa, userid: &str, typename: &str) -> Result<bool, Error> {
+    pub fn has_type(
+        #[try_from_ref] this: &Tfa,
+        userid: &str,
+        typename: &str,
+    ) -> Result<bool, Error> {
         Ok(match this.inner.lock().unwrap().users.get(userid) {
             Some(user) => match typename {
                 "totp" | "oath" => !user.totp.is_empty(),
@@ -212,9 +227,12 @@ mod export {
         })
     }
 
-    /// Generates a space separated list of yubico keys of this account.
+    /// Method: Generates a space separated list of yubico keys of this account.
     #[export]
-    fn get_yubico_keys(#[try_from_ref] this: &Tfa, userid: &str) -> Result<Option<String>, Error> {
+    pub fn get_yubico_keys(
+        #[try_from_ref] this: &Tfa,
+        userid: &str,
+    ) -> Result<Option<String>, Error> {
         Ok(this.inner.lock().unwrap().users.get(userid).map(|user| {
             user.enabled_yubico_entries()
                 .fold(String::new(), |mut s, k| {
@@ -227,22 +245,24 @@ mod export {
         }))
     }
 
+    /// Method: Set the U2F configuration for this [`Tfa`] instance.
     #[export]
-    fn set_u2f_config(#[try_from_ref] this: &Tfa, config: Option<super::U2fConfig>) {
+    pub fn set_u2f_config(#[try_from_ref] this: &Tfa, config: Option<super::U2fConfig>) {
         this.inner.lock().unwrap().u2f = config;
     }
 
+    /// Method: Set the WebAuthN configuration for this [`Tfa`] instance.
     #[export]
-    fn set_webauthn_config(#[try_from_ref] this: &Tfa, config: Option<super::WebauthnConfig>) {
+    pub fn set_webauthn_config(#[try_from_ref] this: &Tfa, config: Option<super::WebauthnConfig>) {
         this.inner.lock().unwrap().webauthn = config;
     }
 
-    /// Create an authentication challenge.
+    /// Method: Create an authentication challenge.
     ///
     /// Returns the challenge as a json string.
     /// Returns `undef` if no second factor is configured.
     #[export]
-    fn authentication_challenge(
+    pub fn authentication_challenge(
         #[raw] raw_this: Value,
         //#[try_from_ref] this: &Tfa,
         userid: &str,
@@ -260,9 +280,12 @@ mod export {
         }
     }
 
-    /// Get the recovery state (suitable for a challenge object).
+    /// Method: Get the recovery state (suitable for a challenge object).
     #[export]
-    fn recovery_state(#[try_from_ref] this: &Tfa, userid: &str) -> Option<super::RecoveryState> {
+    pub fn recovery_state(
+        #[try_from_ref] this: &Tfa,
+        userid: &str,
+    ) -> Option<super::RecoveryState> {
         this.inner
             .lock()
             .unwrap()
@@ -271,15 +294,19 @@ mod export {
             .and_then(|user| user.recovery_state())
     }
 
-    /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
+    /// Method: Takes the TFA challenge string (which is a json object) and verifies ther esponse against
     /// it.
     ///
-    /// NOTE: This returns a boolean whether the config data needs to be *saved* after this call
-    /// (to use up recovery keys!).
+    /// # WARNING
     ///
-    /// WARNING: This method is now deprecated, as it failures were communicated via croaking.
+    /// This method is now deprecated, as its failures were communicated via croaking.
+    ///
+    /// # NOTE
+    ///
+    /// This returns a boolean whether the config data needs to be *saved* after this call (to use
+    /// up recovery keys!).
     #[export]
-    fn authentication_verify(
+    pub fn authentication_verify(
         #[raw] raw_this: Value,
         //#[try_from_ref] this: &Tfa,
         userid: &str,
@@ -304,7 +331,7 @@ mod export {
         }
     }
 
-    /// Takes the TFA challenge string (which is a json object) and verifies ther esponse against
+    /// Method: Takes the TFA challenge string (which is a json object) and verifies ther esponse against
     /// it.
     ///
     /// Returns a result hash of the form:
@@ -317,7 +344,7 @@ mod export {
     /// }
     /// ```
     #[export]
-    fn authentication_verify2(
+    pub fn authentication_verify2(
         #[raw] raw_this: Value,
         //#[try_from_ref] this: &Tfa,
         userid: &str,
@@ -356,32 +383,43 @@ mod export {
         })
     }
 
+    /// The return value from [`authentication_verify2`].
     #[derive(Default, serde::Serialize)]
     #[serde(rename_all = "kebab-case")]
-    struct TfaReturnValue {
-        result: bool,
-        needs_saving: bool,
-        totp_limit_reached: bool,
-        tfa_limit_reached: bool,
+    pub struct TfaReturnValue {
+        /// The authentication result (success/failure).
+        pub result: bool,
+        /// Whether the user config needs saving.
+        pub needs_saving: bool,
+        /// Whether the TOTP limit was reached (config needs saving).
+        pub totp_limit_reached: bool,
+        /// Whether the general TFA limit was reached (config needs saving).
+        pub tfa_limit_reached: bool,
     }
 
     /// DEBUG HELPER: Get the current TOTP value for a given TOTP URI.
     #[export]
-    fn get_current_totp_value(otp_uri: &str) -> Result<String, Error> {
+    pub fn get_current_totp_value(otp_uri: &str) -> Result<String, Error> {
         let totp: proxmox_tfa::totp::Totp = otp_uri.parse()?;
         Ok(totp.time(std::time::SystemTime::now())?.to_string())
     }
 
+    /// Method: API call implementation for `GET /access/tfa/{userid}`
+    ///
+    /// See [`methods::list_user_tfa`].
     #[export]
-    fn api_list_user_tfa(
+    pub fn api_list_user_tfa(
         #[try_from_ref] this: &Tfa,
         userid: &str,
     ) -> Result<Vec<methods::TypedTfaInfo>, Error> {
         methods::list_user_tfa(&this.inner.lock().unwrap(), userid)
     }
 
+    /// Method: API call implementation for `GET /access/tfa/{userid}/{ID}`.
+    ///
+    /// See [`methods::get_tfa_entry`].
     #[export]
-    fn api_get_tfa_entry(
+    pub fn api_get_tfa_entry(
         #[try_from_ref] this: &Tfa,
         userid: &str,
         id: &str,
@@ -389,10 +427,18 @@ mod export {
         methods::get_tfa_entry(&this.inner.lock().unwrap(), userid, id)
     }
 
+    /// Method: API call implementation for `DELETE /access/tfa/{userid}/{ID}`.
+    ///
     /// Returns `true` if the user still has other TFA entries left, `false` if the user has *no*
     /// more tfa entries.
+    ///
+    /// See [`methods::delete_tfa`].
     #[export]
-    fn api_delete_tfa(#[try_from_ref] this: &Tfa, userid: &str, id: String) -> Result<bool, Error> {
+    pub fn api_delete_tfa(
+        #[try_from_ref] this: &Tfa,
+        userid: &str,
+        id: String,
+    ) -> Result<bool, Error> {
         let mut this = this.inner.lock().unwrap();
         match methods::delete_tfa(&mut this, userid, &id) {
             Ok(has_entries_left) => Ok(has_entries_left),
@@ -400,8 +446,11 @@ mod export {
         }
     }
 
+    /// Method: API method implementation for `GET /access/tfa`.
+    ///
+    /// See [`methods::list_tfa`].
     #[export]
-    fn api_list_tfa(
+    pub fn api_list_tfa(
         #[try_from_ref] this: &Tfa,
         authid: &str,
         top_level_allowed: bool,
@@ -409,9 +458,12 @@ mod export {
         methods::list_tfa(&this.inner.lock().unwrap(), authid, top_level_allowed)
     }
 
+    /// Method: API call implementation for `POST /access/tfa/{userid}`.
+    ///
+    /// See [`methods::add_tfa_entry`].
     #[allow(clippy::too_many_arguments)]
     #[export]
-    fn api_add_tfa_entry(
+    pub fn api_add_tfa_entry(
         #[raw] raw_this: Value,
         //#[try_from_ref] this: &Tfa,
         userid: &str,
@@ -436,10 +488,11 @@ mod export {
         )
     }
 
-    /// Add a totp entry without validating it, used for user.cfg keys.
+    /// Method: Add a totp entry without validating it, used for user.cfg keys.
+    ///
     /// Returns the ID.
     #[export]
-    fn add_totp_entry(
+    pub fn add_totp_entry(
         #[try_from_ref] this: &Tfa,
         userid: &str,
         description: String,
@@ -452,10 +505,11 @@ mod export {
             .add_totp(userid, description, totp.parse()?))
     }
 
-    /// Add a yubico entry without validating it, used for user.cfg keys.
+    /// Method: Add a yubico entry without validating it, used for user.cfg keys.
+    ///
     /// Returns the ID.
     #[export]
-    fn add_yubico_entry(
+    pub fn add_yubico_entry(
         #[try_from_ref] this: &Tfa,
         userid: &str,
         description: String,
@@ -467,8 +521,11 @@ mod export {
             .add_yubico(userid, description, yubico)
     }
 
+    /// API call implementation for `PUT /access/tfa/{userid}/{id}`.
+    ///
+    /// See [`methods::update_tfa_entry`].
     #[export]
-    fn api_update_tfa_entry(
+    pub fn api_update_tfa_entry(
         #[try_from_ref] this: &Tfa,
         userid: &str,
         id: &str,
@@ -487,8 +544,11 @@ mod export {
         }
     }
 
+    /// Method: API call implementation for `PUT /users/{userid}/unlock-tfa`.
+    ///
+    /// See [`methods::unlock_and_reset_tfa`].
     #[export]
-    fn api_unlock_tfa(#[raw] raw_this: Value, userid: &str) -> Result<bool, Error> {
+    pub fn api_unlock_tfa(#[raw] raw_this: Value, userid: &str) -> Result<bool, Error> {
         let this: &Tfa = (&raw_this).try_into()?;
         methods::unlock_and_reset_tfa(
             &mut this.inner.lock().unwrap(),
@@ -497,18 +557,19 @@ mod export {
         )
     }
 
+    /// TFA lockout information.
     #[derive(serde::Serialize)]
     #[serde(rename_all = "kebab-case")]
-    struct TfaLockStatus {
+    pub struct TfaLockStatus {
         /// Once a user runs into a TOTP limit they get locked out of TOTP until they successfully use
         /// a recovery key.
         #[serde(skip_serializing_if = "bool_is_false", default)]
-        totp_locked: bool,
+        pub totp_locked: bool,
 
         /// If a user hits too many 2nd factor failures, they get completely blocked for a while.
         #[serde(skip_serializing_if = "Option::is_none", default)]
         #[serde(deserialize_with = "filter_expired_timestamp")]
-        tfa_locked_until: Option<i64>,
+        pub tfa_locked_until: Option<i64>,
     }
 
     impl From<&proxmox_tfa::api::TfaUserData> for TfaLockStatus {
@@ -524,8 +585,11 @@ mod export {
         !*b
     }
 
+    /// Method: Get the TFA lock-out status of either a user, or all users.
+    ///
+    /// This returns either a single [`TfaLockStatus`], or a hash mapping user ids to them.
     #[export]
-    fn tfa_lock_status(
+    pub fn tfa_lock_status(
         #[try_from_ref] this: &Tfa,
         userid: Option<&str>,
     ) -> Result<Option<perlmod::Value>, Error> {
@@ -905,7 +969,7 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
 }
 
 /// Attach the path to errors from [`nix::mkir()`].
-pub(crate) fn mkdir<P: AsRef<Path>>(path: P, mode: libc::mode_t) -> Result<(), Error> {
+fn mkdir<P: AsRef<Path>>(path: P, mode: libc::mode_t) -> Result<(), Error> {
     let path = path.as_ref();
     match nix::unistd::mkdir(path, unsafe { Mode::from_bits_unchecked(mode) }) {
         Ok(()) => Ok(()),
@@ -917,7 +981,7 @@ pub(crate) fn mkdir<P: AsRef<Path>>(path: P, mode: libc::mode_t) -> Result<(), E
 #[cfg(debug_assertions)]
 #[derive(Clone)]
 #[repr(transparent)]
-pub struct UserAccess(perlmod::Value);
+struct UserAccess(perlmod::Value);
 
 #[cfg(debug_assertions)]
 impl UserAccess {
@@ -942,7 +1006,7 @@ impl UserAccess {
 #[cfg(not(debug_assertions))]
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct UserAccess;
+struct UserAccess;
 
 #[cfg(not(debug_assertions))]
 impl UserAccess {
@@ -1064,7 +1128,7 @@ impl proxmox_tfa::api::OpenUserChallengeData for UserAccess {
 ///
 /// Basically provides the TFA API to the REST server by persisting, updating and verifying active
 /// challenges.
-pub struct UserChallengeData {
+struct UserChallengeData {
     inner: proxmox_tfa::api::TfaUserChallenges,
     path: PathBuf,
     lock: File,
