@@ -6,7 +6,6 @@ use proxmox_apt_api_types::APTUpdateInfo;
 pub mod common;
 
 pub mod acme;
-pub mod apt;
 pub mod csr;
 pub mod tfa;
 

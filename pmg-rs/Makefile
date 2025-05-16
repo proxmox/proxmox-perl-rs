@@ -26,7 +26,6 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 	--include-file=Fixup.pm
 
 PERLMOD_PACKAGES := \
-	  PMG::RS::APT::Repositories \
 	  PMG::RS::Acme \
 	  PMG::RS::CSR \
 	  PMG::RS::TFA
