@@ -40,6 +40,16 @@ else
 TARGET_DIR=debug
 endif
 
+PROXMOX_DOC_CRATES != cargo metadata --frozen | jq -r '\
+	.packages[] \
+	| select(.name == "pve-rs").dependencies[] \
+	| select(.name | startswith("proxmox-")) \
+	.name'
+define make_rustdoc_url =
+--extern-html-root-url $(subst -,_,$(1))=https://rustdoc.intra.proxmox.com/packages/proxmox
+endef
+PROXMOX_DOC_URL_FLAGS = $(foreach crate,$(PROXMOX_DOC_CRATES),$(call make_rustdoc_url,$(crate)))
+
 all: PMG
 	cargo build $(CARGO_BUILD_ARGS)
 
@@ -97,3 +107,13 @@ $(DSC): $(BUILDDIR)
 
 sbuild: $(DSC)
 	sbuild $(DSC)
+
+.PHONY: doc
+doc:
+	RUSTDOCFLAGS='-Z unstable-options $(PROXMOX_DOC_URL_FLAGS)' \
+	  cargo +nightly doc --no-deps
+
+.PHONY: doc-open
+doc-open:
+	RUSTDOCFLAGS='-Z unstable-options $(PROXMOX_DOC_URL_FLAGS)' \
+	  cargo +nightly doc --no-deps --open
