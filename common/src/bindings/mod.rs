@@ -2,6 +2,9 @@
 
 #![deny(missing_docs)]
 
+mod calendar_event;
+pub use calendar_event::proxmox_rs_calendar_event;
+
 mod notify;
 pub use notify::proxmox_rs_notify;
 
