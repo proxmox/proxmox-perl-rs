@@ -1,24 +1,34 @@
 #[perlmod::package(name = "Proxmox::RS::Subscription")]
-mod export {
-    use anyhow::{Error, bail, format_err};
+pub mod proxmox_rs_subscription {
+    //! The `Proxmox::RS::Subscription` package.
+    //!
+    //! Implements the functions to check/update/delete the subscription status.
+
+    use anyhow::{bail, format_err, Error};
 
     use proxmox_subscription::SubscriptionInfo;
     use proxmox_sys::fs::CreateOptions;
 
+    use proxmox_http::client::sync::Client;
     use proxmox_http::HttpOptions;
     use proxmox_http::ProxyConfig;
-    use proxmox_http::client::sync::Client;
 
+    /// Read the subscription status.
+    ///
+    /// See [`proxmox_subscription::files::read_subscription`].
     #[export]
-    fn read_subscription(path: String) -> Result<Option<SubscriptionInfo>, Error> {
+    pub fn read_subscription(path: String) -> Result<Option<SubscriptionInfo>, Error> {
         proxmox_subscription::files::read_subscription(
             path.as_str(),
             &[proxmox_subscription::files::DEFAULT_SIGNING_KEY],
         )
     }
 
+    /// Write the subscription status.
+    ///
+    /// See [`proxmox_subscription::files::write_subscription`].
     #[export]
-    fn write_subscription(
+    pub fn write_subscription(
         path: String,
         apt_path: String,
         url: &str,
@@ -47,8 +57,11 @@ mod export {
         })
     }
 
+    /// Delete the subscription status.
+    ///
+    /// See [`proxmox_subscription::files::delete_subscription`].
     #[export]
-    fn delete_subscription(path: String, apt_path: String, url: &str) -> Result<(), Error> {
+    pub fn delete_subscription(path: String, apt_path: String, url: &str) -> Result<(), Error> {
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
         let apt_opts = CreateOptions::new().perm(mode).owner(nix::unistd::ROOT);
 
@@ -57,8 +70,11 @@ mod export {
         })
     }
 
+    /// Check the subscription status.
+    ///
+    /// See [`proxmox_subscription::check::check_subscription`].
     #[export]
-    fn check_subscription(
+    pub fn check_subscription(
         key: String,
         server_id: String,
         product_url: String,
@@ -79,20 +95,29 @@ mod export {
         proxmox_subscription::check::check_subscription(key, server_id, product_url, client)
     }
 
+    /// Check that server ID contained in [`SubscriptionInfo`] matches that of current system.
+    ///
+    /// See [`proxmox_subscription::SubscriptionInfo::check_server_id`].
     #[export]
-    fn check_server_id(mut info: SubscriptionInfo) -> SubscriptionInfo {
+    pub fn check_server_id(mut info: SubscriptionInfo) -> SubscriptionInfo {
         info.check_server_id();
         info
     }
 
+    /// Checks whether a [`SubscriptionInfo`]'s `checktime` matches the age criteria:
+    ///
+    /// See [`proxmox_subscription::SubscriptionInfo::check_age`].
     #[export]
-    fn check_age(mut info: SubscriptionInfo, re_check: bool) -> SubscriptionInfo {
+    pub fn check_age(mut info: SubscriptionInfo, re_check: bool) -> SubscriptionInfo {
         info.check_age(re_check);
         info
     }
 
+    /// Check a [`SubscriptionInfo`]'s signature, if one is available.
+    ///
+    /// See [`proxmox_subscription::SubscriptionInfo::check_signature`].
     #[export]
-    fn check_signature(mut info: SubscriptionInfo) -> Result<SubscriptionInfo, Error> {
+    pub fn check_signature(mut info: SubscriptionInfo) -> Result<SubscriptionInfo, Error> {
         if !info.is_signed() {
             bail!("SubscriptionInfo is not signed!");
         }
