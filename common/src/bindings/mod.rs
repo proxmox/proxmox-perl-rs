@@ -8,6 +8,9 @@ pub use calendar_event::proxmox_rs_calendar_event;
 mod notify;
 pub use notify::proxmox_rs_notify;
 
+mod oidc;
+pub use oidc::proxmox_rs_oidc;
+
 mod subscription;
 pub use subscription::proxmox_rs_subscription;
 

@@ -6,8 +6,8 @@ mod export {
 
     use proxmox_openid::{OpenIdConfig, PrivateAuthState};
 
-    use crate::common::oidc::export as common;
-    use crate::common::oidc::export::OIDC as OpenId;
+    use crate::common::bindings::proxmox_rs_oidc as common;
+    use crate::common::bindings::proxmox_rs_oidc::OIDC as OpenId;
 
     /// Create a new OpenId client instance
     #[export(raw_return)]

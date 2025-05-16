@@ -1,21 +1,31 @@
 #[perlmod::package(name = "Proxmox::RS::OIDC")]
-pub mod export {
+pub mod proxmox_rs_oidc {
+    //! The `Proxmox::RS::OIDC` package.
+    //!
+    //! Implements OpenID authentication support.
+    //!
+    //! See [`proxmox_openid`].
+
     use std::sync::Mutex;
 
     use anyhow::Error;
 
-    use perlmod::{Value, to_value};
+    use perlmod::{to_value, Value};
 
     use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig, PrivateAuthState};
 
     perlmod::declare_magic!(Box<OIDC> : &OIDC as "Proxmox::RS::OIDC");
 
     /// An OpenIdAuthenticator client instance.
+    ///
+    /// See [`proxmox_openid::OpenIdAuthenticator`].
     pub struct OIDC {
         inner: Mutex<OpenIdAuthenticator>,
     }
 
-    /// Create a new OIDC client instance
+    /// Class method: Create a new OIDC client instance
+    ///
+    /// See [`OpenIdAuthenticator::discover`].
     #[export(raw_return)]
     pub fn discover(
         #[raw] class: Value,
@@ -31,6 +41,10 @@ pub mod export {
         ))
     }
 
+    // FIXME: There's no documentation in the proxmox_openid crate.
+    /// Method: Authorize an URL.
+    ///
+    /// See [`OpenIdAuthenticator::authorize_url`].
     #[export]
     pub fn authorize_url(
         #[try_from_ref] this: &OIDC,
@@ -41,6 +55,10 @@ pub mod export {
         oidc.authorize_url(state_dir, realm)
     }
 
+    // FIXME: There's no documentation in the proxmox_openid crate.
+    /// Method: Verify public auth state.
+    ///
+    /// See [`OpenIdAuthenticator::verify_public_auth_state`].
     #[export]
     pub fn verify_public_auth_state(
         state_dir: &str,
@@ -49,6 +67,10 @@ pub mod export {
         OpenIdAuthenticator::verify_public_auth_state(state_dir, state)
     }
 
+    // FIXME: There's no documentation in the proxmox_openid crate.
+    /// Method: Verify authorization code.
+    ///
+    /// See [`OpenIdAuthenticator::verify_authorization_code_simple_userinfo`].
     #[export(raw_return)]
     pub fn verify_authorization_code(
         #[try_from_ref] this: &OIDC,
