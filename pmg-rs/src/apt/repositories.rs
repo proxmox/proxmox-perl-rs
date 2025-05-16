@@ -6,7 +6,7 @@ mod export {
     };
     use proxmox_config_digest::ConfigDigest;
 
-    use crate::common::apt::repositories::export as common;
+    use crate::common::bindings::proxmox_rs_apt_repositories as common;
 
     /// Get information about configured and standard repositories.
     #[export]

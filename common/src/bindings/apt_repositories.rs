@@ -1,5 +1,8 @@
 #[perlmod::package(name = "Proxmox::RS::APT::Repositories")]
-pub mod export {
+pub mod proxmox_rs_apt_repositories {
+    //! The `Proxmox::RS::APT::Repositories` package.
+    //!
+    //! APT repository information access.
 
     use anyhow::Error;
 
@@ -10,6 +13,8 @@ pub mod export {
     use proxmox_config_digest::ConfigDigest;
 
     /// Get information about configured repositories and standard repositories for `product`.
+    ///
+    /// See [`proxmox_apt::list_repositories`].
     #[export]
     pub fn repositories(product: &str) -> Result<APTRepositoriesResult, Error> {
         proxmox_apt::list_repositories(product)
@@ -19,6 +24,8 @@ pub mod export {
     /// If the repository is already configured, it will be set to enabled.
     ///
     /// The `digest` parameter asserts that the configuration has not been modified.
+    ///
+    /// See [`proxmox_apt::add_repository_handle`].
     #[export]
     pub fn add_repository(
         handle: APTRepositoryHandle,
@@ -31,6 +38,8 @@ pub mod export {
     /// Change the properties of the specified repository.
     ///
     /// The `digest` parameter asserts that the configuration has not been modified.
+    ///
+    /// See [`proxmox_apt::change_repository`].
     #[export]
     pub fn change_repository(
         path: &str,
@@ -42,6 +51,8 @@ pub mod export {
     }
 
     /// Retrieve the changelog of the specified package.
+    ///
+    /// See [`proxmox_apt::get_changelog`].
     #[export]
     pub fn get_changelog(options: APTGetChangelogOptions) -> Result<String, Error> {
         proxmox_apt::get_changelog(&options)
@@ -50,6 +61,8 @@ pub mod export {
     /// List available APT updates
     ///
     /// Automatically updates an expired package cache.
+    ///
+    /// See [`proxmox_apt::list_available_apt_update`].
     #[export]
     pub fn list_available_apt_update(apt_state_file: &str) -> Result<Vec<APTUpdateInfo>, Error> {
         proxmox_apt::list_available_apt_update(apt_state_file)
@@ -58,6 +71,8 @@ pub mod export {
     /// Update the APT database
     ///
     /// You should update the APT proxy configuration before running this.
+    ///
+    /// See [`proxmox_apt::update_database`].
     #[export]
     pub fn update_database(apt_state_file: &str, options: APTUpdateOptions) -> Result<(), Error> {
         proxmox_apt::update_database(
@@ -72,6 +87,8 @@ pub mod export {
     }
 
     /// Get package information for a list of important product packages.
+    ///
+    /// See [`proxmox_apt::get_package_versions`].
     #[export]
     pub fn get_package_versions(
         product_virtual_package: &str,

@@ -2,6 +2,9 @@
 
 #![deny(missing_docs)]
 
+mod apt_repositories;
+pub use apt_repositories::proxmox_rs_apt_repositories;
+
 mod calendar_event;
 pub use calendar_event::proxmox_rs_calendar_event;
 
