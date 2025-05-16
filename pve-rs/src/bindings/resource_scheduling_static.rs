@@ -1,9 +1,15 @@
 #[perlmod::package(name = "PVE::RS::ResourceScheduling::Static", lib = "pve_rs")]
-mod export {
+pub mod pve_rs_resource_scheduling_static {
+    //! The `PVE::RS::ResourceScheduling::Static` package.
+    //!
+    //! Provides bindings for the resource scheduling module.
+    //!
+    //! See [`proxmox_resource_scheduling`].
+
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{Error, bail};
+    use anyhow::{bail, Error};
 
     use perlmod::Value;
     use proxmox_resource_scheduling::pve_static::{StaticNodeUsage, StaticServiceUsage};
@@ -14,12 +20,14 @@ mod export {
         nodes: HashMap<String, StaticNodeUsage>,
     }
 
+    /// A scheduler instance contains the resource usage by node.
     pub struct Scheduler {
         inner: Mutex<Usage>,
     }
 
+    /// Class method: Create a new [`Scheduler`] instance.
     #[export(raw_return)]
-    fn new(#[raw] class: Value) -> Result<Value, Error> {
+    pub fn new(#[raw] class: Value) -> Result<Value, Error> {
         let inner = Usage {
             nodes: HashMap::new(),
         };
@@ -29,8 +37,11 @@ mod export {
         ))
     }
 
+    /// Method: Add a node with its basic CPU and memory info.
+    ///
+    /// This inserts a [`StaticNodeUsage`] entry for the node into the scheduler instance.
     #[export]
-    fn add_node(
+    pub fn add_node(
         #[try_from_ref] this: &Scheduler,
         nodename: String,
         maxcpu: usize,
@@ -54,15 +65,17 @@ mod export {
         Ok(())
     }
 
+    /// Method: Remove a node from the scheduler.
     #[export]
-    fn remove_node(#[try_from_ref] this: &Scheduler, nodename: &str) {
+    pub fn remove_node(#[try_from_ref] this: &Scheduler, nodename: &str) {
         let mut usage = this.inner.lock().unwrap();
 
         usage.nodes.remove(nodename);
     }
 
+    /// Method: Get a list of all the nodes in the scheduler.
     #[export]
-    fn list_nodes(#[try_from_ref] this: &Scheduler) -> Vec<String> {
+    pub fn list_nodes(#[try_from_ref] this: &Scheduler) -> Vec<String> {
         let usage = this.inner.lock().unwrap();
 
         usage
@@ -72,16 +85,17 @@ mod export {
             .collect()
     }
 
+    /// Method: Check whether a node exists in the scheduler.
     #[export]
-    fn contains_node(#[try_from_ref] this: &Scheduler, nodename: &str) -> bool {
+    pub fn contains_node(#[try_from_ref] this: &Scheduler, nodename: &str) -> bool {
         let usage = this.inner.lock().unwrap();
 
         usage.nodes.contains_key(nodename)
     }
 
-    /// Add usage of `service` to the node's usage.
+    /// Method: Add usage of `service` to the node's usage.
     #[export]
-    fn add_service_usage_to_node(
+    pub fn add_service_usage_to_node(
         #[try_from_ref] this: &Scheduler,
         nodename: &str,
         service: StaticServiceUsage,
@@ -97,14 +111,17 @@ mod export {
         }
     }
 
-    /// Scores all previously added nodes for starting a `service` on. Scoring is done according to
-    /// the static memory and CPU usages of the nodes as if the service would already be running on
-    /// each.
+    /// Scores all previously added nodes for starting a `service` on.
+    ///
+    /// Scoring is done according to the static memory and CPU usages of the nodes as if the
+    /// service would already be running on each.
     ///
     /// Returns a vector of (nodename, score) pairs. Scores are between 0.0 and 1.0 and a higher
     /// score is better.
+    ///
+    /// See [`proxmox_resource_scheduling::pve_static::score_nodes_to_start_service`].
     #[export]
-    fn score_nodes_to_start_service(
+    pub fn score_nodes_to_start_service(
         #[try_from_ref] this: &Scheduler,
         service: StaticServiceUsage,
     ) -> Result<Vec<(String, f64)>, Error> {

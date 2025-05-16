@@ -13,7 +13,6 @@ mod common;
 
 pub mod firewall;
 pub mod openid;
-pub mod resource_scheduling;
 
 pub mod bindings;
 
