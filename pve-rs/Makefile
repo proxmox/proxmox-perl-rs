@@ -40,7 +40,7 @@ else
 TARGET_DIR=debug
 endif
 
-PROXMOX_DOC_CRATES != cargo metadata --frozen | jq -r '\
+PROXMOX_DOC_CRATES != cargo metadata --frozen --format-version=1 | jq -r '\
 	.packages[] \
 	| select(.name == "pve-rs").dependencies[] \
 	| select(.name | startswith("proxmox-")) \
