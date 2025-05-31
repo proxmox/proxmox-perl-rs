@@ -1,6 +1,6 @@
 [package]
 name = "pve-rs"
-version = "0.9.4"
+version = "0.10.0"
 description = "PVE parts which have been ported to Rust"
 homepage = "https://www.proxmox.com"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
