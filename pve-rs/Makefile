@@ -4,7 +4,6 @@ PACKAGE=libpve-rs-perl
 export PERLMOD_PRODUCT=PVE
 
 ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
-export GITVERSION:=$(shell git rev-parse HEAD)
 
 PERL_INSTALLVENDORARCH != perl -MConfig -e 'print $$Config{installvendorarch};'
 PERL_INSTALLVENDORLIB != perl -MConfig -e 'print $$Config{installvendorlib};'
