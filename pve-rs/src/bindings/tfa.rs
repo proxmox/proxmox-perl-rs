@@ -669,7 +669,7 @@ fn parse_old_config(data: &[u8]) -> Result<TfaConfig, Error> {
         let user = std::str::from_utf8(user)
             .map_err(|_err| format_err!("bad non-utf8 username in tfa config"))?;
 
-        let data = base64::decode(data)
+        let data = proxmox_base64::decode(data)
             .map_err(|err| format_err!("failed to decode data in tfa config entry - {}", err))?;
 
         let entry = decode_old_entry(ty, &data, user)?;
@@ -733,15 +733,16 @@ fn decode_old_u2f_entry(data: JsonValue) -> Result<Option<proxmox_tfa::u2f::Regi
 
     let reg = proxmox_tfa::u2f::Registration {
         key: proxmox_tfa::u2f::RegisteredKey {
-            key_handle: base64::decode_config(
-                take_json_string(&mut obj, "keyHandle", "u2f")?,
-                base64::URL_SAFE_NO_PAD,
-            )
+            key_handle: proxmox_base64::url::decode_no_pad(take_json_string(
+                &mut obj,
+                "keyHandle",
+                "u2f",
+            )?)
             .map_err(|_| format_err!("handle in u2f entry"))?,
             // PVE did not store this, but we only had U2F_V2 anyway...
             version: "U2F_V2".to_string(),
         },
-        public_key: base64::decode(take_json_string(&mut obj, "publicKey", "u2f")?)
+        public_key: proxmox_base64::decode(take_json_string(&mut obj, "publicKey", "u2f")?)
             .map_err(|_| format_err!("bad public key in u2f entry"))?,
         certificate: Vec::new(),
     };
@@ -882,7 +883,7 @@ fn trim_ascii_whitespace(data: &[u8]) -> &[u8] {
 }
 
 fn b64u_np_encode<T: AsRef<[u8]>>(data: T) -> String {
-    base64::encode_config(data.as_ref(), base64::URL_SAFE_NO_PAD)
+    proxmox_base64::url::encode_no_pad(data.as_ref())
 }
 
 // fn b64u_np_decode<T: AsRef<[u8]>>(data: T) -> Result<Vec<u8>, base64::DecodeError> {
@@ -899,7 +900,7 @@ fn generate_legacy_config(out: &mut perlmod::Hash, config: &TfaConfig) {
             let data = Hash::new();
             data.insert(
                 "publicKey",
-                Value::new_string(&base64::encode(&u2f.entry.public_key)),
+                Value::new_string(&proxmox_base64::encode(&u2f.entry.public_key)),
             );
             data.insert(
                 "keyHandle",
