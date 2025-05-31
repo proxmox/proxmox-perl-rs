@@ -15,7 +15,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use nix::errno::Errno;
 use nix::sys::stat::Mode;
 use serde_json::Value as JsonValue;
@@ -40,12 +40,12 @@ pub mod pve_rs_tfa {
     use std::convert::TryInto;
     use std::sync::Mutex;
 
-    use anyhow::{bail, format_err, Error};
+    use anyhow::{Error, bail, format_err};
     use serde_bytes::ByteBuf;
     use url::Url;
 
     use perlmod::Value;
-    use proxmox_tfa::api::{methods, TfaResult};
+    use proxmox_tfa::api::{TfaResult, methods};
 
     use super::{TfaConfig, UserAccess};
 

@@ -4,14 +4,14 @@ pub mod proxmox_rs_subscription {
     //!
     //! Implements the functions to check/update/delete the subscription status.
 
-    use anyhow::{bail, format_err, Error};
+    use anyhow::{Error, bail, format_err};
 
     use proxmox_subscription::SubscriptionInfo;
     use proxmox_sys::fs::CreateOptions;
 
-    use proxmox_http::client::sync::Client;
     use proxmox_http::HttpOptions;
     use proxmox_http::ProxyConfig;
+    use proxmox_http::client::sync::Client;
 
     /// Read the subscription status.
     ///

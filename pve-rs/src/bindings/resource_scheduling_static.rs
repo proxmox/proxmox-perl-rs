@@ -9,7 +9,7 @@ pub mod pve_rs_resource_scheduling_static {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{bail, Error};
+    use anyhow::{Error, bail};
 
     use perlmod::Value;
     use proxmox_resource_scheduling::pve_static::{StaticNodeUsage, StaticServiceUsage};

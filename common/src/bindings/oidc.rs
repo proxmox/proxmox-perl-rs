@@ -10,7 +10,7 @@ pub mod proxmox_rs_oidc {
 
     use anyhow::Error;
 
-    use perlmod::{to_value, Value};
+    use perlmod::{Value, to_value};
 
     use proxmox_openid::{OpenIdAuthenticator, OpenIdConfig, PrivateAuthState};
 

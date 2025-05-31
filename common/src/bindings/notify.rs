@@ -12,7 +12,7 @@ pub mod proxmox_rs_notify {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{bail, Error};
+    use anyhow::{Error, bail};
     use serde_json::Value as JSONValue;
 
     use perlmod::Value;
@@ -36,7 +36,7 @@ pub mod proxmox_rs_notify {
         CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
         MatcherConfigUpdater, SeverityMatcher,
     };
-    use proxmox_notify::{api, Config, Notification, Severity};
+    use proxmox_notify::{Config, Notification, Severity, api};
 
     /// A notification catalog instance.
     ///
