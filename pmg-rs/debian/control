@@ -3,7 +3,7 @@ Section: perl
 Priority: optional
 Build-Depends: cargo:native <!nocheck>,
                debhelper-compat (= 13),
-               librust-openssl-probe-dev (= 0.1.5-1~bpo12+pve1),
+               librust-openssl-probe-dev (= 0.1.5-1~bpo13+pve1),
                dh-cargo (>= 25),
                librust-anyhow-1+default-dev,
                librust-hex-0.4+default-dev,
