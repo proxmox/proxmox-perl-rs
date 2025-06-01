@@ -503,7 +503,7 @@ mod export {
 /// Attach the path to errors from [`nix::mkir()`].
 pub(crate) fn mkdir<P: AsRef<Path>>(path: P, mode: libc::mode_t) -> Result<(), Error> {
     let path = path.as_ref();
-    match nix::unistd::mkdir(path, unsafe { Mode::from_bits_unchecked(mode) }) {
+    match nix::unistd::mkdir(path, Mode::from_bits_retain(mode)) {
         Ok(()) => Ok(()),
         Err(Errno::EEXIST) => Ok(()),
         Err(err) => bail!("failed to create directory {:?}: {}", path, err),
