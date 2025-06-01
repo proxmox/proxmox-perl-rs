@@ -39,11 +39,24 @@ else
 TARGET_DIR=debug
 endif
 
-PROXMOX_DOC_CRATES != cargo metadata --frozen | jq -r '\
-	.packages[] \
-	| select(.name == "pve-rs").dependencies[] \
-	| select(.name | startswith("proxmox-")) \
-	.name'
+# better way to automate this without a massively annoying cargo-metatdata + jq
+# chain that spits out errors?
+PROXMOX_DOC_CRATES := \
+    proxmox-acme \
+    proxmox-apt \
+    proxmox-apt-api-types \
+    proxmox-config-digest \
+    proxmox-http \
+    proxmox-http-error \
+    proxmox-log \
+    proxmox-notify \
+    proxmox-openid \
+    proxmox-shared-cache \
+    proxmox-subscription \
+    proxmox-sys \
+    proxmox-tfa \
+    proxmox-time \
+
 define make_rustdoc_url =
 --extern-html-root-url $(subst -,_,$(1))=https://rustdoc.intra.proxmox.com/packages/proxmox
 endef
