@@ -16,9 +16,9 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0"
 hex = "0.4"
-http = "0.2.7"
+http = "1"
 libc = "0.2"
-nix = "0.26"
+nix = "0.29"
 openssl = "0.10.40"
 serde = "1.0"
 serde_bytes = "0.11"
@@ -26,19 +26,19 @@ serde_json = "1.0"
 tracing = "0.1.37"
 url = "2"
 
-perlmod = { version = "0.13.4", features = ["exporter"] }
+perlmod = { version = "0.14", features = ["exporter"] }
 
-proxmox-acme = { version = "0.5", features = ["client", "api-types"] }
-proxmox-apt = { version = "0.11", features = ["cache"] }
-proxmox-apt-api-types = "1.0"
-proxmox-config-digest = "0.1"
-proxmox-http = { version = "0.9", features = ["client-sync", "client-trait"] }
-proxmox-http-error = "0.1.0"
-proxmox-log = "0.2"
-proxmox-notify = "0.5"
-proxmox-shared-cache = "0.1.0"
-proxmox-subscription = "0.5"
-proxmox-sys = "0.6"
-proxmox-tfa = { version = "5", features = ["api"] }
+proxmox-acme = { version = "1", features = ["client", "api-types"] }
+proxmox-apt = { version = "0.99", features = ["cache"] }
+proxmox-apt-api-types = "2"
+proxmox-config-digest = "1"
+proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
+proxmox-http-error = "1"
+proxmox-log = "1"
+proxmox-notify = "1"
+proxmox-openid =  "1"
+proxmox-shared-cache = "1"
+proxmox-subscription = "1"
+proxmox-sys = "1"
+proxmox-tfa = { version = "6", features = ["api"] }
 proxmox-time = "2"
-proxmox-openid =  "0.10.4"
