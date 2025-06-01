@@ -1,3 +1,12 @@
+libpmg-rs-perl (0.8.0) trixie; urgency=medium
+
+  * re-build for Debian 13 "Trixie" based Proxmox releases.
+
+  * drop outdated use_safe_putenv export, neither available nor required since
+    Perl 5.38 and newer.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 01 Jun 2025 17:10:51 +0200
+
 libpmg-rs-perl (0.7.7) bookworm; urgency=medium
 
   * move openid code from pve-rs to common
