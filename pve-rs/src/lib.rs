@@ -1,5 +1,7 @@
 //! Rust library for the Proxmox VE code base.
 
+#![deny(missing_docs)]
+
 use std::collections::HashMap;
 
 use anyhow::Error;
@@ -27,6 +29,8 @@ fn send_notification(notification: &Notification) -> Result<(), Error> {
     Ok(())
 }
 
+/// This is the produce specific code to send available upadte information via the notification
+/// system. It is called from `common` code.
 pub fn send_updates_available(updates: &[&APTUpdateInfo]) -> Result<(), Error> {
     let hostname = proxmox_sys::nodename().to_string();
 

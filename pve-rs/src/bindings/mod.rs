@@ -1,7 +1,5 @@
 //! This contains all the perl bindings.
 
-#![deny(missing_docs)]
-
 mod resource_scheduling_static;
 pub use resource_scheduling_static::pve_rs_resource_scheduling_static;
 
