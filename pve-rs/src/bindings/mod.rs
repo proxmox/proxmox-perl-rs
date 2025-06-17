@@ -11,6 +11,8 @@ pub use tfa::pve_rs_tfa;
 mod openid;
 pub use openid::pve_rs_open_id;
 
+pub mod firewall;
+
 #[allow(unused_imports)]
 pub use crate::common::bindings::*;
 

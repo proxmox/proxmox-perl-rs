@@ -1,32 +1,37 @@
 #[perlmod::package(name = "PVE::RS::Firewall::SDN", lib = "pve_rs")]
-mod export {
+pub mod pve_rs_firewall_sdn {
+    //! The `PVE::RS::Firewall::SDN` package.
+
+    // FIXME:
+    #![warn(missing_docs)]
+
     use std::collections::HashMap;
     use std::{fs, io};
 
-    use anyhow::{Context, Error, bail};
+    use anyhow::{bail, Context, Error};
     use serde::Serialize;
 
     use proxmox_ve_config::{
         common::Allowlist,
-        firewall::types::Ipset,
         firewall::types::ipset::{IpsetAddress, IpsetEntry},
+        firewall::types::Ipset,
         guest::types::Vmid,
         sdn::{
-            VnetName,
             config::{RunningConfig, SdnConfig},
             ipam::{Ipam, IpamJson},
+            VnetName,
         },
     };
 
     #[derive(Clone, Debug, Default, Serialize)]
-    pub struct LegacyIpsetEntry {
+    struct LegacyIpsetEntry {
         nomatch: bool,
         cidr: String,
         comment: Option<String>,
     }
 
     impl LegacyIpsetEntry {
-        pub fn from_ipset_entry(entry: &IpsetEntry) -> Vec<LegacyIpsetEntry> {
+        fn from_ipset_entry(entry: &IpsetEntry) -> Vec<LegacyIpsetEntry> {
             let mut entries = Vec::new();
 
             match &entry.address {
@@ -64,11 +69,11 @@ mod export {
     }
 
     impl SdnFirewallConfig {
-        pub fn new() -> Self {
+        fn new() -> Self {
             Default::default()
         }
 
-        pub fn extend_ipsets(&mut self, ipsets: impl IntoIterator<Item = Ipset>) {
+        fn extend_ipsets(&mut self, ipsets: impl IntoIterator<Item = Ipset>) {
             for ipset in ipsets {
                 let entries = ipset
                     .iter()
