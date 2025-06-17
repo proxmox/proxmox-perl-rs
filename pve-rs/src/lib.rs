@@ -12,7 +12,6 @@ use proxmox_notify::{Config, Notification, Severity};
 mod common;
 
 pub mod firewall;
-pub mod openid;
 
 pub mod bindings;
 

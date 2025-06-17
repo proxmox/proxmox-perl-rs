@@ -8,6 +8,9 @@ pub use resource_scheduling_static::pve_rs_resource_scheduling_static;
 mod tfa;
 pub use tfa::pve_rs_tfa;
 
+mod openid;
+pub use openid::pve_rs_open_id;
+
 #[allow(unused_imports)]
 pub use crate::common::bindings::*;
 
