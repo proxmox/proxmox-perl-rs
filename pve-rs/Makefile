@@ -61,7 +61,7 @@ PROXMOX_DOC_CRATES := \
     proxmox-ve-config \
 
 define make_rustdoc_url =
---extern-html-root-url $(subst -,_,$(1))=https://rustdoc.intra.proxmox.com/packages/proxmox
+--extern-html-root-url $(subst -,_,$(1))=https://rustdoc.intra.proxmox.com/$(DEB_DISTRIBUTION)/packages/proxmox
 endef
 PROXMOX_DOC_URL_FLAGS = $(foreach crate,$(PROXMOX_DOC_CRATES),$(call make_rustdoc_url,$(crate)))
 
