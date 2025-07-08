@@ -29,7 +29,7 @@ url = "2"
 perlmod = { version = "0.14", features = ["exporter"] }
 
 proxmox-acme = { version = "1", features = ["client", "api-types"] }
-proxmox-apt = { version = "0.99", features = ["cache"] }
+proxmox-apt = { version = "0.99.1", features = ["cache"] }
 proxmox-apt-api-types = "2"
 proxmox-config-digest = "1"
 proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
