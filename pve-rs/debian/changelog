@@ -1,3 +1,10 @@
+libpve-rs-perl (0.10.1) trixie; urgency=medium
+
+  * update proxmox-apt dependency to 0.99.1 to get correct paths for the now
+    default deb822 format used for our standard apt repos.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 08 Jul 2025 18:23:43 +0200
+
 libpve-rs-perl (0.10.0) trixie; urgency=medium
 
   * re-build for Debian Trixie based releases.
