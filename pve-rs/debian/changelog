@@ -1,3 +1,10 @@
+libpve-rs-perl (0.10.2) trixie; urgency=medium
+
+  * re-build with newer proxmox-apt to include a signed-by release-key line in
+    the deb822 repository output for Proxmox repos.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 15 Jul 2025 23:32:31 +0200
+
 libpve-rs-perl (0.10.1) trixie; urgency=medium
 
   * update proxmox-apt dependency to 0.99.1 to get correct paths for the now
