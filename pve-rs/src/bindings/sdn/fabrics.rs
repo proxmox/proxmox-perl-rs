@@ -17,13 +17,13 @@ pub mod pve_rs_sdn_fabrics {
 
     use perlmod::Value;
     use proxmox_frr::serializer::to_raw_config;
-    use proxmox_network_types::ip_address::Cidr;
+    use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::Validatable;
 
     use proxmox_ve_config::sdn::fabric::section_config::Section;
     use proxmox_ve_config::sdn::fabric::section_config::fabric::{
-        FabricId,
+        Fabric as ConfigFabric, FabricId,
         api::{Fabric, FabricUpdater},
     };
     use proxmox_ve_config::sdn::fabric::section_config::node::{
@@ -41,6 +41,34 @@ pub mod pve_rs_sdn_fabrics {
     }
 
     perlmod::declare_magic!(Box<PerlFabricConfig> : &PerlFabricConfig as "PVE::RS::SDN::Fabrics::Config");
+
+    /// Represents an interface as returned by the `GET /nodes/{node}/network` endpoint in PVE.
+    ///
+    /// This is used for returning fabrics in the endpoint, so they can be used from various places
+    /// in the PVE UI (e.g. migration network settings).
+    #[derive(Serialize)]
+    pub struct PveInterface {
+        iface: String,
+        #[serde(rename = "type")]
+        ty: String,
+        active: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cidr: Option<Ipv4Cidr>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cidr6: Option<Ipv6Cidr>,
+    }
+
+    impl From<ConfigFabric> for PveInterface {
+        fn from(fabric: ConfigFabric) -> Self {
+            Self {
+                iface: fabric.id().to_string(),
+                ty: "fabric".to_string(),
+                active: true,
+                cidr: fabric.ip_prefix(),
+                cidr6: fabric.ip6_prefix(),
+            }
+        }
+    }
 
     /// Class method: Parse the raw configuration from `/etc/pve/sdn/fabrics.cfg`.
     #[export]
@@ -310,6 +338,28 @@ pub mod pve_rs_sdn_fabrics {
         let hash = hash(MessageDigest::sha256(), &data)?;
 
         Ok(hex::encode(hash))
+    }
+
+    /// Method: Return all interfaces of a node, that are part of a fabric.
+    #[export]
+    pub fn get_interfaces_for_node(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+    ) -> BTreeMap<String, PveInterface> {
+        let config = this.fabric_config.lock().unwrap();
+
+        let mut ifaces = BTreeMap::new();
+
+        for entry in config.values() {
+            if entry.get_node(&node_id).is_ok() {
+                ifaces.insert(
+                    entry.fabric().id().to_string(),
+                    entry.fabric().clone().into(),
+                );
+            }
+        }
+
+        ifaces
     }
 
     /// Method: Return all FRR daemons that need to be enabled for this fabric configuration
