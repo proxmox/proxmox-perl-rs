@@ -47,4 +47,4 @@ proxmox-subscription = "1"
 proxmox-sys = "1"
 proxmox-tfa = { version = "6", features = ["api"] }
 proxmox-time = "2"
-proxmox-ve-config = { version = "0.3", features = [ "frr" ] }
+proxmox-ve-config = { version = "0.4", features = [ "frr" ] }
