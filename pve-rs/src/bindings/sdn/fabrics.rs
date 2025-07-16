@@ -17,7 +17,16 @@ pub mod pve_rs_sdn_fabrics {
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::Validatable;
 
-    use proxmox_ve_config::sdn::fabric::{FabricConfig, section_config::Section};
+    use proxmox_ve_config::sdn::fabric::section_config::Section;
+    use proxmox_ve_config::sdn::fabric::section_config::fabric::{
+        FabricId,
+        api::{Fabric, FabricUpdater},
+    };
+    use proxmox_ve_config::sdn::fabric::section_config::node::{
+        Node as ConfigNode, NodeId,
+        api::{Node, NodeUpdater},
+    };
+    use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
 
     /// A SDN Fabric config instance.
     #[derive(Serialize, Deserialize)]
@@ -55,6 +64,211 @@ pub mod pve_rs_sdn_fabrics {
                 fabric_config: Mutex::new(config.into_inner()),
             })),
         )
+    }
+
+    /// Method: Returns all fabrics and nodes from the configuration.
+    #[export]
+    pub fn list_all(
+        #[try_from_ref] this: &PerlFabricConfig,
+    ) -> (BTreeMap<String, Fabric>, BTreeMap<String, Node>) {
+        let config = this.fabric_config.lock().unwrap();
+
+        let mut fabrics = BTreeMap::new();
+        let mut nodes = BTreeMap::new();
+
+        for entry in config.values() {
+            fabrics.insert(entry.fabric().id().to_string(), entry.fabric().clone());
+
+            nodes.extend(
+                entry
+                    .nodes()
+                    .map(|(_node_id, node)| (node.id().to_string(), node.clone().into())),
+            );
+        }
+
+        (fabrics, nodes)
+    }
+
+    /// Method: Returns all fabrics from the configuration.
+    #[export]
+    pub fn list_fabrics(#[try_from_ref] this: &PerlFabricConfig) -> BTreeMap<String, Fabric> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(id, entry)| (id.to_string(), entry.fabric().clone()))
+            .collect()
+    }
+
+    /// Method: Returns all fabrics configured on a specific node in the cluster.
+    #[export]
+    pub fn list_fabrics_by_node(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+    ) -> BTreeMap<String, Fabric> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_id, entry)| entry.get_node(&node_id).is_ok())
+            .map(|(id, entry)| (id.to_string(), entry.fabric().clone()))
+            .collect()
+    }
+
+    /// Method: Adds a new Fabric to the configuration.
+    ///
+    /// See [`FabricConfig::add_fabric`]
+    #[export]
+    pub fn add_fabric(
+        #[try_from_ref] this: &PerlFabricConfig,
+        fabric: Fabric,
+    ) -> Result<(), Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .add_fabric(fabric)
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: Read a Fabric from the configuration.
+    #[export]
+    pub fn get_fabric(
+        #[try_from_ref] this: &PerlFabricConfig,
+        id: FabricId,
+    ) -> Result<Fabric, Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .get_fabric(&id)
+            .map(|entry| entry.fabric().clone())
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: Update a fabric in the configuration.
+    #[export]
+    pub fn update_fabric(
+        #[try_from_ref] this: &PerlFabricConfig,
+        id: FabricId,
+        updater: FabricUpdater,
+    ) -> Result<(), Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .update_fabric(&id, updater)
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: Delete a fabric from the configuration.
+    #[export]
+    pub fn delete_fabric(
+        #[try_from_ref] this: &PerlFabricConfig,
+        id: FabricId,
+    ) -> Result<FabricEntry, Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .delete_fabric(&id)
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: List all nodes in the configuraiton.
+    #[export]
+    pub fn list_nodes(
+        #[try_from_ref] this: &PerlFabricConfig,
+    ) -> Result<BTreeMap<String, Node>, Error> {
+        Ok(this
+            .fabric_config
+            .lock()
+            .unwrap()
+            .values()
+            .flat_map(|entry| {
+                entry
+                    .nodes()
+                    .map(|(id, node)| (id.to_string(), node.clone().into()))
+            })
+            .collect())
+    }
+
+    /// Method: List all nodes for a specific fabric.
+    #[export]
+    pub fn list_nodes_fabric(
+        #[try_from_ref] this: &PerlFabricConfig,
+        fabric_id: FabricId,
+    ) -> Result<BTreeMap<String, Node>, Error> {
+        Ok(this
+            .fabric_config
+            .lock()
+            .unwrap()
+            .get_fabric(&fabric_id)
+            .map_err(anyhow::Error::from)?
+            .nodes()
+            .map(|(id, node)| (id.to_string(), node.clone().into()))
+            .collect())
+    }
+
+    /// Method: Get a node from a fabric.
+    #[export]
+    pub fn get_node(
+        #[try_from_ref] this: &PerlFabricConfig,
+        fabric_id: FabricId,
+        node_id: NodeId,
+    ) -> Result<Node, Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .get_fabric(&fabric_id)
+            .map_err(anyhow::Error::from)?
+            .get_node(&node_id)
+            .map(|node| node.clone().into())
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: Add a node to a fabric.
+    #[export]
+    pub fn add_node(#[try_from_ref] this: &PerlFabricConfig, node: Node) -> Result<(), Error> {
+        let node = ConfigNode::from(node);
+
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .get_fabric_mut(node.id().fabric_id())
+            .map_err(anyhow::Error::from)?
+            .add_node(node)
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: Update a node in a fabric.
+    #[export]
+    pub fn update_node(
+        #[try_from_ref] this: &PerlFabricConfig,
+        fabric_id: FabricId,
+        node_id: NodeId,
+        updater: NodeUpdater,
+    ) -> Result<(), Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .get_fabric_mut(&fabric_id)
+            .map_err(anyhow::Error::from)?
+            .update_node(&node_id, updater)
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Method: Delete a node in a fabric.
+    #[export]
+    pub fn delete_node(
+        #[try_from_ref] this: &PerlFabricConfig,
+        fabric_id: FabricId,
+        node_id: NodeId,
+    ) -> Result<Node, Error> {
+        this.fabric_config
+            .lock()
+            .unwrap()
+            .get_fabric_mut(&fabric_id)
+            .map_err(anyhow::Error::from)?
+            .delete_node(&node_id)
+            .map(Node::from)
+            .map_err(anyhow::Error::from)
     }
 
     /// Method: Convert the configuration into the section config sections.
