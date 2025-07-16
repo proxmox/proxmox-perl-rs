@@ -6,6 +6,8 @@ pub mod pve_rs_sdn_fabrics {
     //! / writing the configuration, as well as for generating ifupdown2 and FRR configuration.
 
     use std::collections::{BTreeMap, HashSet};
+    use std::fmt::Write;
+    use std::net::IpAddr;
     use std::ops::Deref;
     use std::sync::Mutex;
 
@@ -15,6 +17,7 @@ pub mod pve_rs_sdn_fabrics {
 
     use perlmod::Value;
     use proxmox_frr::serializer::to_raw_config;
+    use proxmox_network_types::ip_address::Cidr;
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::Validatable;
 
@@ -357,5 +360,110 @@ pub mod pve_rs_sdn_fabrics {
             .build(node_id)?;
 
         to_raw_config(&frr_config)
+    }
+
+    /// Helper function to generate the default `/etc/network/interfaces` config for a given CIDR.
+    fn render_interface(name: &str, cidr: Cidr, is_dummy: bool) -> Result<String, Error> {
+        let mut interface = String::new();
+
+        writeln!(interface, "auto {name}")?;
+        match cidr {
+            Cidr::Ipv4(_) => writeln!(interface, "iface {name} inet static")?,
+            Cidr::Ipv6(_) => writeln!(interface, "iface {name} inet6 static")?,
+        }
+        writeln!(interface, "\taddress {cidr}")?;
+        if is_dummy {
+            writeln!(interface, "\tlink-type dummy")?;
+        }
+        writeln!(interface, "\tip-forward 1")?;
+
+        Ok(interface)
+    }
+
+    /// Method: Generate the ifupdown2 configuration for a given node.
+    #[export]
+    pub fn get_interfaces_etc_network_config(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+    ) -> Result<String, Error> {
+        let config = this.fabric_config.lock().unwrap();
+        let mut interfaces = String::new();
+
+        let node_fabrics = config.values().filter_map(|entry| {
+            entry
+                .get_node(&node_id)
+                .map(|node| (entry.fabric(), node))
+                .ok()
+        });
+
+        for (fabric, node) in node_fabrics {
+            // dummy interface
+            if let Some(ip) = node.ip() {
+                let interface = render_interface(
+                    &format!("dummy_{}", fabric.id()),
+                    Cidr::new_v4(ip, 32)?,
+                    true,
+                )?;
+                writeln!(interfaces)?;
+                write!(interfaces, "{interface}")?;
+            }
+            if let Some(ip6) = node.ip6() {
+                let interface = render_interface(
+                    &format!("dummy_{}", fabric.id()),
+                    Cidr::new_v6(ip6, 128)?,
+                    true,
+                )?;
+                writeln!(interfaces)?;
+                write!(interfaces, "{interface}")?;
+            }
+            match node {
+                ConfigNode::Openfabric(node_section) => {
+                    for interface in node_section.properties().interfaces() {
+                        if let Some(ip) = interface.ip() {
+                            let interface =
+                                render_interface(interface.name(), Cidr::from(ip), false)?;
+                            writeln!(interfaces)?;
+                            write!(interfaces, "{interface}")?;
+                        }
+                        if let Some(ip) = interface.ip6() {
+                            let interface =
+                                render_interface(interface.name(), Cidr::from(ip), false)?;
+                            writeln!(interfaces)?;
+                            write!(interfaces, "{interface}")?;
+                        }
+
+                        // If not ip is configured, add auto and empty iface to bring interface up
+                        if let (None, None) = (interface.ip(), interface.ip6()) {
+                            writeln!(interfaces)?;
+                            writeln!(interfaces, "auto {}", interface.name())?;
+                            writeln!(interfaces, "iface {}", interface.name())?;
+                            writeln!(interfaces, "\tip-forward 1")?;
+                        }
+                    }
+                }
+                ConfigNode::Ospf(node_section) => {
+                    for interface in node_section.properties().interfaces() {
+                        if let Some(ip) = interface.ip() {
+                            let interface =
+                                render_interface(interface.name(), Cidr::from(ip), false)?;
+                            writeln!(interfaces)?;
+                            write!(interfaces, "{interface}")?;
+                        } else {
+                            let interface = render_interface(
+                                interface.name(),
+                                Cidr::from(IpAddr::from(node.ip().ok_or_else(|| {
+                                    anyhow::anyhow!("there has to be a ipv4 address")
+                                })?)),
+                                false,
+                            )?;
+                            writeln!(interfaces)?;
+                            write!(interfaces, "{interface}")?;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(interfaces)
     }
 }
