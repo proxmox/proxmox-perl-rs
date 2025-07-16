@@ -13,7 +13,7 @@ Package: libproxmox-rs-perl
 Architecture: all
 # always bump both package if you change versioned Depends or Breaks respectively, otherwise systems
 # with both libpmg-rs-perl and libpve-rs-perl might load an outdated lib and break
-Depends: libpve-rs-perl (>= 0.10.0) | libpmg-rs-perl (>= 0.8.0),
+Depends: libpve-rs-perl (>= 0.10.3) | libpmg-rs-perl (>= 0.8.0),
          ${misc:Depends},
          ${perl:Depends},
 Breaks: libpmg-rs-perl (<< 0.6.2), libpve-rs-perl (<< 0.7.2),
