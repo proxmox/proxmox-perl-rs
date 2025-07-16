@@ -1,3 +1,9 @@
+libproxmox-rs-perl (0.4.1) trixie; urgency=medium
+
+  * add Add PVE::RS::SDN::Fabrics module.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 16 Jul 2025 23:59:03 +0200
+
 libproxmox-rs-perl (0.4.0) trixie; urgency=medium
 
   * rebuild for Debian 13 Trixie based Proxmox releases.
