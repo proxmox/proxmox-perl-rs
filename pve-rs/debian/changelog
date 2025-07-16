@@ -1,3 +1,17 @@
+libpve-rs-perl (0.10.3) trixie; urgency=medium
+
+  * Add PVE::RS::SDN::Fabrics module.
+
+  * sdn: fabrics: add api methods.
+
+  * sdn: fabrics: add frr config generation.
+
+  * sdn: fabrics: add helper to generate ifupdown2 configuration.
+
+  * sdn: fabrics: add helper for network API endpoint.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 17 Jul 2025 00:01:18 +0200
+
 libpve-rs-perl (0.10.2) trixie; urgency=medium
 
   * re-build with newer proxmox-apt to include a signed-by release-key line in
