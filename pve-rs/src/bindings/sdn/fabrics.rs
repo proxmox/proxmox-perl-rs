@@ -5,7 +5,7 @@ pub mod pve_rs_sdn_fabrics {
     //! This provides the configuration for the SDN fabrics, as well as helper methods for reading
     //! / writing the configuration, as well as for generating ifupdown2 and FRR configuration.
 
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashSet};
     use std::ops::Deref;
     use std::sync::Mutex;
 
@@ -14,6 +14,7 @@ pub mod pve_rs_sdn_fabrics {
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
+    use proxmox_frr::serializer::to_raw_config;
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::Validatable;
 
@@ -27,6 +28,7 @@ pub mod pve_rs_sdn_fabrics {
         api::{Node, NodeUpdater},
     };
     use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
+    use proxmox_ve_config::sdn::frr::FrrConfigBuilder;
 
     /// A SDN Fabric config instance.
     #[derive(Serialize, Deserialize)]
@@ -305,5 +307,55 @@ pub mod pve_rs_sdn_fabrics {
         let hash = hash(MessageDigest::sha256(), &data)?;
 
         Ok(hex::encode(hash))
+    }
+
+    /// Method: Return all FRR daemons that need to be enabled for this fabric configuration
+    /// instance.
+    ///
+    /// FRR is a single service and different protocols are implement in daemons which can be
+    /// activated using the `/etc/frr/daemons` file.
+    ///
+    /// <https://docs.frrouting.org/en/latest/setup.html#daemons-configuration-file>
+    #[export]
+    pub fn enabled_daemons(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+    ) -> Vec<String> {
+        let config = this.fabric_config.lock().unwrap();
+
+        let node_fabrics = config
+            .values()
+            .filter(|fabric| fabric.get_node(&node_id).is_ok());
+
+        let mut daemons = HashSet::new();
+
+        for fabric in node_fabrics {
+            match fabric {
+                FabricEntry::Ospf(_) => {
+                    daemons.insert("ospfd");
+                }
+                FabricEntry::Openfabric(_) => {
+                    daemons.insert("fabricd");
+                }
+            };
+        }
+
+        daemons.into_iter().map(String::from).collect()
+    }
+
+    /// Method: Return the FRR configuration for this config instance, as an array of
+    /// strings, where each line represents a line in the FRR configuration.
+    #[export]
+    pub fn get_frr_raw_config(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+    ) -> Result<Vec<String>, Error> {
+        let config = this.fabric_config.lock().unwrap();
+
+        let frr_config = FrrConfigBuilder::default()
+            .add_fabrics(config.clone().into_valid()?)
+            .build(node_id)?;
+
+        to_raw_config(&frr_config)
     }
 }
