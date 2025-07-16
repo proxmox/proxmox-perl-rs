@@ -33,15 +33,17 @@ proxmox-apt = { version = "0.99.2", features = ["cache"] }
 proxmox-apt-api-types = "2"
 proxmox-base64 = "1"
 proxmox-config-digest = "1"
+proxmox-frr = { version = "0.1" }
 proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"
 proxmox-notify = { version = "1", features = ["pve-context"] }
 proxmox-openid = "1"
 proxmox-resource-scheduling = "1"
+proxmox-section-config = "3"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1"
 proxmox-sys = "1"
 proxmox-tfa = { version = "6", features = ["api"] }
 proxmox-time = "2"
-proxmox-ve-config = { version = "0.3" }
+proxmox-ve-config = { version = "0.3", features = [ "frr" ] }

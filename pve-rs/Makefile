@@ -29,6 +29,7 @@ PERLMOD_PACKAGES := \
 	  PVE::RS::Firewall::SDN \
 	  PVE::RS::OpenId \
 	  PVE::RS::ResourceScheduling::Static \
+	  PVE::RS::SDN::Fabrics \
 	  PVE::RS::TFA
 
 PERLMOD_PACKAGE_FILES := $(addsuffix .pm,$(subst ::,/,$(PERLMOD_PACKAGES)))

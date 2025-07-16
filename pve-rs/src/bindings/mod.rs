@@ -11,6 +11,9 @@ pub use openid::pve_rs_open_id;
 
 pub mod firewall;
 
+mod sdn;
+pub use sdn::fabrics::pve_rs_sdn_fabrics;
+
 #[allow(unused_imports)]
 pub use crate::common::bindings::*;
 
