@@ -5,7 +5,7 @@ pub mod pve_rs_sdn_fabrics {
     //! This provides the configuration for the SDN fabrics, as well as helper methods for reading
     //! / writing the configuration, as well as for generating ifupdown2 and FRR configuration.
 
-    use std::collections::{BTreeMap, HashSet};
+    use std::collections::{BTreeMap, HashMap, HashSet};
     use std::fmt::Write;
     use std::net::IpAddr;
     use std::ops::Deref;
@@ -26,6 +26,7 @@ pub mod pve_rs_sdn_fabrics {
         Fabric as ConfigFabric, FabricId,
         api::{Fabric, FabricUpdater},
     };
+    use proxmox_ve_config::sdn::fabric::section_config::interface::InterfaceName;
     use proxmox_ve_config::sdn::fabric::section_config::node::{
         Node as ConfigNode, NodeId,
         api::{Node, NodeUpdater},
@@ -302,6 +303,67 @@ pub mod pve_rs_sdn_fabrics {
             .delete_node(&node_id)
             .map(Node::from)
             .map_err(anyhow::Error::from)
+    }
+
+    fn map_name(
+        mapping: &HashMap<String, String>,
+        name: &str,
+    ) -> Result<Option<InterfaceName>, Error> {
+        match name.split_once('.') {
+            Some((interface_name, vlan_id))
+                if !vlan_id.is_empty() && vlan_id.chars().all(char::is_numeric) =>
+            {
+                mapping
+                    .get(interface_name)
+                    .map(|mapped_name| {
+                        InterfaceName::from_string(format!("{mapped_name}.{vlan_id}"))
+                    })
+                    .transpose()
+            }
+            _ => mapping
+                .get(name)
+                .cloned()
+                .map(InterfaceName::from_string)
+                .transpose(),
+        }
+    }
+
+    /// Method: Map all interface names of a node to a different one, according to the given
+    /// mapping.
+    ///
+    /// Used by proxmox-network-interface-pinning
+    #[export]
+    pub fn map_interfaces(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+        mapping: HashMap<String, String>,
+    ) -> Result<(), Error> {
+        let mut config = this.fabric_config.lock().unwrap();
+
+        for entry in config.get_fabrics_mut() {
+            let Ok(node) = entry.get_node_mut(&node_id) else {
+                continue;
+            };
+
+            match node {
+                ConfigNode::Openfabric(node_section) => {
+                    for interface in node_section.properties_mut().interfaces_mut() {
+                        if let Some(mapped_name) = map_name(&mapping, &interface.name())? {
+                            interface.set_name(mapped_name);
+                        }
+                    }
+                }
+                ConfigNode::Ospf(node_section) => {
+                    for interface in node_section.properties_mut().interfaces_mut() {
+                        if let Some(mapped_name) = map_name(&mapping, &interface.name())? {
+                            interface.set_name(mapped_name);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Method: Convert the configuration into the section config sections.
