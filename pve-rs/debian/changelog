@@ -1,3 +1,9 @@
+libpve-rs-perl (0.10.4) trixie; urgency=medium
+
+  * fabrics: helper for mapping interface names.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 17 Jul 2025 21:10:31 +0200
+
 libpve-rs-perl (0.10.3) trixie; urgency=medium
 
   * Add PVE::RS::SDN::Fabrics module.
