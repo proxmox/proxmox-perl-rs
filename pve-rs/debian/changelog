@@ -1,3 +1,15 @@
+libpve-rs-perl (0.10.5) trixie; urgency=medium
+
+  * fix #6541: openid connect: fix usage of newer ureq http-client to avoid a
+    panicon usage, like OIDC endpoint discovery on login.
+
+  * ensure a proxmox-openid connect crate version is used where the http
+    client uses the platform verifier for TLS certs again, avoiding
+    false-positives when rejecting connections even though they use a valid
+    and by the system trusted cert.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 21 Jul 2025 17:48:24 +0200
+
 libpve-rs-perl (0.10.4) trixie; urgency=medium
 
   * fabrics: helper for mapping interface names.
