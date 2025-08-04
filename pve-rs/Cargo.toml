@@ -34,7 +34,7 @@ proxmox-apt-api-types = "2"
 proxmox-base64 = "1"
 proxmox-config-digest = "1"
 proxmox-frr = { version = "0.1" }
-proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
+proxmox-http = { version = "1.0.2", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"
 proxmox-network-types = "0.1"
