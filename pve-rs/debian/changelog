@@ -1,3 +1,10 @@
+libpve-rs-perl (0.10.7) trixie; urgency=medium
+
+  * re-build with newer proxmox-http to fix issues with webhook notification
+    targets producing an "bad uri: POST is missing scheme" error
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 04 Aug 2025 11:44:06 +0200
+
 libpve-rs-perl (0.10.6) trixie; urgency=medium
 
   * re-build with newer proxmox-ve-config to get a fix that canonicalizes IP
