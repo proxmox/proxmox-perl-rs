@@ -4,6 +4,7 @@ Priority: optional
 Build-Depends: cargo:native <!nocheck>,
                debhelper-compat (= 13),
                dh-cargo (>= 25),
+               libproxmox-rs-perl (>= 0.3.5),
                librust-anyhow-1+default-dev,
                librust-base32-0.4+default-dev,
                librust-hex-0.4+default-dev,
