@@ -45,6 +45,6 @@ proxmox-section-config = "3"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1"
 proxmox-sys = "1"
-proxmox-tfa = { version = "6.0.1", features = ["api"] }
+proxmox-tfa = { version = "6.0.2", features = ["api"] }
 proxmox-time = "2"
 proxmox-ve-config = { version = "0.4.2", features = [ "frr" ] }
