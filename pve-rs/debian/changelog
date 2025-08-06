@@ -1,3 +1,10 @@
+libpve-rs-perl (0.10.8) trixie; urgency=medium
+
+  * re-build with newer proxmox-tfa crate to fix issues with bitwarden
+    passkeys
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 Aug 2025 14:03:20 +0200
+
 libpve-rs-perl (0.10.7) trixie; urgency=medium
 
   * re-build with newer proxmox-http to fix issues with webhook notification
