@@ -1,6 +1,6 @@
 [package]
 name = "pve-rs"
-version = "0.10.9"
+version = "0.10.10"
 description = "PVE parts which have been ported to Rust"
 homepage = "https://www.proxmox.com"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
@@ -45,7 +45,7 @@ proxmox-section-config = "3"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1"
 proxmox-sys = "1"
-proxmox-tfa = { version = "6.0.2", features = ["api"] }
+proxmox-tfa = { version = "6.0.3", features = ["api"] }
 proxmox-time = "2"
 proxmox-ve-config = { version = "0.4.2", features = [ "frr" ] }
 
