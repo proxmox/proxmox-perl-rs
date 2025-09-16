@@ -544,12 +544,21 @@ pub mod pve_rs_sdn_fabrics {
                             write!(interfaces, "{interface}")?;
                         }
 
-                        // If not ip is configured, add auto and empty iface to bring interface up
+                        // If no ip is configured, add auto and iface with node ip to bring interface up
+                        // OpenFabric doesn't really need an ip on the interface, but the problem
+                        // is that arp can't tell which source address to use in some cases, so
+                        // it's better if we set the node address on all the fabric interfaces.
                         if let (None, None) = (interface.ip(), interface.ip6()) {
+                            let cidr = Cidr::from(if let Some(ip) = node.ip() {
+                                IpAddr::from(ip)
+                            } else if let Some(ip) = node.ip6() {
+                                IpAddr::from(ip)
+                            } else {
+                                anyhow::bail!("there has to be a ipv4 or ipv6 node address");
+                            });
+                            let interface = render_interface(interface.name(), cidr, false)?;
                             writeln!(interfaces)?;
-                            writeln!(interfaces, "auto {}", interface.name())?;
-                            writeln!(interfaces, "iface {}", interface.name())?;
-                            writeln!(interfaces, "\tip-forward 1")?;
+                            write!(interfaces, "{interface}")?;
                         }
                     }
                 }
