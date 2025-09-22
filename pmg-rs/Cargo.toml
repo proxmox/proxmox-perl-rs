@@ -29,7 +29,7 @@ url = "2"
 perlmod = { version = "0.14", features = ["exporter"] }
 
 proxmox-acme = { version = "1", features = ["client", "api-types"] }
-proxmox-apt = { version = "0.99.1", features = ["cache"] }
+proxmox-apt = { version = "0.99.2", features = ["cache"] }
 proxmox-apt-api-types = "2"
 proxmox-config-digest = "1"
 proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
@@ -40,5 +40,5 @@ proxmox-openid =  "1"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1"
 proxmox-sys = "1"
-proxmox-tfa = { version = "6", features = ["api"] }
+proxmox-tfa = { version = "6.0.3", features = ["api"] }
 proxmox-time = "2"
