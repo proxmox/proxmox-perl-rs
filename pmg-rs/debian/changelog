@@ -1,3 +1,16 @@
+libpmg-rs-perl (0.8.1) trixie; urgency=medium
+
+  * re-build with newer proxmox-tfa crate to ignore backup state and
+    eligibility in authentication checks.
+
+  * re-build with newer proxmox-apt to:
+    - include a signed-by release-key line in the deb822 repository output for
+      Proxmox repos.
+    - to get correct paths for the now default deb822 format used for our
+      standard apt repos.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 22 Sep 2025 10:22:03 +0200
+
 libpmg-rs-perl (0.8.0) trixie; urgency=medium
 
   * re-build for Debian 13 "Trixie" based Proxmox releases.
