@@ -27,6 +27,7 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 
 PERLMOD_PACKAGES := \
 	  PVE::RS::Firewall::SDN \
+	  PVE::RS::OCI \
 	  PVE::RS::OpenId \
 	  PVE::RS::ResourceScheduling::Static \
 	  PVE::RS::SDN::Fabrics \
