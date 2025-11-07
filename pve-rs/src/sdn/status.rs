@@ -474,7 +474,7 @@ pub fn get_status(
     Ok(stats)
 }
 /// Common for nexthops, they can be either a interface name or a ip addr
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum IpAddrOrInterfaceName {
     /// IpAddr
@@ -484,7 +484,7 @@ pub enum IpAddrOrInterfaceName {
 }
 
 /// One L3VPN route
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct L3VPNRoute {
     ip: Cidr,
     protocol: String,
@@ -493,7 +493,7 @@ pub struct L3VPNRoute {
 }
 
 /// All L3VPN routes of a zone
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct L3VPNRoutes(Vec<L3VPNRoute>);
 
 /// Convert parsed routes from frr into l3vpn routes, this means we need to match against the vrf
@@ -528,7 +528,7 @@ pub fn get_l3vpn_routes(vrf: &str, routes: de::Routes) -> Result<L3VPNRoutes, an
 }
 
 /// One L2VPN route
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct L2VPNRoute {
     mac: MacAddress,
     ip: IpAddr,
@@ -536,7 +536,7 @@ pub struct L2VPNRoute {
 }
 
 /// All L2VPN routes of a specific vnet
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct L2VPNRoutes(Vec<L2VPNRoute>);
 
 /// Convert the parsed frr evpn struct into an array of structured L2VPN routes
@@ -2312,6 +2312,344 @@ mod tests {
                 },
             ];
             assert_eq!(reference_fabric2, output_fabric2);
+        }
+    }
+
+    mod evpn {
+        use std::{
+            net::{Ipv4Addr, Ipv6Addr},
+            str::FromStr,
+        };
+
+        use super::super::*;
+
+        #[test]
+        fn routes_l3vpn() {
+            let json_output = r#"
+                {
+                  "0.0.0.0/0": [
+                    {
+                      "prefix": "0.0.0.0/0",
+                      "prefixLen": 0,
+                      "protocol": "kernel",
+                      "vrfId": 14,
+                      "vrfName": "vrf_test",
+                      "selected": true,
+                      "destSelected": true,
+                      "distance": 255,
+                      "metric": 8192,
+                      "installed": true,
+                      "table": 1001,
+                      "internalStatus": 16,
+                      "internalFlags": 8,
+                      "internalNextHopNum": 1,
+                      "internalNextHopActiveNum": 1,
+                      "nexthopGroupId": 82,
+                      "installedNexthopGroupId": 82,
+                      "uptime": "00:03:44",
+                      "nexthops": [
+                        {
+                          "flags": 3,
+                          "fib": true,
+                          "unreachable": true,
+                          "reject": true,
+                          "active": true,
+                          "weight": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "172.16.100.0/24": [
+                    {
+                      "prefix": "172.16.100.0/24",
+                      "prefixLen": 24,
+                      "protocol": "connected",
+                      "vrfId": 14,
+                      "vrfName": "vrf_test",
+                      "selected": true,
+                      "destSelected": true,
+                      "distance": 0,
+                      "metric": 0,
+                      "installed": true,
+                      "table": 1001,
+                      "internalStatus": 16,
+                      "internalFlags": 8,
+                      "internalNextHopNum": 1,
+                      "internalNextHopActiveNum": 1,
+                      "nexthopGroupId": 80,
+                      "installedNexthopGroupId": 80,
+                      "uptime": "00:03:44",
+                      "nexthops": [
+                        {
+                          "flags": 3,
+                          "fib": true,
+                          "directlyConnected": true,
+                          "interfaceIndex": 13,
+                          "interfaceName": "test",
+                          "active": true,
+                          "weight": 1
+                        }
+                      ]
+                    },
+                    {
+                      "prefix": "172.16.100.0/24",
+                      "prefixLen": 24,
+                      "protocol": "kernel",
+                      "vrfId": 14,
+                      "vrfName": "vrf_test",
+                      "distance": 0,
+                      "metric": 0,
+                      "installed": true,
+                      "table": 1001,
+                      "internalStatus": 16,
+                      "internalFlags": 0,
+                      "internalNextHopNum": 1,
+                      "internalNextHopActiveNum": 1,
+                      "nexthopGroupId": 78,
+                      "uptime": "00:03:44",
+                      "nexthops": [
+                        {
+                          "flags": 3,
+                          "fib": true,
+                          "directlyConnected": true,
+                          "interfaceIndex": 13,
+                          "interfaceName": "test",
+                          "vrf": "default",
+                          "active": true,
+                          "weight": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "172.16.100.1/32": [
+                    {
+                      "prefix": "172.16.100.1/32",
+                      "prefixLen": 32,
+                      "protocol": "local",
+                      "vrfId": 14,
+                      "vrfName": "vrf_test",
+                      "selected": true,
+                      "destSelected": true,
+                      "distance": 0,
+                      "metric": 0,
+                      "installed": true,
+                      "table": 1001,
+                      "internalStatus": 16,
+                      "internalFlags": 8,
+                      "internalNextHopNum": 1,
+                      "internalNextHopActiveNum": 1,
+                      "nexthopGroupId": 80,
+                      "installedNexthopGroupId": 80,
+                      "uptime": "00:03:44",
+                      "nexthops": [
+                        {
+                          "flags": 3,
+                          "fib": true,
+                          "directlyConnected": true,
+                          "interfaceIndex": 13,
+                          "interfaceName": "test",
+                          "active": true,
+                          "weight": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "172.16.100.2/32": [
+                    {
+                      "prefix": "172.16.100.2/32",
+                      "prefixLen": 32,
+                      "protocol": "bgp",
+                      "vrfId": 14,
+                      "vrfName": "vrf_test",
+                      "selected": true,
+                      "destSelected": true,
+                      "distance": 200,
+                      "metric": 0,
+                      "installed": true,
+                      "table": 1001,
+                      "internalStatus": 16,
+                      "internalFlags": 13,
+                      "internalNextHopNum": 1,
+                      "internalNextHopActiveNum": 1,
+                      "nexthopGroupId": 88,
+                      "installedNexthopGroupId": 88,
+                      "uptime": "00:01:22",
+                      "nexthops": [
+                        {
+                          "flags": 267,
+                          "fib": true,
+                          "ip": "172.16.6.1",
+                          "afi": "ipv4",
+                          "interfaceIndex": 16,
+                          "interfaceName": "vrfbr_test",
+                          "active": true,
+                          "onLink": true,
+                          "weight": 1
+                        }
+                      ]
+                    }
+                  ]
+                }
+
+            "#;
+
+            let routes: de::Routes = if json_output.is_empty() {
+                de::Routes::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let zone = "test";
+
+            let output = get_l3vpn_routes(&format!("vrf_{zone}"), routes)
+                .expect("error converting vtysh output");
+
+            let reference = L3VPNRoutes(vec![
+                L3VPNRoute {
+                    ip: Cidr::from_str("0.0.0.0/0").expect("valid cidr"),
+                    protocol: "kernel".to_owned(),
+                    metric: 8192,
+                    nexthops: vec![],
+                },
+                L3VPNRoute {
+                    ip: Cidr::from_str("172.16.100.0/24").expect("valid cidr"),
+                    protocol: "connected".to_owned(),
+                    metric: 0,
+                    nexthops: vec![IpAddrOrInterfaceName::InterfaceName("test".to_owned())],
+                },
+                L3VPNRoute {
+                    ip: Cidr::from_str("172.16.100.0/24").expect("valid cidr"),
+                    protocol: "kernel".to_owned(),
+                    metric: 0,
+                    nexthops: vec![IpAddrOrInterfaceName::InterfaceName("test".to_owned())],
+                },
+                L3VPNRoute {
+                    ip: Cidr::from_str("172.16.100.1/32").expect("valid cidr"),
+                    protocol: "local".to_owned(),
+                    metric: 0,
+                    nexthops: vec![IpAddrOrInterfaceName::InterfaceName("test".to_owned())],
+                },
+                L3VPNRoute {
+                    ip: Cidr::from_str("172.16.100.2/32").expect("valid cidr"),
+                    protocol: "bgp".to_owned(),
+                    metric: 0,
+                    nexthops: vec![IpAddrOrInterfaceName::IpAddr(IpAddr::V4(
+                        Ipv4Addr::from_str("172.16.6.1").expect("valid ip addr"),
+                    ))],
+                },
+            ]);
+            assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn routes_l2vpn() {
+            let json_output = r#"
+                {
+                  "[2]:[0]:[48]:[00:00:00:00:00:00]:[32]:[172.16.100.2]":{
+                    "prefix":"[2]:[0]:[48]:[00:00:00:00:00:00]:[32]:[172.16.100.2]",
+                    "prefixLen":352,
+                    "paths":[
+                      [
+                        {
+                          "valid":true,
+                          "bestpath":true,
+                          "selectionReason":"First path received",
+                          "pathFrom":"internal",
+                          "routeType":2,
+                          "ethTag":0,
+                          "macLen":48,
+                          "mac":"bc:24:11:02:45:ae",
+                          "ipLen":32,
+                          "ip":"172.16.100.2",
+                          "locPrf":100,
+                          "weight":0,
+                          "peerId":"172.16.6.1",
+                          "path":"",
+                          "origin":"IGP",
+                          "extendedCommunity":{
+                            "string":"RT:65000:100 RT:65000:101 ET:8 Rmac:e2:44:0e:6f:78:72"
+                          },
+                          "nexthops":[
+                            {
+                              "ip":"172.16.6.1",
+                              "hostname":"node1",
+                              "afi":"ipv4",
+                              "used":true
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  },
+                  "[2]:[0]:[48]:[00:00:00:00:00:00]:[128]:[fe80::be24:11ff:fe02:45ae]":{
+                    "prefix":"[2]:[0]:[48]:[00:00:00:00:00:00]:[128]:[fe80::be24:11ff:fe02:45ae]",
+                    "prefixLen":352,
+                    "paths":[
+                      [
+                        {
+                          "valid":true,
+                          "bestpath":true,
+                          "selectionReason":"First path received",
+                          "pathFrom":"internal",
+                          "routeType":2,
+                          "ethTag":0,
+                          "macLen":48,
+                          "mac":"bc:24:11:02:45:ae",
+                          "ipLen":128,
+                          "ip":"fe80::be24:11ff:fe02:45ae",
+                          "locPrf":100,
+                          "weight":0,
+                          "peerId":"172.16.6.1",
+                          "path":"",
+                          "origin":"IGP",
+                          "extendedCommunity":{
+                            "string":"RT:65000:100 ET:8"
+                          },
+                          "nexthops":[
+                            {
+                              "ip":"172.16.6.1",
+                              "hostname":"node1",
+                              "afi":"ipv4",
+                              "used":true
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  },
+                  "numPrefix":2,
+                  "numPaths":2
+                }
+
+            "#;
+
+            let routes: de::evpn::Routes = if json_output.is_empty() {
+                de::evpn::Routes::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let output = get_l2vpn_routes(routes).expect("error converting vtysh output");
+
+            let reference = L2VPNRoutes(vec![
+                L2VPNRoute {
+                    mac: MacAddress::from_str("bc:24:11:02:45:ae").expect("valid mac address"),
+                    ip: IpAddr::V6(
+                        Ipv6Addr::from_str("fe80::be24:11ff:fe02:45ae").expect("valid ip address"),
+                    ),
+                    nexthop: IpAddr::V4(
+                        Ipv4Addr::from_str("172.16.6.1").expect("valid ip address"),
+                    ),
+                },
+                L2VPNRoute {
+                    mac: MacAddress::from_str("bc:24:11:02:45:ae").expect("valid mac address"),
+                    ip: IpAddr::V4(Ipv4Addr::from_str("172.16.100.2").expect("valid ip address")),
+                    nexthop: IpAddr::V4(
+                        Ipv4Addr::from_str("172.16.6.1").expect("valid ip address"),
+                    ),
+                },
+            ]);
+            assert_eq!(reference, output);
         }
     }
 }
