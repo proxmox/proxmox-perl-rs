@@ -666,6 +666,55 @@ pub mod pve_rs_sdn_fabrics {
         }
     }
 
+    /// Get the neighbors for this specific fabric on this node
+    ///
+    /// Read and parse the fabric config to get the fabric protocol and the interfaces (ospf).
+    /// Parse the frr output of the neighbor commands and return a common format.
+    #[export]
+    fn neighbors(fabric_id: FabricId) -> Result<status::NeighborStatus, Error> {
+        // Read fabric config to get protocol of fabric
+        let config = get_fabrics_config()?;
+
+        let fabric = config.get_fabric(&fabric_id)?;
+
+        match fabric {
+            FabricEntry::Openfabric(_) => {
+                let openfabric_neighbors_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show openfabric neighbor detail json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let openfabric_neighbors: proxmox_frr::de::openfabric::Neighbors =
+                    if openfabric_neighbors_string.is_empty() {
+                        proxmox_frr::de::openfabric::Neighbors::default()
+                    } else {
+                        serde_json::from_str(&openfabric_neighbors_string)
+                            .with_context(|| "error parsing openfabric neighbors")?
+                    };
+
+                status::get_neighbors_openfabric(fabric_id, openfabric_neighbors).map(|v| v.into())
+            }
+            FabricEntry::Ospf(fabric) => {
+                let ospf_neighbors_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show ip ospf neighbor json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let ospf_neighbors: proxmox_frr::de::ospf::Neighbors =
+                    if ospf_neighbors_string.is_empty() {
+                        proxmox_frr::de::ospf::Neighbors::default()
+                    } else {
+                        serde_json::from_str(&ospf_neighbors_string)
+                            .with_context(|| "error parsing ospf neighbors")?
+                    };
+
+                status::get_neighbors_ospf(fabric_id, fabric, ospf_neighbors).map(|v| v.into())
+            }
+        }
+    }
+
     /// Get the interfaces for this specific fabric on this node
     ///
     /// Read and parse the fabric config to get the protocol of the fabric and retrieve the

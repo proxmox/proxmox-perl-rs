@@ -31,6 +31,16 @@ mod ospf {
     use proxmox_frr::de;
     use serde::Serialize;
 
+    /// The status of a neighbor.
+    ///
+    /// Contains the neighbor name and the neighbor status.
+    #[derive(Debug, Serialize)]
+    pub struct NeighborStatus {
+        pub neighbor: String,
+        pub status: String,
+        pub uptime: String,
+    }
+
     /// The status of a fabric interface
     ///
     /// Contains the interface name, the interface state (so if the interface is up/down) and the type
@@ -47,6 +57,16 @@ mod openfabric {
     use proxmox_frr::de;
     use serde::Serialize;
 
+    /// The status of a neighbor.
+    ///
+    /// Contains the neighbor name and the neighbor status.
+    #[derive(Debug, Serialize)]
+    pub struct NeighborStatus {
+        pub neighbor: String,
+        pub status: de::openfabric::AdjacencyState,
+        pub uptime: String,
+    }
+
     /// The status of a fabric interface
     ///
     /// Contains the interface name, the interface state (so if the interface is up/down) and the type
@@ -57,6 +77,25 @@ mod openfabric {
         pub state: de::openfabric::CircuitState,
         #[serde(rename = "type")]
         pub ty: de::openfabric::NetworkType,
+    }
+}
+
+/// Common NeighborStatus that contains either OSPF or Openfabric neighbors
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NeighborStatus {
+    Openfabric(Vec<openfabric::NeighborStatus>),
+    Ospf(Vec<ospf::NeighborStatus>),
+}
+
+impl From<Vec<openfabric::NeighborStatus>> for NeighborStatus {
+    fn from(value: Vec<openfabric::NeighborStatus>) -> Self {
+        NeighborStatus::Openfabric(value)
+    }
+}
+impl From<Vec<ospf::NeighborStatus>> for NeighborStatus {
+    fn from(value: Vec<ospf::NeighborStatus>) -> Self {
+        NeighborStatus::Ospf(value)
     }
 }
 
@@ -227,6 +266,81 @@ pub fn get_routes(
             }
         }
     }
+    Ok(stats)
+}
+
+/// Convert the parsed openfabric neighbor neighbor information into a list of
+/// [`openfabric::NeighborStatus`].
+///
+/// OpenFabric uses the name of the fabric as an "area", so simply match that to the fabric_id.
+pub fn get_neighbors_openfabric(
+    fabric_id: FabricId,
+    neighbors: de::openfabric::Neighbors,
+) -> Result<Vec<openfabric::NeighborStatus>, anyhow::Error> {
+    let mut stats: Vec<openfabric::NeighborStatus> = Vec::new();
+
+    for area in &neighbors.areas {
+        if area.area != fabric_id.as_str() {
+            continue;
+        }
+        for circuit in &area.circuits {
+            let (Some(adj), Some(interface)) = (&circuit.adj, &circuit.interface) else {
+                continue;
+            };
+            let Some(state) = interface.state else {
+                continue;
+            };
+            stats.push(openfabric::NeighborStatus {
+                neighbor: adj.clone(),
+                status: state,
+                uptime: interface.last_ago.clone(),
+            });
+        }
+    }
+
+    Ok(stats)
+}
+
+/// Convert the parsed ospf neighbor neighbor information into a list of [`ospf::NeighborStatus`].
+///
+/// Ospf does not use the name of the fabric at all, so we again need to retrieve the interfaces of
+/// the fabric on this specific node and then match the neighbors to the fabric using the
+/// interfaces.
+pub fn get_neighbors_ospf(
+    fabric_id: FabricId,
+    fabric: &Entry<OspfProperties, OspfNodeProperties>,
+    neighbors: de::ospf::Neighbors,
+) -> Result<Vec<ospf::NeighborStatus>, anyhow::Error> {
+    let hostname = proxmox_sys::nodename();
+
+    let mut stats: Vec<ospf::NeighborStatus> = Vec::new();
+
+    if let Ok(node) = fabric.node_section(&NodeId::from_string(hostname.to_string())?) {
+        let mut interface_names: HashSet<&str> = node
+            .properties()
+            .interfaces()
+            .map(|i| i.name().as_str())
+            .collect();
+
+        let dummy_interface = format!("dummy_{}", fabric_id.as_str());
+        interface_names.insert(&dummy_interface);
+
+        for neighbor_list in neighbors.neighbors.values() {
+            // Find first neighbor whose interface is in our fabric
+            if let Some(neighbor) = neighbor_list.iter().find(|n| {
+                n.interface_name
+                    .split_once(':')
+                    .is_some_and(|(iface, _)| interface_names.contains(iface))
+            }) {
+                stats.push(ospf::NeighborStatus {
+                    neighbor: neighbor.interface_address.clone(),
+                    status: neighbor.neighbor_state.clone(),
+                    uptime: neighbor.up_time.clone(),
+                });
+            }
+        }
+    }
+
     Ok(stats)
 }
 
