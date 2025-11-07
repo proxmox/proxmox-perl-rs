@@ -12,7 +12,7 @@ pub mod pve_rs_sdn_fabrics {
     use std::process::Command;
     use std::sync::Mutex;
 
-    use anyhow::{Context, Error};
+    use anyhow::{Context, Error, format_err};
     use openssl::hash::{MessageDigest, hash};
     use serde::{Deserialize, Serialize};
 
@@ -22,6 +22,7 @@ pub mod pve_rs_sdn_fabrics {
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::{Valid, Validatable};
 
+    use proxmox_ve_config::sdn::config::{SdnConfig, ZoneConfig};
     use proxmox_ve_config::sdn::fabric::section_config::Section;
     use proxmox_ve_config::sdn::fabric::section_config::fabric::{
         Fabric as ConfigFabric, FabricId,
@@ -661,5 +662,55 @@ pub mod pve_rs_sdn_fabrics {
         };
 
         status::get_status(config, route_status)
+    }
+
+    /// Get all the L3 routes for the passed zone.
+    ///
+    /// Every zone has a vrf named `vrf_{zone}`. Show all the L3 (IP) routes on the VRF of the
+    /// zone.
+    #[export]
+    fn l3vpn_routes(zone: String) -> Result<status::L3VPNRoutes, Error> {
+        let command = format!("vtysh -c 'show ip route vrf vrf_{zone} json'");
+        let l3vpn_routes_string =
+            String::from_utf8(Command::new("sh").args(["-c", &command]).output()?.stdout)?;
+        let l3vpn_routes: proxmox_frr::de::Routes = if l3vpn_routes_string.is_empty() {
+            proxmox_frr::de::Routes::default()
+        } else {
+            serde_json::from_str(&l3vpn_routes_string)
+                .with_context(|| "error parsing l3vpn routes")?
+        };
+
+        status::get_l3vpn_routes(&format!("vrf_{zone}"), l3vpn_routes)
+    }
+
+    /// Get all the L2 routes for the passed vnet.
+    ///
+    /// When using VXLAN the vnet "stores" the L2 routes in it's FDB. The best way to retrieve them
+    /// with additional metadata is to query FRR. Use the `show bgp l2vpn evpn route` command.
+    /// To filter by vnet, get the VNI of the vnet from the config and use it in the command.
+    #[export]
+    fn l2vpn_routes(vnet: String) -> Result<status::L2VPNRoutes, Error> {
+        // read config to get the vni of the vnet
+        let raw_config = std::fs::read_to_string("/etc/pve/sdn/.running-config")?;
+        let running_config: proxmox_ve_config::sdn::config::RunningConfig =
+            serde_json::from_str(&raw_config)?;
+        let parsed_config = SdnConfig::try_from(running_config)?;
+
+        let vni = parsed_config
+            .zones()
+            .flat_map(ZoneConfig::vnets)
+            .find(|vnet_config| vnet_config.name().as_ref() == vnet)
+            .ok_or_else(|| format_err!("could not find vnet {vnet}"))?
+            .tag()
+            .ok_or_else(|| format_err!("vnet {vnet} has no tag"))?;
+
+        let command = format!("vtysh -c 'show bgp l2vpn evpn route vni {vni} type 2 json'");
+        let l2vpn_routes_string =
+            String::from_utf8(Command::new("sh").args(["-c", &command]).output()?.stdout)?;
+
+        let routes = serde_json::from_str(&l2vpn_routes_string)
+            .with_context(|| "error parsing l2vpn routes")?;
+
+        status::get_l2vpn_routes(routes)
     }
 }

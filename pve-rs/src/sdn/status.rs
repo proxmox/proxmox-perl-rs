@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::net::IpAddr;
 
-use proxmox_section_config::typed::SectionConfigData;
+use proxmox_network_types::ip_address::Cidr;
+use proxmox_network_types::mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
 
 use proxmox_frr::de::{self};
@@ -137,4 +139,93 @@ pub fn get_status(
     }
 
     Ok(stats)
+}
+/// Common for nexthops, they can be either a interface name or a ip addr
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum IpAddrOrInterfaceName {
+    /// IpAddr
+    IpAddr(IpAddr),
+    /// Interface Name
+    InterfaceName(String),
+}
+
+/// One L3VPN route
+#[derive(Debug, Serialize)]
+pub struct L3VPNRoute {
+    ip: Cidr,
+    protocol: String,
+    metric: i32,
+    nexthops: Vec<IpAddrOrInterfaceName>,
+}
+
+/// All L3VPN routes of a zone
+#[derive(Debug, Serialize)]
+pub struct L3VPNRoutes(Vec<L3VPNRoute>);
+
+/// Convert parsed routes from frr into l3vpn routes, this means we need to match against the vrf
+/// name of the zone.
+pub fn get_l3vpn_routes(vrf: &str, routes: de::Routes) -> Result<L3VPNRoutes, anyhow::Error> {
+    let mut result = Vec::new();
+    for (prefix, routes) in routes.0 {
+        for route in routes {
+            if route.vrf_name == vrf && route.installed.unwrap_or_default() {
+                result.push(L3VPNRoute {
+                    ip: prefix,
+                    metric: route.metric,
+                    protocol: route.protocol,
+                    nexthops: route
+                        .nexthops
+                        .into_iter()
+                        .filter_map(|nh| {
+                            if nh.duplicate.unwrap_or_default() {
+                                return None;
+                            }
+
+                            nh.ip.map(IpAddrOrInterfaceName::IpAddr).or_else(|| {
+                                nh.interface_name.map(IpAddrOrInterfaceName::InterfaceName)
+                            })
+                        })
+                        .collect(),
+                });
+            }
+        }
+    }
+    Ok(L3VPNRoutes(result))
+}
+
+/// One L2VPN route
+#[derive(Debug, Serialize)]
+pub struct L2VPNRoute {
+    mac: MacAddress,
+    ip: IpAddr,
+    nexthop: IpAddr,
+}
+
+/// All L2VPN routes of a specific vnet
+#[derive(Debug, Serialize)]
+pub struct L2VPNRoutes(Vec<L2VPNRoute>);
+
+/// Convert the parsed frr evpn struct into an array of structured L2VPN routes
+pub fn get_l2vpn_routes(routes: de::evpn::Routes) -> Result<L2VPNRoutes, anyhow::Error> {
+    let mut result = Vec::new();
+    for route in routes.0.values() {
+        if let de::evpn::Entry::Route(r) = route {
+            r.paths.iter().flatten().for_each(|path| {
+                if path.bestpath.unwrap_or_default() {
+                    if let (Some(mac), Some(ip), Some(nh)) =
+                        (path.mac, path.ip, path.nexthops.first())
+                    {
+                        result.push(L2VPNRoute {
+                            mac,
+                            ip,
+                            nexthop: nh.ip,
+                        });
+                    }
+                }
+            });
+        }
+    }
+
+    Ok(L2VPNRoutes(result))
 }
