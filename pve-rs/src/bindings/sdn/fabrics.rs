@@ -645,7 +645,12 @@ pub mod pve_rs_sdn_fabrics {
                             .with_context(|| "error parsing openfabric ipv6 routes")?;
                     openfabric_routes.0.extend(openfabric_ipv6_routes.0);
                 }
-                status::get_routes(fabric_id, config, openfabric_routes)
+                status::get_routes(
+                    fabric_id,
+                    config,
+                    openfabric_routes,
+                    proxmox_sys::nodename(),
+                )
             }
             FabricEntry::Ospf(_) => {
                 let ospf_routes_string = String::from_utf8(
@@ -661,7 +666,7 @@ pub mod pve_rs_sdn_fabrics {
                         .with_context(|| "error parsing ospf routes")?
                 };
 
-                status::get_routes(fabric_id, config, ospf_routes)
+                status::get_routes(fabric_id, config, ospf_routes, proxmox_sys::nodename())
             }
         }
     }
@@ -710,7 +715,13 @@ pub mod pve_rs_sdn_fabrics {
                             .with_context(|| "error parsing ospf neighbors")?
                     };
 
-                status::get_neighbors_ospf(fabric_id, fabric, ospf_neighbors).map(|v| v.into())
+                status::get_neighbors_ospf(
+                    fabric_id,
+                    fabric,
+                    ospf_neighbors,
+                    proxmox_sys::nodename(),
+                )
+                .map(|v| v.into())
             }
         }
     }
@@ -760,7 +771,13 @@ pub mod pve_rs_sdn_fabrics {
                             .with_context(|| "error parsing ospf interfaces")?
                     };
 
-                status::get_interfaces_ospf(fabric_id, fabric, ospf_interfaces).map(|v| v.into())
+                status::get_interfaces_ospf(
+                    fabric_id,
+                    fabric,
+                    ospf_interfaces,
+                    proxmox_sys::nodename(),
+                )
+                .map(|v| v.into())
             }
         }
     }
@@ -821,7 +838,7 @@ pub mod pve_rs_sdn_fabrics {
             ospf: ospf_routes,
         };
 
-        status::get_status(config, route_status)
+        status::get_status(config, route_status, proxmox_sys::nodename())
     }
 
     /// Get all the L3 routes for the passed zone.

@@ -20,7 +20,7 @@ use proxmox_ve_config::{
 // The status of a fabric interface
 //
 // Either up or down.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum InterfaceState {
     Up,
@@ -34,7 +34,7 @@ mod ospf {
     /// The status of a neighbor.
     ///
     /// Contains the neighbor name and the neighbor status.
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, PartialEq, Eq)]
     pub struct NeighborStatus {
         pub neighbor: String,
         pub status: String,
@@ -45,7 +45,7 @@ mod ospf {
     ///
     /// Contains the interface name, the interface state (so if the interface is up/down) and the type
     /// of the interface (e.g. point-to-point, broadcast, etc.).
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, PartialEq, Eq)]
     pub struct InterfaceStatus {
         pub name: String,
         pub state: super::InterfaceState,
@@ -60,7 +60,7 @@ mod openfabric {
     /// The status of a neighbor.
     ///
     /// Contains the neighbor name and the neighbor status.
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, PartialEq, Eq)]
     pub struct NeighborStatus {
         pub neighbor: String,
         pub status: de::openfabric::AdjacencyState,
@@ -71,7 +71,7 @@ mod openfabric {
     ///
     /// Contains the interface name, the interface state (so if the interface is up/down) and the type
     /// of the interface (e.g. point-to-point, broadcast, etc.).
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, PartialEq, Eq)]
     pub struct InterfaceStatus {
         pub name: String,
         pub state: de::openfabric::CircuitState,
@@ -121,7 +121,7 @@ impl From<Vec<ospf::InterfaceStatus>> for InterfaceStatus {
 /// The status of a route.
 ///
 /// Contains the route and all the nexthops. This is common across all protocols.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct RouteStatus {
     route: String,
     via: Vec<String>,
@@ -197,9 +197,8 @@ pub fn get_routes(
     fabric_id: FabricId,
     config: Valid<FabricConfig>,
     routes: de::Routes,
+    hostname: &str,
 ) -> Result<Vec<RouteStatus>, anyhow::Error> {
-    let hostname = proxmox_sys::nodename();
-
     let mut stats: Vec<RouteStatus> = Vec::new();
 
     if let Ok(node) = config
@@ -310,9 +309,8 @@ pub fn get_neighbors_ospf(
     fabric_id: FabricId,
     fabric: &Entry<OspfProperties, OspfNodeProperties>,
     neighbors: de::ospf::Neighbors,
+    hostname: &str,
 ) -> Result<Vec<ospf::NeighborStatus>, anyhow::Error> {
-    let hostname = proxmox_sys::nodename();
-
     let mut stats: Vec<ospf::NeighborStatus> = Vec::new();
 
     if let Ok(node) = fabric.node_section(&NodeId::from_string(hostname.to_string())?) {
@@ -377,9 +375,8 @@ pub fn get_interfaces_ospf(
     fabric_id: FabricId,
     fabric: &Entry<OspfProperties, OspfNodeProperties>,
     neighbors: de::ospf::Interfaces,
+    hostname: &str,
 ) -> Result<Vec<ospf::InterfaceStatus>, anyhow::Error> {
-    let hostname = proxmox_sys::nodename();
-
     let mut stats: Vec<ospf::InterfaceStatus> = Vec::new();
 
     if let Ok(node) = fabric.node_section(&NodeId::from_string(hostname.to_string())?) {
@@ -418,9 +415,8 @@ pub fn get_interfaces_ospf(
 pub fn get_status(
     config: Valid<FabricConfig>,
     routes: RoutesParsed,
+    hostname: &str,
 ) -> Result<HashMap<FabricId, Status>, anyhow::Error> {
-    let hostname = proxmox_sys::nodename();
-
     let mut stats: HashMap<FabricId, Status> = HashMap::new();
 
     for (nodeid, node) in config.all_nodes() {
@@ -565,4 +561,1757 @@ pub fn get_l2vpn_routes(routes: de::evpn::Routes) -> Result<L2VPNRoutes, anyhow:
     }
 
     Ok(L2VPNRoutes(result))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proxmox_section_config::typed::SectionConfigData;
+    use proxmox_ve_config::sdn::fabric::FabricConfig;
+
+    fn sample_two_fabric_config() -> Valid<FabricConfig> {
+        let raw_config = r#"{
+              "fabrics": {
+                "ids": {
+                  "test": {
+                    "area": "0",
+                    "type": "ospf_fabric",
+                    "id": "test",
+                    "ip_prefix": "172.16.6.0/24"
+                  },
+                  "test_node2": {
+                    "ip": "172.16.6.2",
+                    "type": "ospf_node",
+                    "id": "test_node2",
+                    "interfaces": [
+                      "name=ens19",
+                      "name=ens20"
+                    ]
+                  },
+                  "test_node1": {
+                    "interfaces": [
+                      "name=ens19",
+                      "name=ens20"
+                    ],
+                    "id": "test_node1",
+                    "ip": "172.16.6.1",
+                    "type": "ospf_node"
+                  },
+                  "test_node3": {
+                    "ip": "172.16.6.3",
+                    "type": "ospf_node",
+                    "interfaces": [
+                      "name=ens19",
+                      "name=ens20"
+                    ],
+                    "id": "test_node3"
+                  },
+                  "test1": {
+                    "area": "1",
+                    "type": "ospf_fabric",
+                    "id": "test1",
+                    "ip_prefix": "172.16.7.0/24"
+                  },
+                  "test1_node2": {
+                    "ip": "172.16.7.2",
+                    "type": "ospf_node",
+                    "id": "test1_node2",
+                    "interfaces": [
+                      "name=ens21",
+                      "name=ens22"
+                    ]
+                  },
+                  "test1_node1": {
+                    "interfaces": [
+                      "name=ens21",
+                      "name=ens22"
+                    ],
+                    "id": "test1_node1",
+                    "ip": "172.16.7.1",
+                    "type": "ospf_node"
+                  },
+                  "test1_node3": {
+                    "ip": "172.16.7.3",
+                    "type": "ospf_node",
+                    "interfaces": [
+                      "name=ens21",
+                      "name=ens22"
+                    ],
+                    "id": "test1_node3"
+                  }
+                }
+              }
+            }
+            "#;
+
+        let running_config: RunningConfig =
+            serde_json::from_str(raw_config).expect("error parsing running-config");
+        let section_config = SectionConfigData::from_iter(running_config.fabrics.ids);
+        FabricConfig::from_section_config(section_config)
+            .expect("error converting section config to fabricconfig")
+    }
+
+    fn sample_one_fabric_config() -> Valid<FabricConfig> {
+        let raw_config = r#"{
+              "fabrics": {
+                "ids": {
+                  "test": {
+                    "area": "0",
+                    "type": "ospf_fabric",
+                    "id": "test",
+                    "ip_prefix": "172.16.6.0/24"
+                  },
+                  "test_node2": {
+                    "ip": "172.16.6.2",
+                    "type": "ospf_node",
+                    "id": "test_node2",
+                    "interfaces": [
+                      "name=ens19",
+                      "name=ens20"
+                    ]
+                  },
+                  "test_node1": {
+                    "interfaces": [
+                      "name=ens19",
+                      "name=ens20"
+                    ],
+                    "id": "test_node1",
+                    "ip": "172.16.6.1",
+                    "type": "ospf_node"
+                  },
+                  "test_node3": {
+                    "ip": "172.16.6.3",
+                    "type": "ospf_node",
+                    "interfaces": [
+                      "name=ens19",
+                      "name=ens20"
+                    ],
+                    "id": "test_node3"
+                  }
+                }
+              }
+            }
+            "#;
+        let running_config: RunningConfig =
+            serde_json::from_str(raw_config).expect("error parsing running-config");
+        let section_config = SectionConfigData::from_iter(running_config.fabrics.ids);
+        FabricConfig::from_section_config(section_config)
+            .expect("error converting section config to fabricconfig")
+    }
+
+    mod openfabric {
+        use super::super::*;
+
+        #[test]
+        fn neighbors() {
+            let json_output = r#"
+                {
+                  "areas":[
+                    {
+                      "area":"test",
+                      "circuits":[
+                        {
+                          "circuit":0
+                        },
+                        {
+                          "circuit":0,
+                          "adj":"node2",
+                          "interface":{
+                            "name":"ens19",
+                            "state":"Up",
+                            "adj-flaps":1,
+                            "last-ago":"11m5s",
+                            "circuit-type":"L2",
+                            "speaks":"IPv4",
+                            "snpa":"2020.2020.2020",
+                            "area-address":{
+                              "isonet":"49.0001"
+                            },
+                            "ipv4-address":{
+                              "ipv4":"172.16.6.2"
+                            },
+                            "adj-sid":{}
+                          },
+                          "level":2,
+                          "expires-in":"29s"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                "#;
+
+            let neighbors: de::openfabric::Neighbors = if json_output.is_empty() {
+                de::openfabric::Neighbors::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let output = get_neighbors_openfabric(
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId"),
+                neighbors,
+            )
+            .expect("error converting vtysh output");
+
+            let reference = vec![openfabric::NeighborStatus {
+                neighbor: "node2".to_owned(),
+                status: de::openfabric::AdjacencyState::Up,
+                uptime: "11m5s".to_owned(),
+            }];
+            assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn multiple_neighbors() {
+            let json_output = r#"
+            {
+              "areas":[
+                {
+                  "area":"test",
+                  "circuits":[
+                    {
+                      "circuit":0
+                    },
+                    {
+                      "circuit":0,
+                      "adj":"node1",
+                      "interface":{
+                        "name":"ens19",
+                        "state":"Up",
+                        "adj-flaps":1,
+                        "last-ago":"25m26s",
+                        "circuit-type":"L2",
+                        "speaks":"IPv4",
+                        "snpa":"2020.2020.2020",
+                        "area-address":{
+                          "isonet":"49.0001"
+                        },
+                        "ipv4-address":{
+                          "ipv4":"172.16.6.1"
+                        },
+                        "adj-sid":{}
+                      },
+                      "level":2,
+                      "expires-in":"28s"
+                    },
+                    {
+                      "circuit":0,
+                      "adj":"node3",
+                      "interface":{
+                        "name":"ens20",
+                        "state":"Up",
+                        "adj-flaps":1,
+                        "last-ago":"25m21s",
+                        "circuit-type":"L2",
+                        "speaks":"IPv4",
+                        "snpa":"2020.2020.2020",
+                        "area-address":{
+                          "isonet":"49.0001"
+                        },
+                        "ipv4-address":{
+                          "ipv4":"172.16.6.3"
+                        },
+                        "adj-sid":{}
+                      },
+                      "level":2,
+                      "expires-in":"29s"
+                    }
+                  ]
+                }
+              ]
+            }
+            "#;
+
+            let neighbors: de::openfabric::Neighbors = if json_output.is_empty() {
+                de::openfabric::Neighbors::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let output = get_neighbors_openfabric(
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId"),
+                neighbors,
+            )
+            .expect("error converting vtysh output");
+
+            let reference = vec![
+                openfabric::NeighborStatus {
+                    neighbor: "node1".to_owned(),
+                    status: de::openfabric::AdjacencyState::Up,
+                    uptime: "25m26s".to_owned(),
+                },
+                openfabric::NeighborStatus {
+                    neighbor: "node3".to_owned(),
+                    status: de::openfabric::AdjacencyState::Up,
+                    uptime: "25m21s".to_owned(),
+                },
+            ];
+            assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn multiple_neighbors_multiple_areas() {
+            let json_output = r#"
+            {
+              "areas":[
+                {
+                  "area":"test",
+                  "circuits":[
+                    {
+                      "circuit":0
+                    },
+                    {
+                      "circuit":0,
+                      "adj":"node1",
+                      "interface":{
+                        "name":"ens19",
+                        "state":"Up",
+                        "adj-flaps":1,
+                        "last-ago":"33m39s",
+                        "circuit-type":"L2",
+                        "speaks":"IPv4",
+                        "snpa":"2020.2020.2020",
+                        "area-address":{
+                          "isonet":"49.0001"
+                        },
+                        "ipv4-address":{
+                          "ipv4":"172.16.6.1"
+                        },
+                        "adj-sid":{}
+                      },
+                      "level":2,
+                      "expires-in":"29s"
+                    },
+                    {
+                      "circuit":0,
+                      "adj":"node3",
+                      "interface":{
+                        "name":"ens20",
+                        "state":"Up",
+                        "adj-flaps":1,
+                        "last-ago":"33m34s",
+                        "circuit-type":"L2",
+                        "speaks":"IPv4",
+                        "snpa":"2020.2020.2020",
+                        "area-address":{
+                          "isonet":"49.0001"
+                        },
+                        "ipv4-address":{
+                          "ipv4":"172.16.6.3"
+                        },
+                        "adj-sid":{}
+                      },
+                      "level":2,
+                      "expires-in":"29s"
+                    }
+                  ]
+                },
+                {
+                  "area":"test1",
+                  "circuits":[
+                    {
+                      "circuit":0
+                    },
+                    {
+                      "circuit":0,
+                      "adj":"node1",
+                      "interface":{
+                        "name":"ens21",
+                        "state":"Up",
+                        "adj-flaps":1,
+                        "last-ago":"56s",
+                        "circuit-type":"L2",
+                        "speaks":"IPv4",
+                        "snpa":"2020.2020.2020",
+                        "area-address":{
+                          "isonet":"49.0001"
+                        },
+                        "ipv4-address":{
+                          "ipv4":"172.16.7.1"
+                        },
+                        "adj-sid":{}
+                      },
+                      "level":2,
+                      "expires-in":"28s"
+                    },
+                    {
+                      "circuit":0,
+                      "adj":"node3",
+                      "interface":{
+                        "name":"ens22",
+                        "state":"Up",
+                        "adj-flaps":1,
+                        "last-ago":"1m2s",
+                        "circuit-type":"L2",
+                        "speaks":"IPv4",
+                        "snpa":"2020.2020.2020",
+                        "area-address":{
+                          "isonet":"49.0001"
+                        },
+                        "ipv4-address":{
+                          "ipv4":"172.16.7.3"
+                        },
+                        "adj-sid":{}
+                      },
+                      "level":2,
+                      "expires-in":"28s"
+                    }
+                  ]
+                }
+              ]
+            }
+            "#;
+
+            let neighbors: de::openfabric::Neighbors = if json_output.is_empty() {
+                de::openfabric::Neighbors::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let output_node1 = get_neighbors_openfabric(
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId"),
+                neighbors.clone(),
+            )
+            .expect("error converting vtysh output");
+
+            let reference_node1 = vec![
+                openfabric::NeighborStatus {
+                    neighbor: "node1".to_owned(),
+                    status: de::openfabric::AdjacencyState::Up,
+                    uptime: "33m39s".to_owned(),
+                },
+                openfabric::NeighborStatus {
+                    neighbor: "node3".to_owned(),
+                    status: de::openfabric::AdjacencyState::Up,
+                    uptime: "33m34s".to_owned(),
+                },
+            ];
+            assert_eq!(reference_node1, output_node1);
+
+            let output_node2 = get_neighbors_openfabric(
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId"),
+                neighbors,
+            )
+            .expect("error converting vtysh output");
+
+            let reference_node2 = vec![
+                openfabric::NeighborStatus {
+                    neighbor: "node1".to_owned(),
+                    status: de::openfabric::AdjacencyState::Up,
+                    uptime: "56s".to_owned(),
+                },
+                openfabric::NeighborStatus {
+                    neighbor: "node3".to_owned(),
+                    status: de::openfabric::AdjacencyState::Up,
+                    uptime: "1m2s".to_owned(),
+                },
+            ];
+            assert_eq!(reference_node2, output_node2);
+        }
+
+        #[test]
+        fn interfaces() {
+            let json_output = r#"
+            {
+              "areas":[
+                {
+                  "area":"test1",
+                  "circuits":[
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"dummy_test1",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"loopback",
+                        "level":"L2"
+                      }
+                    },
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"ens21",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"p2p",
+                        "level":"L2"
+                      }
+                    },
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"ens22",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"p2p",
+                        "level":"L2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+            "#;
+
+            let interfaces: de::openfabric::Interfaces = if json_output.is_empty() {
+                de::openfabric::Interfaces::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let output = get_interfaces_openfabric(
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId"),
+                interfaces,
+            )
+            .expect("error converting vtysh output");
+
+            let reference = vec![
+                openfabric::InterfaceStatus {
+                    name: "dummy_test1".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::Loopback,
+                },
+                openfabric::InterfaceStatus {
+                    name: "ens21".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::PointToPoint,
+                },
+                openfabric::InterfaceStatus {
+                    name: "ens22".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::PointToPoint,
+                },
+            ];
+            assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn interfaces_multiple_areas() {
+            let json_output = r#"
+            {
+              "areas":[
+                {
+                  "area":"test",
+                  "circuits":[
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"dummy_test",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"loopback",
+                        "level":"L2"
+                      }
+                    },
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"ens19",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"p2p",
+                        "level":"L2"
+                      }
+                    },
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"ens20",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"p2p",
+                        "level":"L2"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "area":"test1",
+                  "circuits":[
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"dummy_test1",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"loopback",
+                        "level":"L2"
+                      }
+                    },
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"ens21",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"p2p",
+                        "level":"L2"
+                      }
+                    },
+                    {
+                      "circuit":0,
+                      "interface":{
+                        "name":"ens22",
+                        "circuit-id":"0x0",
+                        "state":"Up",
+                        "type":"p2p",
+                        "level":"L2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+            "#;
+
+            let interfaces: de::openfabric::Interfaces = if json_output.is_empty() {
+                de::openfabric::Interfaces::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let output_fabric1 = get_interfaces_openfabric(
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId"),
+                interfaces.clone(),
+            )
+            .expect("error converting vtysh output");
+
+            let reference_fabric1 = vec![
+                openfabric::InterfaceStatus {
+                    name: "dummy_test".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::Loopback,
+                },
+                openfabric::InterfaceStatus {
+                    name: "ens19".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::PointToPoint,
+                },
+                openfabric::InterfaceStatus {
+                    name: "ens20".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::PointToPoint,
+                },
+            ];
+            assert_eq!(reference_fabric1, output_fabric1);
+
+            let output_fabric2 = get_interfaces_openfabric(
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId"),
+                interfaces,
+            )
+            .expect("error converting vtysh output");
+
+            let reference_fabric2 = vec![
+                openfabric::InterfaceStatus {
+                    name: "dummy_test1".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::Loopback,
+                },
+                openfabric::InterfaceStatus {
+                    name: "ens21".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::PointToPoint,
+                },
+                openfabric::InterfaceStatus {
+                    name: "ens22".to_owned(),
+                    state: de::openfabric::CircuitState::Up,
+                    ty: de::openfabric::NetworkType::PointToPoint,
+                },
+            ];
+            assert_eq!(reference_fabric2, output_fabric2);
+        }
+    }
+
+    mod ospf {
+        use core::panic;
+
+        use proxmox_ve_config::sdn::fabric::FabricEntry;
+
+        use crate::sdn::status::tests::{sample_one_fabric_config, sample_two_fabric_config};
+
+        use super::super::*;
+
+        #[test]
+        fn neighbors() {
+            let json_output = r#"
+            {
+              "neighbors":{
+                "172.16.6.1":[
+                  {
+                    "nbrState":"Full\/-",
+                    "nbrPriority":1,
+                    "converged":"Full",
+                    "role":"DROther",
+                    "upTimeInMsec":64606,
+                    "routerDeadIntervalTimerDueMsec":37331,
+                    "upTime":"1m04s",
+                    "deadTime":"37.331s",
+                    "ifaceAddress":"172.16.6.1",
+                    "ifaceName":"ens19:172.16.6.2",
+                    "linkStateRetransmissionListCounter":0,
+                    "linkStateRequestListCounter":0,
+                    "databaseSummaryListCounter":0
+                  }
+                ],
+                "172.16.6.3":[
+                  {
+                    "nbrState":"Full\/-",
+                    "nbrPriority":1,
+                    "converged":"Full",
+                    "role":"DROther",
+                    "upTimeInMsec":67614,
+                    "routerDeadIntervalTimerDueMsec":32384,
+                    "upTime":"1m07s",
+                    "deadTime":"32.384s",
+                    "ifaceAddress":"172.16.6.3",
+                    "ifaceName":"ens20:172.16.6.2",
+                    "linkStateRetransmissionListCounter":0,
+                    "linkStateRequestListCounter":0,
+                    "databaseSummaryListCounter":0
+                  }
+                ]
+              }
+            }
+            "#;
+
+            let neighbors: de::ospf::Neighbors = if json_output.is_empty() {
+                de::ospf::Neighbors::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let fabric_config = sample_one_fabric_config();
+
+            let fabric_id =
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId");
+            let fabric = fabric_config
+                .get_fabric(&fabric_id)
+                .expect("can't find fabric in config");
+
+            let FabricEntry::Ospf(fabric) = fabric else {
+                panic!("not a ospf fabric");
+            };
+
+            let output = get_neighbors_ospf(fabric_id, fabric, neighbors, "node2")
+                .expect("error converting vtysh output");
+
+            let reference = vec![
+                ospf::NeighborStatus {
+                    neighbor: "172.16.6.1".to_owned(),
+                    status: "Full/-".to_owned(),
+                    uptime: "1m04s".to_owned(),
+                },
+                ospf::NeighborStatus {
+                    neighbor: "172.16.6.3".to_owned(),
+                    status: "Full/-".to_owned(),
+                    uptime: "1m07s".to_owned(),
+                },
+            ];
+            assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn neighbors_multiple_areas() {
+            let json_output = r#"
+            {
+              "neighbors":{
+                "172.16.6.1":[
+                  {
+                    "nbrState":"Full\/-",
+                    "nbrPriority":1,
+                    "converged":"Full",
+                    "role":"DROther",
+                    "upTimeInMsec":509026,
+                    "routerDeadIntervalTimerDueMsec":32912,
+                    "upTime":"8m29s",
+                    "deadTime":"32.912s",
+                    "ifaceAddress":"172.16.6.1",
+                    "ifaceName":"ens19:172.16.6.2",
+                    "linkStateRetransmissionListCounter":0,
+                    "linkStateRequestListCounter":0,
+                    "databaseSummaryListCounter":0
+                  },
+                  {
+                    "nbrState":"Full\/-",
+                    "nbrPriority":1,
+                    "converged":"Full",
+                    "role":"DROther",
+                    "upTimeInMsec":88468,
+                    "routerDeadIntervalTimerDueMsec":31531,
+                    "upTime":"1m28s",
+                    "deadTime":"31.531s",
+                    "ifaceAddress":"172.16.7.1",
+                    "ifaceName":"ens21:172.16.7.2",
+                    "linkStateRetransmissionListCounter":0,
+                    "linkStateRequestListCounter":0,
+                    "databaseSummaryListCounter":0
+                  }
+                ],
+                "172.16.6.3":[
+                  {
+                    "nbrState":"Full\/-",
+                    "nbrPriority":1,
+                    "converged":"Full",
+                    "role":"DROther",
+                    "upTimeInMsec":512034,
+                    "routerDeadIntervalTimerDueMsec":37968,
+                    "upTime":"8m32s",
+                    "deadTime":"37.968s",
+                    "ifaceAddress":"172.16.6.3",
+                    "ifaceName":"ens20:172.16.6.2",
+                    "linkStateRetransmissionListCounter":0,
+                    "linkStateRequestListCounter":0,
+                    "databaseSummaryListCounter":0
+                  },
+                  {
+                    "nbrState":"Full\/-",
+                    "nbrPriority":1,
+                    "converged":"Full",
+                    "role":"DROther",
+                    "upTimeInMsec":92614,
+                    "routerDeadIntervalTimerDueMsec":37384,
+                    "upTime":"1m32s",
+                    "deadTime":"37.384s",
+                    "ifaceAddress":"172.16.7.3",
+                    "ifaceName":"ens22:172.16.7.2",
+                    "linkStateRetransmissionListCounter":0,
+                    "linkStateRequestListCounter":0,
+                    "databaseSummaryListCounter":0
+                  }
+                ]
+              }
+            }
+            "#;
+
+            let neighbors: de::ospf::Neighbors = if json_output.is_empty() {
+                de::ospf::Neighbors::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let fabric_config = sample_two_fabric_config();
+
+            let fabric_id =
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId");
+            let fabric = fabric_config
+                .get_fabric(&fabric_id)
+                .expect("can't find fabric in config");
+
+            let FabricEntry::Ospf(fabric) = fabric else {
+                panic!("not a ospf fabric");
+            };
+
+            let output_fabric1 = get_neighbors_ospf(fabric_id, fabric, neighbors.clone(), "node2")
+                .expect("error converting vtysh output");
+
+            let reference_fabric1 = vec![
+                ospf::NeighborStatus {
+                    neighbor: "172.16.6.1".to_owned(),
+                    status: "Full/-".to_owned(),
+                    uptime: "8m29s".to_owned(),
+                },
+                ospf::NeighborStatus {
+                    neighbor: "172.16.6.3".to_owned(),
+                    status: "Full/-".to_owned(),
+                    uptime: "8m32s".to_owned(),
+                },
+            ];
+            assert_eq!(reference_fabric1, output_fabric1);
+
+            let fabric_id =
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId");
+            let fabric = fabric_config
+                .get_fabric(&fabric_id)
+                .expect("can't find fabric in config");
+
+            let FabricEntry::Ospf(fabric) = fabric else {
+                panic!("not a ospf fabric");
+            };
+
+            let output_fabric2 = get_neighbors_ospf(fabric_id, fabric, neighbors.clone(), "node2")
+                .expect("error converting vtysh output");
+
+            let reference_fabric2 = vec![
+                ospf::NeighborStatus {
+                    neighbor: "172.16.7.1".to_owned(),
+                    status: "Full/-".to_owned(),
+                    uptime: "1m28s".to_owned(),
+                },
+                ospf::NeighborStatus {
+                    neighbor: "172.16.7.3".to_owned(),
+                    status: "Full/-".to_owned(),
+                    uptime: "1m32s".to_owned(),
+                },
+            ];
+            assert_eq!(reference_fabric2, output_fabric2);
+        }
+
+        #[test]
+        fn interfaces() {
+            let json_output = r#"
+            {
+              "interfaces":{
+                "dummy_test":{
+                  "ifUp":true,
+                  "ifIndex":10,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,NOARP>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.0",
+                  "routerId":"172.16.6.2",
+                  "networkType":"BROADCAST",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"DR",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "drId":"172.16.6.2",
+                  "drAddress":"172.16.6.2",
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerPassiveIface":true,
+                  "nbrCount":0,
+                  "nbrAdjacentCount":0,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":0
+                },
+                "ens19":{
+                  "ifUp":true,
+                  "ifIndex":3,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.0",
+                  "routerId":"172.16.6.2",
+                  "networkType":"POINTOPOINT",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"Point-To-Point",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "mcastMemberOspfAllRouters":true,
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerHelloInMsecs":3648,
+                  "nbrCount":1,
+                  "nbrAdjacentCount":1,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":1
+                },
+                "ens20":{
+                  "ifUp":true,
+                  "ifIndex":4,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.0",
+                  "routerId":"172.16.6.2",
+                  "networkType":"POINTOPOINT",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"Point-To-Point",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "mcastMemberOspfAllRouters":true,
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerHelloInMsecs":3648,
+                  "nbrCount":1,
+                  "nbrAdjacentCount":1,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":0
+                }
+              }
+            }
+            "#;
+
+            let interfaces: de::ospf::Interfaces = if json_output.is_empty() {
+                de::ospf::Interfaces::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let fabric_config = sample_one_fabric_config();
+
+            let fabric_id =
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId");
+            let fabric = fabric_config
+                .get_fabric(&fabric_id)
+                .expect("can't find fabric in config");
+
+            let FabricEntry::Ospf(fabric) = fabric else {
+                panic!("not a ospf fabric");
+            };
+
+            let output = get_interfaces_ospf(fabric_id, fabric, interfaces, "node2")
+                .expect("error converting vtysh output");
+
+            let reference = vec![
+                ospf::InterfaceStatus {
+                    name: "dummy_test".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::Broadcast,
+                },
+                ospf::InterfaceStatus {
+                    name: "ens19".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::PointToPoint,
+                },
+                ospf::InterfaceStatus {
+                    name: "ens20".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::PointToPoint,
+                },
+            ];
+            assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn interfaces_multiple_areas() {
+            let json_output = r#"
+            {
+              "interfaces":{
+                "dummy_test":{
+                  "ifUp":true,
+                  "ifIndex":10,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,NOARP>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.0",
+                  "routerId":"172.16.6.2",
+                  "networkType":"BROADCAST",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"DR",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "drId":"172.16.6.2",
+                  "drAddress":"172.16.6.2",
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerPassiveIface":true,
+                  "nbrCount":0,
+                  "nbrAdjacentCount":0,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":0
+                },
+                "dummy_test1":{
+                  "ifUp":true,
+                  "ifIndex":11,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,NOARP>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.1",
+                  "routerId":"172.16.6.2",
+                  "networkType":"BROADCAST",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"DR",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "drId":"172.16.6.2",
+                  "drAddress":"172.16.7.2",
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerPassiveIface":true,
+                  "nbrCount":0,
+                  "nbrAdjacentCount":0,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":0
+                },
+                "ens19":{
+                  "ifUp":true,
+                  "ifIndex":3,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.0",
+                  "routerId":"172.16.6.2",
+                  "networkType":"POINTOPOINT",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"Point-To-Point",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "mcastMemberOspfAllRouters":true,
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerHelloInMsecs":3648,
+                  "nbrCount":1,
+                  "nbrAdjacentCount":1,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":1
+                },
+                "ens20":{
+                  "ifUp":true,
+                  "ifIndex":4,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.0",
+                  "routerId":"172.16.6.2",
+                  "networkType":"POINTOPOINT",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"Point-To-Point",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "mcastMemberOspfAllRouters":true,
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerHelloInMsecs":3648,
+                  "nbrCount":1,
+                  "nbrAdjacentCount":1,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":0
+                },
+                "ens21":{
+                  "ifUp":true,
+                  "ifIndex":5,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.1",
+                  "routerId":"172.16.6.2",
+                  "networkType":"POINTOPOINT",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"Point-To-Point",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "mcastMemberOspfAllRouters":true,
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerHelloInMsecs":2708,
+                  "nbrCount":1,
+                  "nbrAdjacentCount":1,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":1
+                },
+                "ens22":{
+                  "ifUp":true,
+                  "ifIndex":6,
+                  "mtuBytes":1500,
+                  "bandwidthMbit":0,
+                  "ifFlags":"<UP,LOWER_UP,BROADCAST,RUNNING,MULTICAST>",
+                  "ospfEnabled":true,
+                  "ifUnnumbered":true,
+                  "area":"0.0.0.1",
+                  "routerId":"172.16.6.2",
+                  "networkType":"POINTOPOINT",
+                  "cost":10,
+                  "transmitDelaySecs":1,
+                  "state":"Point-To-Point",
+                  "priority":1,
+                  "opaqueCapable":true,
+                  "mcastMemberOspfAllRouters":true,
+                  "timerMsecs":10000,
+                  "timerDeadSecs":40,
+                  "timerWaitSecs":40,
+                  "timerRetransmitSecs":5,
+                  "timerRetransmitWindowMsecs":50,
+                  "timerHelloInMsecs":3449,
+                  "nbrCount":1,
+                  "nbrAdjacentCount":1,
+                  "grHelloDelaySecs":10,
+                  "prefixSuppression":false,
+                  "nbrFilterPrefixList":"N/A",
+                  "lsaRetransmissions":0
+                }
+              }
+            }
+            "#;
+
+            let interfaces: de::ospf::Interfaces = if json_output.is_empty() {
+                de::ospf::Interfaces::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let fabric_config = sample_two_fabric_config();
+
+            let fabric_id =
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId");
+            let fabric = fabric_config
+                .get_fabric(&fabric_id)
+                .expect("can't find fabric in config");
+
+            let FabricEntry::Ospf(fabric) = fabric else {
+                panic!("not a ospf fabric");
+            };
+
+            let output_fabric1 =
+                get_interfaces_ospf(fabric_id, fabric, interfaces.clone(), "node2")
+                    .expect("error converting vtysh output");
+
+            let reference_fabric1 = vec![
+                ospf::InterfaceStatus {
+                    name: "dummy_test".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::Broadcast,
+                },
+                ospf::InterfaceStatus {
+                    name: "ens19".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::PointToPoint,
+                },
+                ospf::InterfaceStatus {
+                    name: "ens20".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::PointToPoint,
+                },
+            ];
+            assert_eq!(reference_fabric1, output_fabric1);
+
+            let fabric_id =
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId");
+            let fabric = fabric_config
+                .get_fabric(&fabric_id)
+                .expect("can't find fabric in config");
+
+            let FabricEntry::Ospf(fabric) = fabric else {
+                panic!("not a ospf fabric");
+            };
+
+            let output_fabric2 = get_interfaces_ospf(fabric_id, fabric, interfaces, "node2")
+                .expect("error converting vtysh output");
+
+            let reference_fabric2 = vec![
+                ospf::InterfaceStatus {
+                    name: "dummy_test1".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::Broadcast,
+                },
+                ospf::InterfaceStatus {
+                    name: "ens21".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::PointToPoint,
+                },
+                ospf::InterfaceStatus {
+                    name: "ens22".to_owned(),
+                    state: InterfaceState::Up,
+                    ty: de::ospf::NetworkType::PointToPoint,
+                },
+            ];
+            assert_eq!(reference_fabric2, output_fabric2);
+        }
+    }
+
+    mod routes {
+        use crate::sdn::status::tests::sample_two_fabric_config;
+
+        use super::super::*;
+
+        #[test]
+        fn routes_ospf() {
+            let json_output = r#"
+            {
+              "172.16.6.1/32": [
+                {
+                  "prefix": "172.16.6.1/32",
+                  "prefixLen": 32,
+                  "protocol": "ospf",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 110,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 25,
+                  "installedNexthopGroupId": 25,
+                  "uptime": "00:40:22",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.6.1",
+                      "afi": "ipv4",
+                      "interfaceIndex": 3,
+                      "interfaceName": "ens19",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.6.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.6.2/32": [
+                {
+                  "prefix": "172.16.6.2/32",
+                  "prefixLen": 32,
+                  "protocol": "ospf",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "distance": 110,
+                  "metric": 10,
+                  "table": 254,
+                  "internalStatus": 0,
+                  "internalFlags": 0,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 20,
+                  "uptime": "00:40:37",
+                  "nexthops": [
+                    {
+                      "flags": 9,
+                      "ip": "0.0.0.0",
+                      "afi": "ipv4",
+                      "interfaceIndex": 10,
+                      "interfaceName": "dummy_test",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.6.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.6.3/32": [
+                {
+                  "prefix": "172.16.6.3/32",
+                  "prefixLen": 32,
+                  "protocol": "ospf",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 110,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 22,
+                  "installedNexthopGroupId": 22,
+                  "uptime": "00:40:27",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.6.3",
+                      "afi": "ipv4",
+                      "interfaceIndex": 4,
+                      "interfaceName": "ens20",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.6.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.7.1/32": [
+                {
+                  "prefix": "172.16.7.1/32",
+                  "prefixLen": 32,
+                  "protocol": "ospf",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 110,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 47,
+                  "installedNexthopGroupId": 47,
+                  "uptime": "00:33:21",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.7.1",
+                      "afi": "ipv4",
+                      "interfaceIndex": 5,
+                      "interfaceName": "ens21",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.7.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.7.2/32": [
+                {
+                  "prefix": "172.16.7.2/32",
+                  "prefixLen": 32,
+                  "protocol": "ospf",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "distance": 110,
+                  "metric": 10,
+                  "table": 254,
+                  "internalStatus": 0,
+                  "internalFlags": 0,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 34,
+                  "uptime": "00:33:38",
+                  "nexthops": [
+                    {
+                      "flags": 9,
+                      "ip": "0.0.0.0",
+                      "afi": "ipv4",
+                      "interfaceIndex": 11,
+                      "interfaceName": "dummy_test1",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.7.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.7.3/32": [
+                {
+                  "prefix": "172.16.7.3/32",
+                  "prefixLen": 32,
+                  "protocol": "ospf",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 110,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 45,
+                  "installedNexthopGroupId": 45,
+                  "uptime": "00:33:25",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.7.3",
+                      "afi": "ipv4",
+                      "interfaceIndex": 6,
+                      "interfaceName": "ens22",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.7.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ]
+            }
+            "#;
+
+            let routes: de::Routes = if json_output.is_empty() {
+                de::Routes::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let fabric_config = sample_two_fabric_config();
+
+            let fabric_id =
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId");
+
+            let output_fabric1 =
+                get_routes(fabric_id, fabric_config.clone(), routes.clone(), "node2")
+                    .expect("error converting vtysh output");
+
+            let reference_fabric1 = vec![
+                RouteStatus {
+                    route: "172.16.6.1/32".to_owned(),
+                    via: vec!["172.16.6.1".to_owned()],
+                },
+                RouteStatus {
+                    route: "172.16.6.3/32".to_owned(),
+                    via: vec!["172.16.6.3".to_owned()],
+                },
+            ];
+            assert_eq!(reference_fabric1, output_fabric1);
+
+            let fabric_id =
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId");
+
+            let output_fabric2 = get_routes(fabric_id, fabric_config, routes, "node2")
+                .expect("error converting vtysh output");
+
+            let reference_fabric2 = vec![
+                RouteStatus {
+                    route: "172.16.7.1/32".to_owned(),
+                    via: vec!["172.16.7.1".to_owned()],
+                },
+                RouteStatus {
+                    route: "172.16.7.3/32".to_owned(),
+                    via: vec!["172.16.7.3".to_owned()],
+                },
+            ];
+            assert_eq!(reference_fabric2, output_fabric2);
+        }
+
+        #[test]
+        fn routes_openfabric() {
+            let json_output = r#"
+            {
+              "172.16.6.1/32": [
+                {
+                  "prefix": "172.16.6.1/32",
+                  "prefixLen": 32,
+                  "protocol": "openfabric",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 115,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 74,
+                  "installedNexthopGroupId": 74,
+                  "uptime": "00:00:32",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.6.1",
+                      "afi": "ipv4",
+                      "interfaceIndex": 3,
+                      "interfaceName": "ens19",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.6.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.6.3/32": [
+                {
+                  "prefix": "172.16.6.3/32",
+                  "prefixLen": 32,
+                  "protocol": "openfabric",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 115,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 75,
+                  "installedNexthopGroupId": 75,
+                  "uptime": "00:00:32",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.6.3",
+                      "afi": "ipv4",
+                      "interfaceIndex": 4,
+                      "interfaceName": "ens20",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.6.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.7.1/32": [
+                {
+                  "prefix": "172.16.7.1/32",
+                  "prefixLen": 32,
+                  "protocol": "openfabric",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 115,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 76,
+                  "installedNexthopGroupId": 76,
+                  "uptime": "00:00:32",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.7.1",
+                      "afi": "ipv4",
+                      "interfaceIndex": 5,
+                      "interfaceName": "ens21",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.7.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "172.16.7.3/32": [
+                {
+                  "prefix": "172.16.7.3/32",
+                  "prefixLen": 32,
+                  "protocol": "openfabric",
+                  "vrfId": 0,
+                  "vrfName": "default",
+                  "selected": true,
+                  "destSelected": true,
+                  "distance": 115,
+                  "metric": 20,
+                  "installed": true,
+                  "table": 254,
+                  "internalStatus": 16,
+                  "internalFlags": 8,
+                  "internalNextHopNum": 1,
+                  "internalNextHopActiveNum": 1,
+                  "nexthopGroupId": 77,
+                  "installedNexthopGroupId": 77,
+                  "uptime": "00:00:32",
+                  "nexthops": [
+                    {
+                      "flags": 11,
+                      "fib": true,
+                      "ip": "172.16.7.3",
+                      "afi": "ipv4",
+                      "interfaceIndex": 6,
+                      "interfaceName": "ens22",
+                      "active": true,
+                      "onLink": true,
+                      "rmapSource": "172.16.7.2",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ]
+            }
+            "#;
+
+            let routes: de::Routes = if json_output.is_empty() {
+                de::Routes::default()
+            } else {
+                serde_json::from_str(json_output).expect("error parsing json output")
+            };
+
+            let fabric_config = sample_two_fabric_config();
+
+            let fabric_id =
+                FabricId::from_string("test".to_owned()).expect("error parsing fabricId");
+
+            let output_fabric1 =
+                get_routes(fabric_id, fabric_config.clone(), routes.clone(), "node2")
+                    .expect("error converting vtysh output");
+
+            let reference_fabric1 = vec![
+                RouteStatus {
+                    route: "172.16.6.1/32".to_owned(),
+                    via: vec!["172.16.6.1".to_owned()],
+                },
+                RouteStatus {
+                    route: "172.16.6.3/32".to_owned(),
+                    via: vec!["172.16.6.3".to_owned()],
+                },
+            ];
+            assert_eq!(reference_fabric1, output_fabric1);
+
+            let fabric_id =
+                FabricId::from_string("test1".to_owned()).expect("error parsing fabricId");
+
+            let output_fabric2 = get_routes(fabric_id, fabric_config, routes, "node2")
+                .expect("error converting vtysh output");
+
+            let reference_fabric2 = vec![
+                RouteStatus {
+                    route: "172.16.7.1/32".to_owned(),
+                    via: vec!["172.16.7.1".to_owned()],
+                },
+                RouteStatus {
+                    route: "172.16.7.3/32".to_owned(),
+                    via: vec!["172.16.7.3".to_owned()],
+                },
+            ];
+            assert_eq!(reference_fabric2, output_fabric2);
+        }
+    }
 }
