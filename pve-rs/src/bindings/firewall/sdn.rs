@@ -62,6 +62,11 @@ pub mod pve_rs_firewall_sdn {
         }
     }
 
+    /// A struct holding the SDN part of a firewall configuration.
+    ///
+    /// The main use is for returning the auto-generated SDN ipsets to Perl, so they can be
+    /// included in the API response as well as used in pve-firewall for generating the respective
+    /// ipsets.
     #[derive(Clone, Debug, Default, Serialize)]
     pub struct SdnFirewallConfig {
         ipset: HashMap<String, Vec<LegacyIpsetEntry>>,
@@ -94,6 +99,11 @@ pub mod pve_rs_firewall_sdn {
     const SDN_IPAM: &str = "/etc/pve/sdn/pve-ipam-state.json";
     const SDN_IPAM_LEGACY: &str = "/etc/pve/priv/ipam.db"; // TODO: remove with PVE 9+
 
+    /// Generate the SDN firewall configuration.
+    ///
+    /// vnet_filter and vm_filter can be passed by perl in order to filter the returned IPsets to
+    /// only include the specified vnets / vms. This is necessary for ACL, since it is currently
+    /// not implemented for Proxmox VE in Rust.
     #[export]
     pub fn config(
         vnet_filter: Option<Vec<VnetName>>,
