@@ -666,6 +666,56 @@ pub mod pve_rs_sdn_fabrics {
         }
     }
 
+    /// Get the interfaces for this specific fabric on this node
+    ///
+    /// Read and parse the fabric config to get the protocol of the fabric and retrieve the
+    /// interfaces (ospf). Convert the frr output into a common format of fabric interfaces.
+    #[export]
+    fn interfaces(fabric_id: FabricId) -> Result<status::InterfaceStatus, Error> {
+        // Read fabric config to get protocol of fabric
+        let config = get_fabrics_config()?;
+
+        let fabric = config.get_fabric(&fabric_id)?;
+
+        match fabric {
+            FabricEntry::Openfabric(_) => {
+                let openfabric_interface_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show openfabric interface json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let openfabric_interfaces: proxmox_frr::de::openfabric::Interfaces =
+                    if openfabric_interface_string.is_empty() {
+                        proxmox_frr::de::openfabric::Interfaces::default()
+                    } else {
+                        serde_json::from_str(&openfabric_interface_string)
+                            .with_context(|| "error parsing openfabric interfaces")?
+                    };
+
+                status::get_interfaces_openfabric(fabric_id, openfabric_interfaces)
+                    .map(|v| v.into())
+            }
+            FabricEntry::Ospf(fabric) => {
+                let ospf_interfaces_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show ip ospf interface json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let ospf_interfaces: proxmox_frr::de::ospf::Interfaces =
+                    if ospf_interfaces_string.is_empty() {
+                        proxmox_frr::de::ospf::Interfaces::default()
+                    } else {
+                        serde_json::from_str(&ospf_interfaces_string)
+                            .with_context(|| "error parsing ospf interfaces")?
+                    };
+
+                status::get_interfaces_ospf(fabric_id, fabric, ospf_interfaces).map(|v| v.into())
+            }
+        }
+    }
+
     /// Return the status of all fabrics on this node.
     ///
     /// Go through all fabrics in the config, then filter out the ones that exist on this node.

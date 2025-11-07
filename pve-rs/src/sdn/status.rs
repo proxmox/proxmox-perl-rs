@@ -6,13 +6,78 @@ use proxmox_network_types::mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
 
 use proxmox_frr::de::{self};
+use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::{
+    OspfNodeProperties, OspfProperties,
+};
 use proxmox_ve_config::{
     common::valid::Valid,
     sdn::fabric::{
-        FabricConfig,
+        Entry, FabricConfig,
         section_config::{Section, fabric::FabricId, node::Node as ConfigNode, node::NodeId},
     },
 };
+
+// The status of a fabric interface
+//
+// Either up or down.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InterfaceState {
+    Up,
+    Down,
+}
+
+mod ospf {
+    use proxmox_frr::de;
+    use serde::Serialize;
+
+    /// The status of a fabric interface
+    ///
+    /// Contains the interface name, the interface state (so if the interface is up/down) and the type
+    /// of the interface (e.g. point-to-point, broadcast, etc.).
+    #[derive(Debug, Serialize)]
+    pub struct InterfaceStatus {
+        pub name: String,
+        pub state: super::InterfaceState,
+        #[serde(rename = "type")]
+        pub ty: de::ospf::NetworkType,
+    }
+}
+mod openfabric {
+    use proxmox_frr::de;
+    use serde::Serialize;
+
+    /// The status of a fabric interface
+    ///
+    /// Contains the interface name, the interface state (so if the interface is up/down) and the type
+    /// of the interface (e.g. point-to-point, broadcast, etc.).
+    #[derive(Debug, Serialize)]
+    pub struct InterfaceStatus {
+        pub name: String,
+        pub state: de::openfabric::CircuitState,
+        #[serde(rename = "type")]
+        pub ty: de::openfabric::NetworkType,
+    }
+}
+
+/// Common InterfaceStatus that contains either OSPF or Openfabric interfaces
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum InterfaceStatus {
+    Openfabric(Vec<openfabric::InterfaceStatus>),
+    Ospf(Vec<ospf::InterfaceStatus>),
+}
+
+impl From<Vec<openfabric::InterfaceStatus>> for InterfaceStatus {
+    fn from(value: Vec<openfabric::InterfaceStatus>) -> Self {
+        InterfaceStatus::Openfabric(value)
+    }
+}
+impl From<Vec<ospf::InterfaceStatus>> for InterfaceStatus {
+    fn from(value: Vec<ospf::InterfaceStatus>) -> Self {
+        InterfaceStatus::Ospf(value)
+    }
+}
 
 /// The status of a route.
 ///
@@ -162,6 +227,72 @@ pub fn get_routes(
             }
         }
     }
+    Ok(stats)
+}
+
+/// Conver the `show openfabric interface` output into a list of [`openfabric::InterfaceStatus`].
+///
+/// Openfabric uses the name of the fabric as an "area", so simply match that to the fabric_id.
+pub fn get_interfaces_openfabric(
+    fabric_id: FabricId,
+    interfaces: de::openfabric::Interfaces,
+) -> Result<Vec<openfabric::InterfaceStatus>, anyhow::Error> {
+    let mut stats: Vec<openfabric::InterfaceStatus> = Vec::new();
+
+    for area in &interfaces.areas {
+        if area.area == fabric_id.as_str() {
+            for circuit in &area.circuits {
+                stats.push(openfabric::InterfaceStatus {
+                    name: circuit.interface.name.clone(),
+                    state: circuit.interface.state,
+                    ty: circuit.interface.ty,
+                });
+            }
+        }
+    }
+
+    Ok(stats)
+}
+
+/// Convert the `show ip ospf interface` output into a list of [`ospf::InterfaceStatus`].
+///
+/// Ospf does not use the name of the fabric at all, so we again need to retrieve the interfaces of
+/// the fabric on this specific node and then match the interfaces to the fabric using the
+/// interface names.
+pub fn get_interfaces_ospf(
+    fabric_id: FabricId,
+    fabric: &Entry<OspfProperties, OspfNodeProperties>,
+    neighbors: de::ospf::Interfaces,
+) -> Result<Vec<ospf::InterfaceStatus>, anyhow::Error> {
+    let hostname = proxmox_sys::nodename();
+
+    let mut stats: Vec<ospf::InterfaceStatus> = Vec::new();
+
+    if let Ok(node) = fabric.node_section(&NodeId::from_string(hostname.to_string())?) {
+        let mut fabric_interface_names: HashSet<&str> = node
+            .properties()
+            .interfaces()
+            .map(|i| i.name().as_str())
+            .collect();
+
+        let dummy_interface = format!("dummy_{}", fabric_id.as_str());
+        fabric_interface_names.insert(&dummy_interface);
+
+        for (interface_name, interface) in &neighbors.interfaces {
+            if fabric_interface_names.contains(interface_name.as_str()) {
+                stats.push(ospf::InterfaceStatus {
+                    name: interface_name.to_string(),
+                    state: if interface.if_up {
+                        InterfaceState::Up
+                    } else {
+                        InterfaceState::Down
+                    },
+                    ty: interface.network_type,
+                });
+            }
+        }
+    }
+
     Ok(stats)
 }
 
