@@ -29,7 +29,7 @@ url = "2"
 
 perlmod = { version = "0.14", features = ["exporter"] }
 
-proxmox-apt = { version = "0.99.2", features = ["cache"] }
+proxmox-apt = { version = "0.99.4", features = ["cache"] }
 proxmox-apt-api-types = "2"
 proxmox-base64 = "1"
 proxmox-config-digest = "1"
@@ -48,7 +48,7 @@ proxmox-subscription = "1"
 proxmox-sys = "1"
 proxmox-tfa = { version = "6.0.3", features = ["api"] }
 proxmox-time = "2"
-proxmox-ve-config = { version = "0.4.2", features = [ "frr" ] }
+proxmox-ve-config = { version = "0.4.4", features = [ "frr" ] }
 
 # [patch.crates-io]
 # pbs-api-types = { path = "../../proxmox/pbs-api-types" }
