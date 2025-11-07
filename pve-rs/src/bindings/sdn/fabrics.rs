@@ -9,9 +9,10 @@ pub mod pve_rs_sdn_fabrics {
     use std::fmt::Write;
     use std::net::IpAddr;
     use std::ops::Deref;
+    use std::process::Command;
     use std::sync::Mutex;
 
-    use anyhow::Error;
+    use anyhow::{Context, Error};
     use openssl::hash::{MessageDigest, hash};
     use serde::{Deserialize, Serialize};
 
@@ -19,7 +20,7 @@ pub mod pve_rs_sdn_fabrics {
     use proxmox_frr::ser::serializer::to_raw_config;
     use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
     use proxmox_section_config::typed::SectionConfigData;
-    use proxmox_ve_config::common::valid::Validatable;
+    use proxmox_ve_config::common::valid::{Valid, Validatable};
 
     use proxmox_ve_config::sdn::fabric::section_config::Section;
     use proxmox_ve_config::sdn::fabric::section_config::fabric::{
@@ -33,6 +34,8 @@ pub mod pve_rs_sdn_fabrics {
     };
     use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
     use proxmox_ve_config::sdn::frr::FrrConfigBuilder;
+
+    use crate::sdn::status::{self, RunningConfig};
 
     /// A SDN Fabric config instance.
     #[derive(Serialize, Deserialize)]
@@ -586,5 +589,77 @@ pub mod pve_rs_sdn_fabrics {
         }
 
         Ok(interfaces)
+    }
+
+    /// Read and parse the running-config and get the fabrics section
+    ///
+    /// This will return a valid FabricConfig. Note that we read the file manually and not through
+    /// the cluster filesystem as with perl, so this will be slower.
+    fn get_fabrics_config() -> Result<Valid<FabricConfig>, anyhow::Error> {
+        let raw_config = std::fs::read_to_string("/etc/pve/sdn/.running-config")?;
+        let running_config: RunningConfig =
+            serde_json::from_str(&raw_config).with_context(|| "error parsing running-config")?;
+        let section_config = SectionConfigData::from_iter(running_config.fabrics.ids);
+        FabricConfig::from_section_config(section_config)
+            .with_context(|| "error converting section config to fabricconfig")
+    }
+
+    /// Return the status of all fabrics on this node.
+    ///
+    /// Go through all fabrics in the config, then filter out the ones that exist on this node.
+    /// Check if there are any routes in the routing table that use the interface specified in the
+    /// config. If there are, show "ok" as status, otherwise "not ok".
+    #[export]
+    fn status() -> Result<HashMap<FabricId, status::Status>, Error> {
+        let openfabric_ipv4_routes_string = String::from_utf8(
+            Command::new("sh")
+                .args(["-c", "vtysh -c 'show ip route openfabric json'"])
+                .output()?
+                .stdout,
+        )?;
+
+        let openfabric_ipv6_routes_string = String::from_utf8(
+            Command::new("sh")
+                .args(["-c", "vtysh -c 'show ipv6 route openfabric json'"])
+                .output()?
+                .stdout,
+        )?;
+
+        let ospf_routes_string = String::from_utf8(
+            Command::new("sh")
+                .args(["-c", "vtysh -c 'show ip route ospf json'"])
+                .output()?
+                .stdout,
+        )?;
+
+        let mut openfabric_routes: proxmox_frr::de::Routes =
+            if openfabric_ipv4_routes_string.is_empty() {
+                proxmox_frr::de::Routes::default()
+            } else {
+                serde_json::from_str(&openfabric_ipv4_routes_string)
+                    .with_context(|| "error parsing openfabric ipv4 routes")?
+            };
+        if !openfabric_ipv6_routes_string.is_empty() {
+            let openfabric_ipv6_routes: proxmox_frr::de::Routes =
+                serde_json::from_str(&openfabric_ipv6_routes_string)
+                    .with_context(|| "error parsing openfabric ipv6 routes")?;
+            openfabric_routes.0.extend(openfabric_ipv6_routes.0);
+        }
+
+        let ospf_routes: proxmox_frr::de::Routes = if ospf_routes_string.is_empty() {
+            proxmox_frr::de::Routes::default()
+        } else {
+            serde_json::from_str(&ospf_routes_string)
+                .with_context(|| "error parsing ospf routes")?
+        };
+
+        let config = get_fabrics_config()?;
+
+        let route_status = status::RoutesParsed {
+            openfabric: openfabric_routes,
+            ospf: ospf_routes,
+        };
+
+        status::get_status(config, route_status)
     }
 }

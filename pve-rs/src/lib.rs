@@ -13,6 +13,8 @@ use proxmox_notify::{Config, Notification, Severity};
 #[path = "../common/src/mod.rs"]
 mod common;
 
+mod sdn;
+
 pub mod bindings;
 
 fn send_notification(notification: &Notification) -> Result<(), Error> {
