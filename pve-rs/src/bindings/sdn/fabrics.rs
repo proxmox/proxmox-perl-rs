@@ -348,14 +348,14 @@ pub mod pve_rs_sdn_fabrics {
             match node {
                 ConfigNode::Openfabric(node_section) => {
                     for interface in node_section.properties_mut().interfaces_mut() {
-                        if let Some(mapped_name) = map_name(&mapping, &interface.name())? {
+                        if let Some(mapped_name) = map_name(&mapping, interface.name())? {
                             interface.set_name(mapped_name);
                         }
                     }
                 }
                 ConfigNode::Ospf(node_section) => {
                     for interface in node_section.properties_mut().interfaces_mut() {
-                        if let Some(mapped_name) = map_name(&mapping, &interface.name())? {
+                        if let Some(mapped_name) = map_name(&mapping, interface.name())? {
                             interface.set_name(mapped_name);
                         }
                     }
