@@ -8,18 +8,18 @@ pub mod pve_rs_firewall_sdn {
     use std::collections::HashMap;
     use std::{fs, io};
 
-    use anyhow::{bail, Context, Error};
+    use anyhow::{Context, Error, bail};
     use serde::Serialize;
 
     use proxmox_ve_config::{
         common::Allowlist,
-        firewall::types::ipset::{IpsetAddress, IpsetEntry},
         firewall::types::Ipset,
+        firewall::types::ipset::{IpsetAddress, IpsetEntry},
         guest::types::Vmid,
         sdn::{
+            VnetName,
             config::{RunningConfig, SdnConfig},
             ipam::{Ipam, IpamJson},
-            VnetName,
         },
     };
 
