@@ -10,9 +10,18 @@ use proxmox_ve_config::{
     common::valid::Valid,
     sdn::fabric::{
         FabricConfig,
-        section_config::{Section, fabric::FabricId, node::Node as ConfigNode},
+        section_config::{Section, fabric::FabricId, node::Node as ConfigNode, node::NodeId},
     },
 };
+
+/// The status of a route.
+///
+/// Contains the route and all the nexthops. This is common across all protocols.
+#[derive(Debug, Serialize)]
+pub struct RouteStatus {
+    route: String,
+    via: Vec<String>,
+}
 
 /// Protocol
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -71,6 +80,89 @@ pub struct RunningConfig {
 #[derive(Deserialize)]
 pub struct FabricsRunningConfig {
     pub ids: BTreeMap<String, Section>,
+}
+
+/// Converts the parsed `show ip route x` frr route output into a list of common [`RouteStatus`]
+/// structs.
+///
+/// We always execute `show ip route <protocol>` so we only get routes generated from a specific
+/// protocol. The problem is that we can't definitely link a specific route to a specific fabric.
+/// To solve this, we retrieve all the interfaces configured on a fabric on this node and check
+/// which route contains a output interface of the fabric.
+pub fn get_routes(
+    fabric_id: FabricId,
+    config: Valid<FabricConfig>,
+    routes: de::Routes,
+) -> Result<Vec<RouteStatus>, anyhow::Error> {
+    let hostname = proxmox_sys::nodename();
+
+    let mut stats: Vec<RouteStatus> = Vec::new();
+
+    if let Ok(node) = config
+        .get_fabric(&fabric_id)?
+        .get_node(&NodeId::from_string(hostname.to_string())?)
+    {
+        let mut interface_names: HashSet<&str> = match node {
+            ConfigNode::Openfabric(n) => n
+                .properties()
+                .interfaces()
+                .map(|i| i.name().as_str())
+                .collect(),
+            ConfigNode::Ospf(n) => n
+                .properties()
+                .interfaces()
+                .map(|i| i.name().as_str())
+                .collect(),
+        };
+
+        let dummy_interface = format!("dummy_{}", fabric_id.as_str());
+        interface_names.insert(&dummy_interface);
+
+        for (route_key, route_list) in routes.0 {
+            let mut route_belongs_to_fabric = false;
+            for route in &route_list {
+                if !route.installed.unwrap_or_default() {
+                    continue;
+                }
+
+                for nexthop in &route.nexthops {
+                    if let Some(iface_name) = &nexthop.interface_name {
+                        if interface_names.contains(iface_name.as_str()) {
+                            route_belongs_to_fabric = true;
+                            break;
+                        }
+                    }
+                }
+                if route_belongs_to_fabric {
+                    break;
+                }
+            }
+
+            if route_belongs_to_fabric {
+                let mut via_list = Vec::new();
+                for route in route_list {
+                    for nexthop in &route.nexthops {
+                        let via = if let Some(ip) = nexthop.ip {
+                            ip.to_string()
+                        } else if let Some(iface_name) = &nexthop.interface_name {
+                            iface_name.clone()
+                        } else if let Some(true) = &nexthop.unreachable {
+                            "unreachable".to_string()
+                        } else {
+                            continue;
+                        };
+                        via_list.push(via);
+                    }
+                }
+
+                stats.push(RouteStatus {
+                    route: route_key.to_string(),
+                    via: via_list,
+                });
+            }
+        }
+    }
+    Ok(stats)
 }
 
 /// Get the status for each fabric using the parsed routes from frr

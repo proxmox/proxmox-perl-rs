@@ -605,6 +605,67 @@ pub mod pve_rs_sdn_fabrics {
             .with_context(|| "error converting section config to fabricconfig")
     }
 
+    /// Get the routes that have been learned and distributed by this specific fabric on this node.
+    ///
+    /// Read and parse the fabric config to get the protocol and the interfaces. Parse the vtysh
+    /// output and assign the routes to a fabric by using the interface list. Return a list of
+    /// common route structs.
+    #[export]
+    fn routes(fabric_id: FabricId) -> Result<Vec<status::RouteStatus>, Error> {
+        // Read fabric config to get protocol of fabric
+        let config = get_fabrics_config()?;
+
+        let fabric = config.get_fabric(&fabric_id)?;
+        match fabric {
+            FabricEntry::Openfabric(_) => {
+                let openfabric_ipv4_routes_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show ip route openfabric json'"])
+                        .output()?
+                        .stdout,
+                )?;
+
+                let openfabric_ipv6_routes_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show ipv6 route openfabric json'"])
+                        .output()?
+                        .stdout,
+                )?;
+
+                let mut openfabric_routes: proxmox_frr::de::Routes =
+                    if openfabric_ipv4_routes_string.is_empty() {
+                        proxmox_frr::de::Routes::default()
+                    } else {
+                        serde_json::from_str(&openfabric_ipv4_routes_string)
+                            .with_context(|| "error parsing openfabric ipv4 routes")?
+                    };
+                if !openfabric_ipv6_routes_string.is_empty() {
+                    let openfabric_ipv6_routes: proxmox_frr::de::Routes =
+                        serde_json::from_str(&openfabric_ipv6_routes_string)
+                            .with_context(|| "error parsing openfabric ipv6 routes")?;
+                    openfabric_routes.0.extend(openfabric_ipv6_routes.0);
+                }
+                status::get_routes(fabric_id, config, openfabric_routes)
+            }
+            FabricEntry::Ospf(_) => {
+                let ospf_routes_string = String::from_utf8(
+                    Command::new("sh")
+                        .args(["-c", "vtysh -c 'show ip route ospf json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let ospf_routes: proxmox_frr::de::Routes = if ospf_routes_string.is_empty() {
+                    proxmox_frr::de::Routes::default()
+                } else {
+                    serde_json::from_str(&ospf_routes_string)
+                        .with_context(|| "error parsing ospf routes")?
+                };
+
+                status::get_routes(fabric_id, config, ospf_routes)
+            }
+        }
+    }
+
     /// Return the status of all fabrics on this node.
     ///
     /// Go through all fabrics in the config, then filter out the ones that exist on this node.
