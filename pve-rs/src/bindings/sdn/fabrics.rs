@@ -16,7 +16,7 @@ pub mod pve_rs_sdn_fabrics {
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
-    use proxmox_frr::serializer::to_raw_config;
+    use proxmox_frr::ser::serializer::to_raw_config;
     use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::Validatable;
