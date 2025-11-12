@@ -1,3 +1,13 @@
+libpve-rs-perl (0.11.0) trixie; urgency=medium
+
+  * sdn fabrics: always add node-ip to all fabric interfaces to ensure
+    connection that could go through an intermediate node still work for cases
+    where there is no direct connection (anymore).
+
+  * add Perl bindings for OCI container image parser/extractor module.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 12 Nov 2025 14:54:13 +0100
+
 libpve-rs-perl (0.10.10) trixie; urgency=medium
 
   * re-build with newer proxmox-tfa crate to ignore backup state and
