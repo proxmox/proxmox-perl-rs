@@ -39,7 +39,7 @@ proxmox-http-error = "1"
 proxmox-log = "1"
 proxmox-network-types = "0.1"
 proxmox-notify = { version = "1", features = ["pve-context"] }
-proxmox-oci = "0.1.0"
+proxmox-oci = "0.2"
 proxmox-openid = "1.0.2"
 proxmox-resource-scheduling = "1"
 proxmox-section-config = "3"
@@ -80,6 +80,7 @@ proxmox-ve-config = { version = "0.4.2", features = [ "frr" ] }
 # proxmox-network-types = { path = "../../proxmox/proxmox-network-types" }
 # proxmox-notify = { path = "../../proxmox/proxmox-notify" }
 # proxmox-openid = { path = "../../proxmox/proxmox-openid" }
+# proxmox-oci = { path = "../../proxmox/proxmox-oci" }
 # proxmox-product-config = { path = "../../proxmox/proxmox-product-config" }
 # proxmox-resource-scheduling = { path = "../../proxmox/proxmox-resource-scheduling" }
 # proxmox-rest-server = { path = "../../proxmox/proxmox-rest-server" }
