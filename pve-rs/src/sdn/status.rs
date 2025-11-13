@@ -159,6 +159,7 @@ pub struct Status {
     status: FabricStatus,
     protocol: Protocol,
     network: FabricId,
+    #[serde(rename = "network-type")]
     network_type: String,
 }
 
