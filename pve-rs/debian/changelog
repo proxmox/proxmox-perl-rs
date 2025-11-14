@@ -1,3 +1,9 @@
+libpve-rs-perl (0.11.3) trixie; urgency=medium
+
+  * resource scheduling: allow granular usage changes.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 14 Nov 2025 13:22:18 +0100
+
 libpve-rs-perl (0.11.2) trixie; urgency=medium
 
   * fabrics: handle missing running-config and no fabrics config
