@@ -7,6 +7,20 @@ use Test::More;
 
 use PVE::RS::ResourceScheduling::Static;
 
+my sub score_nodes {
+    my ($static, $service) = @_;
+
+    my $score_list = $static->score_nodes_to_start_service($service);
+
+    # imitate HA manager
+    my $scores = { map { $_->[0] => -$_->[1] } $score_list->@* };
+    my @nodes = sort {
+        $scores->{$a} <=> $scores->{$b} || $a cmp $b
+    } keys $scores->%*;
+
+    return @nodes;
+}
+
 sub test_basic {
     my $static = PVE::RS::ResourceScheduling::Static->new();
     is(scalar($static->list_nodes()->@*), 0, 'node list empty');
@@ -50,7 +64,54 @@ sub test_balance {
 	    is($nodes[1], "A", 'second should be A');
 	}
 
-	$static->add_service_usage_to_node($nodes[0], $service);
+	$static->add_service_usage_to_node($nodes[0], "vm:" . (100 + $i), $service);
+    }
+}
+
+sub test_balance_removal {
+    my $static = PVE::RS::ResourceScheduling::Static->new();
+    $static->add_node("A", 10, 100_000_000_000);
+    $static->add_node("B", 20, 200_000_000_000);
+    $static->add_node("C", 30, 300_000_000_000);
+
+    my $service = {
+        maxcpu => 4,
+        maxmem => 20_000_000_000,
+    };
+
+    $static->add_service_usage_to_node("A", "a", $service);
+    $static->add_service_usage_to_node("A", "b", $service);
+    $static->add_service_usage_to_node("B", "c", $service);
+    $static->add_service_usage_to_node("B", "d", $service);
+    $static->add_service_usage_to_node("C", "c", $service);
+
+    {
+        my @nodes = score_nodes($static, $service);
+
+        is($nodes[0], "C");
+        is($nodes[1], "B");
+        is($nodes[2], "A");
+    }
+
+    $static->remove_service_usage("d");
+    $static->remove_service_usage("c");
+    $static->add_service_usage_to_node("C", "c", $service);
+
+    {
+        my @nodes = score_nodes($static, $service);
+
+        is($nodes[0], "B");
+        is($nodes[1], "C");
+        is($nodes[2], "A");
+    }
+
+    $static->remove_node("B");
+
+    {
+        my @nodes = score_nodes($static, $service);
+
+        is($nodes[0], "C");
+        is($nodes[1], "A");
     }
 }
 
@@ -66,11 +127,11 @@ sub test_overcommitted {
 	maxmem => 536_870_912,
     };
 
-    $static->add_service_usage_to_node("A", $service);
-    $static->add_service_usage_to_node("A", $service);
-    $static->add_service_usage_to_node("A", $service);
-    $static->add_service_usage_to_node("B", $service);
-    $static->add_service_usage_to_node("A", $service);
+    $static->add_service_usage_to_node("A", "a", $service);
+    $static->add_service_usage_to_node("A", "b", $service);
+    $static->add_service_usage_to_node("A", "c", $service);
+    $static->add_service_usage_to_node("B", "d", $service);
+    $static->add_service_usage_to_node("A", "e", $service);
 
     my $score_list = $static->score_nodes_to_start_service($service);
 
@@ -96,9 +157,9 @@ sub test_balance_small_memory_difference {
     $static->add_node("C", 4, 8_000_000_000);
 
     if ($with_start_load) {
-	$static->add_service_usage_to_node("A", { maxcpu => 4, maxmem => 1_000_000_000 });
-	$static->add_service_usage_to_node("B", { maxcpu => 2, maxmem => 1_000_000_000 });
-	$static->add_service_usage_to_node("C", { maxcpu => 2, maxmem => 1_000_000_000 });
+	$static->add_service_usage_to_node("A", "vm:100", { maxcpu => 4, maxmem => 1_000_000_000 });
+	$static->add_service_usage_to_node("B", "vm:101", { maxcpu => 2, maxmem => 1_000_000_000 });
+	$static->add_service_usage_to_node("C", "vm:102", { maxcpu => 2, maxmem => 1_000_000_000 });
     }
 
     my $service = {
@@ -131,12 +192,13 @@ sub test_balance_small_memory_difference {
 	    die "internal error, got $i % 4 == " . ($i % 4) . "\n";
 	}
 
-	$static->add_service_usage_to_node($nodes[0], $service);
+	$static->add_service_usage_to_node($nodes[0], "vm:" . (103 + $i), $service);
     }
 }
 
 test_basic();
 test_balance();
+test_balance_removal();
 test_overcommitted();
 test_balance_small_memory_difference(1);
 test_balance_small_memory_difference(0);
