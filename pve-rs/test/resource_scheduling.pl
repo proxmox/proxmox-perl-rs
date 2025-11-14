@@ -48,13 +48,7 @@ sub test_balance {
     };
 
     for (my $i = 0; $i < 15; $i++) {
-	my $score_list = $static->score_nodes_to_start_service($service);
-
-	# imitate HA manager
-	my $scores = { map { $_->[0] => -$_->[1] } $score_list->@* };
-	my @nodes = sort {
-	    $scores->{$a} <=> $scores->{$b} || $a cmp $b
-	} keys $scores->%*;
+        my @nodes = score_nodes($static, $service);
 
 	if ($i % 3 == 2) {
 	    is($nodes[0], "A", 'first should be A');
@@ -133,13 +127,7 @@ sub test_overcommitted {
     $static->add_service_usage_to_node("B", "d", $service);
     $static->add_service_usage_to_node("A", "e", $service);
 
-    my $score_list = $static->score_nodes_to_start_service($service);
-
-    # imitate HA manager
-    my $scores = { map { $_->[0] => -$_->[1] } $score_list->@* };
-    my @nodes = sort {
-	$scores->{$a} <=> $scores->{$b} || $a cmp $b
-    } keys $scores->%*;
+    my @nodes = score_nodes($static, $service);
 
     is($nodes[0], "C", 'first should be C');
     is($nodes[1], "D", 'second should be D');
@@ -168,13 +156,7 @@ sub test_balance_small_memory_difference {
     };
 
     for (my $i = 0; $i < 20; $i++) {
-	my $score_list = $static->score_nodes_to_start_service($service);
-
-	# imitate HA manager
-	my $scores = { map { $_->[0] => -$_->[1] } $score_list->@* };
-	my @nodes = sort {
-	    $scores->{$a} <=> $scores->{$b} || $a cmp $b
-	} keys $scores->%*;
+        my @nodes = score_nodes($static, $service);
 
 	if ($i % 4 <= 1) {
 	    is($nodes[0], "A", 'first should be A');
