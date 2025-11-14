@@ -41,7 +41,7 @@ proxmox-network-types = "0.1"
 proxmox-notify = { version = "1", features = ["pve-context"] }
 proxmox-oci = "0.2"
 proxmox-openid = "1.0.2"
-proxmox-resource-scheduling = "1"
+proxmox-resource-scheduling = "1.0.1"
 proxmox-section-config = "3"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1"
