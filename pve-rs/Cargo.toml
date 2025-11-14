@@ -33,7 +33,7 @@ proxmox-apt = { version = "0.99.4", features = ["cache"] }
 proxmox-apt-api-types = "2"
 proxmox-base64 = "1"
 proxmox-config-digest = "1"
-proxmox-frr = { version = "0.1" }
+proxmox-frr = { version = "0.2" }
 proxmox-http = { version = "1.0.2", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"
@@ -48,7 +48,7 @@ proxmox-subscription = "1"
 proxmox-sys = "1"
 proxmox-tfa = { version = "6.0.3", features = ["api"] }
 proxmox-time = "2"
-proxmox-ve-config = { version = "0.4.4", features = [ "frr" ] }
+proxmox-ve-config = { version = "0.4.5", features = [ "frr" ] }
 
 # [patch.crates-io]
 # pbs-api-types = { path = "../../proxmox/pbs-api-types" }
