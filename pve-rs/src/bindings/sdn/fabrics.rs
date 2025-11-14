@@ -595,14 +595,21 @@ pub mod pve_rs_sdn_fabrics {
     /// Read and parse the running-config and get the fabrics section
     ///
     /// This will return a valid FabricConfig. Note that we read the file manually and not through
-    /// the cluster filesystem as with perl, so this will be slower.
-    fn get_fabrics_config() -> Result<Valid<FabricConfig>, anyhow::Error> {
+    /// the cluster filesystem as with perl, so this will be slower. If the running config exists,
+    /// but no fabric is configured, `Ok(None)` is returned.
+    fn get_fabrics_config() -> Result<Option<Valid<FabricConfig>>, anyhow::Error> {
         let raw_config = std::fs::read_to_string("/etc/pve/sdn/.running-config")?;
         let running_config: RunningConfig =
             serde_json::from_str(&raw_config).with_context(|| "error parsing running-config")?;
-        let section_config = SectionConfigData::from_iter(running_config.fabrics.ids);
-        FabricConfig::from_section_config(section_config)
-            .with_context(|| "error converting section config to fabricconfig")
+        let Some(fabrics) = running_config.fabrics else {
+            return Ok(None);
+        };
+        let section_config = SectionConfigData::from_iter(fabrics.ids);
+        Some(
+            FabricConfig::from_section_config(section_config)
+                .with_context(|| "error converting section config to fabricconfig"),
+        )
+        .transpose()
     }
 
     /// Get the routes that have been learned and distributed by this specific fabric on this node.
@@ -614,6 +621,9 @@ pub mod pve_rs_sdn_fabrics {
     fn routes(fabric_id: FabricId) -> Result<Vec<status::RouteStatus>, Error> {
         // Read fabric config to get protocol of fabric
         let config = get_fabrics_config()?;
+        let Some(config) = config else {
+            anyhow::bail!("no fabrics configured");
+        };
 
         let fabric = config.get_fabric(&fabric_id)?;
         match fabric {
@@ -679,6 +689,9 @@ pub mod pve_rs_sdn_fabrics {
     fn neighbors(fabric_id: FabricId) -> Result<status::NeighborStatus, Error> {
         // Read fabric config to get protocol of fabric
         let config = get_fabrics_config()?;
+        let Some(config) = config else {
+            anyhow::bail!("no fabrics configured");
+        };
 
         let fabric = config.get_fabric(&fabric_id)?;
 
@@ -734,6 +747,9 @@ pub mod pve_rs_sdn_fabrics {
     fn interfaces(fabric_id: FabricId) -> Result<status::InterfaceStatus, Error> {
         // Read fabric config to get protocol of fabric
         let config = get_fabrics_config()?;
+        let Some(config) = config else {
+            anyhow::bail!("no fabrics configured");
+        };
 
         let fabric = config.get_fabric(&fabric_id)?;
 
@@ -789,6 +805,14 @@ pub mod pve_rs_sdn_fabrics {
     /// config. If there are, show "ok" as status, otherwise "not ok".
     #[export]
     fn status() -> Result<HashMap<FabricId, status::Status>, Error> {
+        // This gets called every few seconds from pve to get the status of the fabrics into the
+        // network resources. It is possible that the .running-config doesn't exist or no fabric is
+        // configured -- in that case just return nothing.
+        let config = get_fabrics_config();
+        let Ok(Some(config)) = config else {
+            return Ok(HashMap::new());
+        };
+
         let openfabric_ipv4_routes_string = String::from_utf8(
             Command::new("sh")
                 .args(["-c", "vtysh -c 'show ip route openfabric json'"])
@@ -830,8 +854,6 @@ pub mod pve_rs_sdn_fabrics {
             serde_json::from_str(&ospf_routes_string)
                 .with_context(|| "error parsing ospf routes")?
         };
-
-        let config = get_fabrics_config()?;
 
         let route_status = status::RoutesParsed {
             openfabric: openfabric_routes,

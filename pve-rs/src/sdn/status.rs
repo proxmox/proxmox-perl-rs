@@ -178,7 +178,7 @@ pub struct RoutesParsed {
 /// Config used to parse the fabric part of the running-config
 #[derive(Deserialize)]
 pub struct RunningConfig {
-    pub fabrics: FabricsRunningConfig,
+    pub fabrics: Option<FabricsRunningConfig>,
 }
 
 /// Map of ids for all the fabrics in the running-config
@@ -647,7 +647,9 @@ mod tests {
 
         let running_config: RunningConfig =
             serde_json::from_str(raw_config).expect("error parsing running-config");
-        let section_config = SectionConfigData::from_iter(running_config.fabrics.ids);
+        let section_config = SectionConfigData::from_iter(
+            running_config.fabrics.expect("no fabrics configured").ids,
+        );
         FabricConfig::from_section_config(section_config)
             .expect("error converting section config to fabricconfig")
     }
@@ -695,7 +697,9 @@ mod tests {
             "#;
         let running_config: RunningConfig =
             serde_json::from_str(raw_config).expect("error parsing running-config");
-        let section_config = SectionConfigData::from_iter(running_config.fabrics.ids);
+        let section_config = SectionConfigData::from_iter(
+            running_config.fabrics.expect("no fabrics configured").ids,
+        );
         FabricConfig::from_section_config(section_config)
             .expect("error converting section config to fabricconfig")
     }
