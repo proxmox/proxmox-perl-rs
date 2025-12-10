@@ -1,3 +1,12 @@
+libpve-rs-perl (0.11.4) trixie; urgency=medium
+
+  * update proxmox-oci to 0.2.1 to fix rootfs extraction when paths already
+    exist. Remove paths from previous layers that conflict with new layer
+    entries before unpacking to better align with the OCI spec and improve
+    support for some CT images.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Dec 2025 19:26:00 +0100
+
 libpve-rs-perl (0.11.3) trixie; urgency=medium
 
   * resource scheduling: allow granular usage changes.
