@@ -37,7 +37,7 @@ proxmox-frr = { version = "0.2" }
 proxmox-http = { version = "1.0.2", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"
-proxmox-network-types = "0.1"
+proxmox-network-types = "1"
 proxmox-notify = { version = "1", features = ["pve-context"] }
 proxmox-oci = "0.2.1"
 proxmox-openid = "1.0.2"
