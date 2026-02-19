@@ -1,9 +1,9 @@
 Source: libpve-rs-perl
 Section: perl
 Priority: optional
-Build-Depends: cargo:native <!nocheck>,
-               debhelper-compat (= 13),
+Build-Depends: debhelper-compat (= 13),
                dh-cargo (>= 25),
+               cargo:native <!nocheck>,
                libproxmox-rs-perl (>= 0.3.5),
                librust-anyhow-1+default-dev,
                librust-base32-0.4+default-dev,
@@ -14,8 +14,8 @@ Build-Depends: cargo:native <!nocheck>,
                librust-openssl-0.10+default-dev (>= 0.10.40-~~),
                librust-perlmod-0.14+default-dev,
                librust-perlmod-0.14+exporter-dev,
-               librust-proxmox-apt-0.99+cache-dev (>= 0.99.2-~~),
-               librust-proxmox-apt-0.99+default-dev (>= 0.99.2-~~),
+               librust-proxmox-apt-0.99+cache-dev (>= 0.99.4-~~),
+               librust-proxmox-apt-0.99+default-dev (>= 0.99.4-~~),
                librust-proxmox-apt-api-types-2+default-dev,
                librust-proxmox-base64-1+default-dev,
                librust-proxmox-config-digest-1+default-dev,
@@ -57,10 +57,10 @@ Rules-Requires-Root: no
 
 Package: libpve-rs-perl
 Architecture: any
-Depends: ${misc:Depends},
+Depends: libproxmox-rs-perl (>= 0.3.5),
+         ${misc:Depends},
          ${perl:Depends},
          ${shlibs:Depends},
-         libproxmox-rs-perl (>= 0.3.5),
 Breaks: libpve-access-control (<< 7.1-3),
         libpve-common-perl (<< 7.1-4),
         libpve-notify-perl (<< 8.0.7),
