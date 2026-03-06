@@ -97,11 +97,11 @@ upload: $(DEBS)
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
 	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com upload --product pmg --dist $(DEB_DISTRIBUTION)
 
-$(BUILDDIR): src debian common/src Cargo.toml Makefile .cargo/config.toml
+$(BUILDDIR): src debian common/src Cargo.toml rustfmt.toml Makefile .cargo/config.toml
 	rm -rf $(BUILDDIR) $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp
 	mkdir $(BUILDDIR).tmp/common
-	cp -a -t $(BUILDDIR).tmp src debian Cargo.toml Makefile .cargo Fixup.pm
+	cp -a -t $(BUILDDIR).tmp src debian Cargo.toml rustfmt.toml Makefile .cargo Fixup.pm
 	cp -a -t $(BUILDDIR).tmp/common common/src
 	mv $(BUILDDIR).tmp $(BUILDDIR)
 
