@@ -14,10 +14,11 @@ pub mod pve_rs_sdn_fabrics {
 
     use anyhow::{Context, Error, format_err};
     use openssl::hash::{MessageDigest, hash};
+    use proxmox_ve_config::sdn::fabric::section_config::node::api::{Node, NodeUpdater};
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
-    use proxmox_frr::ser::serializer::to_raw_config;
+
     use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::{Valid, Validatable};
@@ -29,12 +30,8 @@ pub mod pve_rs_sdn_fabrics {
         api::{Fabric, FabricUpdater},
     };
     use proxmox_ve_config::sdn::fabric::section_config::interface::InterfaceName;
-    use proxmox_ve_config::sdn::fabric::section_config::node::{
-        Node as ConfigNode, NodeId,
-        api::{Node, NodeUpdater},
-    };
+    use proxmox_ve_config::sdn::fabric::section_config::node::{Node as ConfigNode, NodeId};
     use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
-    use proxmox_ve_config::sdn::frr::FrrConfigBuilder;
 
     use crate::sdn::status::{self, RunningConfig};
 
@@ -460,22 +457,6 @@ pub mod pve_rs_sdn_fabrics {
         }
 
         daemons.into_iter().map(String::from).collect()
-    }
-
-    /// Method: Return the FRR configuration for this config instance, as an array of
-    /// strings, where each line represents a line in the FRR configuration.
-    #[export]
-    pub fn get_frr_raw_config(
-        #[try_from_ref] this: &PerlFabricConfig,
-        node_id: NodeId,
-    ) -> Result<Vec<String>, Error> {
-        let config = this.fabric_config.lock().unwrap();
-
-        let frr_config = FrrConfigBuilder::default()
-            .add_fabrics(config.clone().into_valid()?)
-            .build(node_id)?;
-
-        to_raw_config(&frr_config)
     }
 
     /// Helper function to generate the default `/etc/network/interfaces` config for a given CIDR.
