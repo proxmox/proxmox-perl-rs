@@ -1,3 +1,13 @@
+libpve-rs-perl (0.12.0) trixie; urgency=medium
+
+  * sdn: move FRR config generation to a new PVE::RS::SDN package, accepting a
+    pre-populated FrrConfig from the Perl controller plugins alongside the
+    fabric config.
+
+  * update proxmox-frr to 0.3 and proxmox-ve-config to 0.5.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 28 Mar 2026 17:46:19 +0100
+
 libpve-rs-perl (0.11.4) trixie; urgency=medium
 
   * update proxmox-oci to 0.2.1 to fix rootfs extraction when paths already
