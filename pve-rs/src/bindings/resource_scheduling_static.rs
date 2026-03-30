@@ -75,25 +75,16 @@ pub mod pve_rs_resource_scheduling_static {
 
     /// Method: Remove a node from the scheduler.
     #[export]
-    pub fn remove_node(#[try_from_ref] this: &Scheduler, nodename: &str) -> Result<(), Error> {
+    pub fn remove_node(#[try_from_ref] this: &Scheduler, nodename: &str) {
         let mut usage = this.inner.lock().unwrap();
 
         if let Some(node) = usage.nodes.remove(nodename) {
             for (sid, _) in node.services.iter() {
-                match usage.service_nodes.get_mut(sid) {
-                    Some(service_nodes) => {
-                        service_nodes.remove(nodename);
-                    }
-                    None => bail!(
-                        "service '{}' not present in service_nodes hashmap while removing node '{}'",
-                        sid,
-                        nodename
-                    ),
+                if let Some(service_nodes) = usage.service_nodes.get_mut(sid) {
+                    service_nodes.remove(nodename);
                 }
             }
         }
-
-        Ok(())
     }
 
     /// Method: Get a list of all the nodes in the scheduler.
