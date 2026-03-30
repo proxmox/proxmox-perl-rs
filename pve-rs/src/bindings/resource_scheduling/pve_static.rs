@@ -2,7 +2,7 @@
 pub mod pve_rs_resource_scheduling_static {
     //! The `PVE::RS::ResourceScheduling::Static` package.
     //!
-    //! Provides bindings for the resource scheduling module.
+    //! Provides bindings for the static resource scheduling module.
     //!
     //! See [`proxmox_resource_scheduling`].
 

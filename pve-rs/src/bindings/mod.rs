@@ -3,8 +3,7 @@
 mod oci;
 pub use oci::pve_rs_oci;
 
-mod resource_scheduling_static;
-pub use resource_scheduling_static::pve_rs_resource_scheduling_static;
+pub mod resource_scheduling;
 
 mod tfa;
 pub use tfa::pve_rs_tfa;
