@@ -6,6 +6,7 @@ use warnings;
 use Test::More;
 
 use PVE::RS::ResourceScheduling::Static;
+use PVE::RS::ResourceScheduling::Dynamic;
 
 my sub score_nodes {
     my ($static, $service) = @_;

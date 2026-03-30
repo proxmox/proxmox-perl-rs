@@ -1,4 +1,5 @@
 use proxmox_resource_scheduling::{
+    resource::ResourceState,
     scheduler::NodeUsage,
     usage::{Usage, UsageAggregator},
 };
@@ -17,6 +18,38 @@ impl UsageAggregator for StartedResourceAggregator {
                     .resources_iter()
                     .fold(node.stats(), |mut node_stats, sid| {
                         if let Some(resource) = usage.get_resource(sid) {
+                            node_stats.add_started_resource(&resource.stats());
+                        }
+
+                        node_stats
+                    });
+
+                NodeUsage {
+                    name: nodename.to_owned(),
+                    stats,
+                }
+            })
+            .collect()
+    }
+}
+
+/// An aggregator, which uses the node base stats and adds any starting resources as already
+/// started resources to the node stats.
+///
+/// This aggregator is useful if starting resources should be considered in the scheduler.
+pub(crate) struct StartingAsStartedResourceAggregator;
+
+impl UsageAggregator for StartingAsStartedResourceAggregator {
+    fn aggregate(usage: &Usage) -> Vec<NodeUsage> {
+        usage
+            .nodes_iter()
+            .map(|(nodename, node)| {
+                let stats = node
+                    .resources_iter()
+                    .fold(node.stats(), |mut node_stats, sid| {
+                        if let Some(resource) = usage.get_resource(sid)
+                            && resource.state() == ResourceState::Starting
+                        {
                             node_stats.add_started_resource(&resource.stats());
                         }
 

@@ -30,6 +30,7 @@ PERLMOD_PACKAGES := \
 	  PVE::RS::OCI \
 	  PVE::RS::OpenId \
 	  PVE::RS::ResourceScheduling::Static \
+	  PVE::RS::ResourceScheduling::Dynamic \
 	  PVE::RS::SDN::Fabrics \
 	  PVE::RS::SDN \
 	  PVE::RS::TFA
