@@ -6,40 +6,34 @@ pub mod pve_rs_resource_scheduling_static {
     //!
     //! See [`proxmox_resource_scheduling`].
 
-    use std::collections::{HashMap, HashSet};
     use std::sync::Mutex;
 
-    use anyhow::{Error, bail};
+    use anyhow::Error;
 
     use perlmod::Value;
-    use proxmox_resource_scheduling::pve_static::{StaticNodeUsage, StaticServiceUsage};
+    use proxmox_resource_scheduling::node::NodeStats;
+    use proxmox_resource_scheduling::pve_static::StaticServiceUsage;
+    use proxmox_resource_scheduling::usage::Usage;
+
+    use crate::bindings::resource_scheduling::{
+        resource::PveResource, usage::StartedResourceAggregator,
+    };
 
     perlmod::declare_magic!(Box<Scheduler> : &Scheduler as "PVE::RS::ResourceScheduling::Static");
 
-    struct StaticNodeInfo {
-        name: String,
-        maxcpu: usize,
-        maxmem: usize,
-        services: HashMap<String, StaticServiceUsage>,
-    }
-
-    struct Usage {
-        nodes: HashMap<String, StaticNodeInfo>,
-        service_nodes: HashMap<String, HashSet<String>>,
-    }
-
-    /// A scheduler instance contains the resource usage by node.
+    /// A scheduler instance contains the cluster usage.
     pub struct Scheduler {
         inner: Mutex<Usage>,
     }
 
+    type StaticResource = PveResource<StaticServiceUsage>;
+
     /// Class method: Create a new [`Scheduler`] instance.
+    ///
+    /// See [`proxmox_resource_scheduling::usage::Usage::new`].
     #[export(raw_return)]
     pub fn new(#[raw] class: Value) -> Result<Value, Error> {
-        let inner = Usage {
-            nodes: HashMap::new(),
-            service_nodes: HashMap::new(),
-        };
+        let inner = Usage::new();
 
         Ok(perlmod::instantiate_magic!(
             &class, MAGIC => Box::new(Scheduler { inner: Mutex::new(inner) })
@@ -48,7 +42,7 @@ pub mod pve_rs_resource_scheduling_static {
 
     /// Method: Add a node with its basic CPU and memory info.
     ///
-    /// This inserts a [`StaticNodeInfo`] entry for the node into the scheduler instance.
+    /// See [`proxmox_resource_scheduling::usage::Usage::add_node`].
     #[export]
     pub fn add_node(
         #[try_from_ref] this: &Scheduler,
@@ -58,33 +52,24 @@ pub mod pve_rs_resource_scheduling_static {
     ) -> Result<(), Error> {
         let mut usage = this.inner.lock().unwrap();
 
-        if usage.nodes.contains_key(&nodename) {
-            bail!("node {} already added", nodename);
-        }
-
-        let node = StaticNodeInfo {
-            name: nodename.clone(),
+        let stats = NodeStats {
+            cpu: 0.0,
             maxcpu,
+            mem: 0,
             maxmem,
-            services: HashMap::new(),
         };
 
-        usage.nodes.insert(nodename, node);
-        Ok(())
+        usage.add_node(nodename, stats)
     }
 
     /// Method: Remove a node from the scheduler.
+    ///
+    /// See [`proxmox_resource_scheduling::usage::Usage::remove_node`].
     #[export]
     pub fn remove_node(#[try_from_ref] this: &Scheduler, nodename: &str) {
         let mut usage = this.inner.lock().unwrap();
 
-        if let Some(node) = usage.nodes.remove(nodename) {
-            for (sid, _) in node.services.iter() {
-                if let Some(service_nodes) = usage.service_nodes.get_mut(sid) {
-                    service_nodes.remove(nodename);
-                }
-            }
-        }
+        usage.remove_node(nodename);
     }
 
     /// Method: Get a list of all the nodes in the scheduler.
@@ -93,9 +78,8 @@ pub mod pve_rs_resource_scheduling_static {
         let usage = this.inner.lock().unwrap();
 
         usage
-            .nodes
-            .keys()
-            .map(|nodename| nodename.to_string())
+            .nodenames_iter()
+            .map(|nodename| nodename.to_owned())
             .collect()
     }
 
@@ -104,10 +88,26 @@ pub mod pve_rs_resource_scheduling_static {
     pub fn contains_node(#[try_from_ref] this: &Scheduler, nodename: &str) -> bool {
         let usage = this.inner.lock().unwrap();
 
-        usage.nodes.contains_key(nodename)
+        usage.contains_node(nodename)
+    }
+
+    /// Method: Add `service` with identifier `sid` to the scheduler.
+    ///
+    /// See [`proxmox_resource_scheduling::usage::Usage::add_resource`].
+    #[export]
+    pub fn add_service(
+        #[try_from_ref] this: &Scheduler,
+        sid: String,
+        service: StaticResource,
+    ) -> Result<(), Error> {
+        let mut usage = this.inner.lock().unwrap();
+
+        usage.add_resource(sid, service.into())
     }
 
     /// Method: Add service `sid` and its `service_usage` to the node.
+    ///
+    /// See [`proxmox_resource_scheduling::usage::Usage::add_resource_usage_to_node`].
     #[export]
     pub fn add_service_usage_to_node(
         #[try_from_ref] this: &Scheduler,
@@ -117,81 +117,33 @@ pub mod pve_rs_resource_scheduling_static {
     ) -> Result<(), Error> {
         let mut usage = this.inner.lock().unwrap();
 
-        match usage.nodes.get_mut(nodename) {
-            Some(node) => {
-                if node.services.contains_key(sid) {
-                    bail!("service '{}' already added to node '{}'", sid, nodename);
-                }
-
-                node.services.insert(sid.to_string(), service_usage);
-            }
-            None => bail!("node '{}' not present in usage hashmap", nodename),
-        }
-
-        if let Some(service_nodes) = usage.service_nodes.get_mut(sid) {
-            if service_nodes.contains(nodename) {
-                bail!("node '{}' already added to service '{}'", nodename, sid);
-            }
-
-            service_nodes.insert(nodename.to_string());
-        } else {
-            let mut service_nodes = HashSet::new();
-            service_nodes.insert(nodename.to_string());
-            usage.service_nodes.insert(sid.to_string(), service_nodes);
-        }
-
-        Ok(())
+        // TODO Only for backwards compatibility, can be removed with a proper version bump
+        #[allow(deprecated)]
+        usage.add_resource_usage_to_node(nodename, sid, service_usage.into())
     }
 
     /// Method: Remove service `sid` and its usage from all assigned nodes.
+    ///
+    /// See [`proxmox_resource_scheduling::usage::Usage::remove_resource`].
     #[export]
     fn remove_service_usage(#[try_from_ref] this: &Scheduler, sid: &str) {
         let mut usage = this.inner.lock().unwrap();
 
-        if let Some(nodes) = usage.service_nodes.remove(sid) {
-            for nodename in &nodes {
-                if let Some(node) = usage.nodes.get_mut(nodename) {
-                    node.services.remove(sid);
-                }
-            }
-        }
+        usage.remove_resource(sid);
     }
 
-    /// Scores all previously added nodes for starting a `service` on.
+    /// Method: Scores nodes to start a service with the usage statistics `service_stats` on.
     ///
-    /// Scoring is done according to the static memory and CPU usages of the nodes as if the
-    /// service would already be running on each.
-    ///
-    /// Returns a vector of (nodename, score) pairs. Scores are between 0.0 and 1.0 and a higher
-    /// score is better.
-    ///
-    /// See [`proxmox_resource_scheduling::pve_static::score_nodes_to_start_service`].
+    /// See [`proxmox_resource_scheduling::scheduler::Scheduler::score_nodes_to_start_resource`].
     #[export]
     pub fn score_nodes_to_start_service(
         #[try_from_ref] this: &Scheduler,
-        service: StaticServiceUsage,
+        service_stats: StaticServiceUsage,
     ) -> Result<Vec<(String, f64)>, Error> {
         let usage = this.inner.lock().unwrap();
-        let nodes = usage
-            .nodes
-            .values()
-            .map(|node| {
-                let mut node_usage = StaticNodeUsage {
-                    name: node.name.to_string(),
-                    cpu: 0.0,
-                    maxcpu: node.maxcpu,
-                    mem: 0,
-                    maxmem: node.maxmem,
-                };
 
-                for service in node.services.values() {
-                    node_usage.add_service_usage(service);
-                }
-
-                node_usage
-            })
-            .collect::<Vec<StaticNodeUsage>>();
-
-        proxmox_resource_scheduling::pve_static::score_nodes_to_start_service(&nodes, &service)
+        usage
+            .to_scheduler::<StartedResourceAggregator>()
+            .score_nodes_to_start_resource(service_stats)
     }
 }
