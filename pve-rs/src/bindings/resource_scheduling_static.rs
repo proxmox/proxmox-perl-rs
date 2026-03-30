@@ -145,25 +145,16 @@ pub mod pve_rs_resource_scheduling_static {
 
     /// Method: Remove service `sid` and its usage from all assigned nodes.
     #[export]
-    fn remove_service_usage(#[try_from_ref] this: &Scheduler, sid: &str) -> Result<(), Error> {
+    fn remove_service_usage(#[try_from_ref] this: &Scheduler, sid: &str) {
         let mut usage = this.inner.lock().unwrap();
 
         if let Some(nodes) = usage.service_nodes.remove(sid) {
             for nodename in &nodes {
-                match usage.nodes.get_mut(nodename) {
-                    Some(node) => {
-                        node.services.remove(sid);
-                    }
-                    None => bail!(
-                        "service '{}' not present in usage hashmap on node '{}'",
-                        sid,
-                        nodename
-                    ),
+                if let Some(node) = usage.nodes.get_mut(nodename) {
+                    node.services.remove(sid);
                 }
             }
         }
-
-        Ok(())
     }
 
     /// Scores all previously added nodes for starting a `service` on.
