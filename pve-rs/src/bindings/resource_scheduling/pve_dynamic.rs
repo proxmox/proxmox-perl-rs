@@ -14,10 +14,15 @@ pub mod pve_rs_resource_scheduling_dynamic {
     use perlmod::Value;
     use proxmox_resource_scheduling::node::NodeStats;
     use proxmox_resource_scheduling::resource::ResourceStats;
+    use proxmox_resource_scheduling::scheduler::ScoredMigration;
     use proxmox_resource_scheduling::usage::Usage;
 
-    use crate::bindings::resource_scheduling::resource::PveResource;
-    use crate::bindings::resource_scheduling::usage::StartingAsStartedResourceAggregator;
+    use crate::bindings::resource_scheduling::resource::{
+        CompactMigrationCandidate, PveResource, decompose_compact_migration_candidates,
+    };
+    use crate::bindings::resource_scheduling::usage::{
+        IdentityAggregator, StartingAsStartedResourceAggregator,
+    };
 
     perlmod::declare_magic!(Box<Scheduler> : &Scheduler as "PVE::RS::ResourceScheduling::Dynamic");
 
@@ -155,6 +160,54 @@ pub mod pve_rs_resource_scheduling_dynamic {
         let mut usage = this.inner.lock().unwrap();
 
         usage.remove_resource(sid);
+    }
+
+    /// Method: Returns the load imbalance among the nodes.
+    ///
+    /// See [`proxmox_resource_scheduling::scheduler::Scheduler::node_imbalance`].
+    #[export]
+    pub fn calculate_node_imbalance(#[try_from_ref] this: &Scheduler) -> f64 {
+        let usage = this.inner.lock().unwrap();
+
+        usage.to_scheduler::<IdentityAggregator>().node_imbalance()
+    }
+
+    /// Method: Scores the given migration `candidates` by the best node imbalance improvement with
+    /// exhaustive search.
+    ///
+    /// See [`proxmox_resource_scheduling::scheduler::Scheduler::score_best_balancing_migration_candidates`].
+    #[export]
+    pub fn score_best_balancing_migration_candidates(
+        #[try_from_ref] this: &Scheduler,
+        candidates: Vec<CompactMigrationCandidate>,
+        limit: usize,
+    ) -> Result<Vec<ScoredMigration>, Error> {
+        let usage = this.inner.lock().unwrap();
+
+        let candidates = decompose_compact_migration_candidates(&usage, candidates)?;
+
+        Ok(usage
+            .to_scheduler::<IdentityAggregator>()
+            .score_best_balancing_migration_candidates(candidates, limit))
+    }
+
+    /// Method: Scores the given migration `candidates` by the best node imbalance improvement with
+    /// the TOPSIS method.
+    ///
+    /// See [`proxmox_resource_scheduling::scheduler::Scheduler::score_best_balancing_migration_candidates_topsis`].
+    #[export]
+    pub fn score_best_balancing_migration_candidates_topsis(
+        #[try_from_ref] this: &Scheduler,
+        candidates: Vec<CompactMigrationCandidate>,
+        limit: usize,
+    ) -> Result<Vec<ScoredMigration>, Error> {
+        let usage = this.inner.lock().unwrap();
+
+        let candidates = decompose_compact_migration_candidates(&usage, candidates)?;
+
+        usage
+            .to_scheduler::<IdentityAggregator>()
+            .score_best_balancing_migration_candidates_topsis(&candidates, limit)
     }
 
     /// Method: Scores nodes to start a resource with the usage statistics `resource_stats` on.

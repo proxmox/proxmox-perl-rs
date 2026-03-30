@@ -4,6 +4,21 @@ use proxmox_resource_scheduling::{
     usage::{Usage, UsageAggregator},
 };
 
+/// The identity aggregator, which passes the node stats as-is.
+pub(crate) struct IdentityAggregator;
+
+impl UsageAggregator for IdentityAggregator {
+    fn aggregate(usage: &Usage) -> Vec<NodeUsage> {
+        usage
+            .nodes_iter()
+            .map(|(nodename, node)| NodeUsage {
+                name: nodename.to_owned(),
+                stats: node.stats(),
+            })
+            .collect()
+    }
+}
+
 /// An aggregator, which adds any resource as a started resource.
 ///
 /// This aggregator is useful if the node base stats do not have any current usage.
