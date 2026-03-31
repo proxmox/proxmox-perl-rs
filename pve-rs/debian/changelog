@@ -1,3 +1,16 @@
+libpve-rs-perl (0.13.0) trixie; urgency=medium
+
+  * resource-scheduling: use generic usage implementation, which prepares for
+    dynamic balancing while staying backwards compatible with the pve_static
+    bindings.
+
+  * resource-scheduling: implement pve_dynamic bindings, similar to the static
+    one but extends the node and resource stats with sampled runtime usage
+    statistics, i.e., the actual usage on the nodes and the actual usages of
+    the resources.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 31 Mar 2026 19:47:20 +0200
+
 libpve-rs-perl (0.12.0) trixie; urgency=medium
 
   * sdn: move FRR config generation to a new PVE::RS::SDN package, accepting a
