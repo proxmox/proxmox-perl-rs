@@ -1,5 +1,8 @@
 //! This contains all the perl bindings.
 
+mod nvml;
+pub use nvml::pve_rs_nvml;
+
 mod oci;
 pub use oci::pve_rs_oci;
 
