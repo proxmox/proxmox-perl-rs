@@ -47,6 +47,7 @@ Build-Depends: debhelper-compat (= 13),
                librust-url-2+default-dev,
                libstd-rust-dev <!nocheck>,
                perlmod-bin (>= 0.2.1-1),
+               proxmox-frr-templates,
                rustc:native <!nocheck>,
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.6.1
