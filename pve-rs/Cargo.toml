@@ -42,6 +42,7 @@ proxmox-notify = { version = "1", features = ["pve-context"] }
 proxmox-oci = "0.2.1"
 proxmox-openid = "1.0.2"
 proxmox-resource-scheduling = "2"
+proxmox-schema = "5"
 proxmox-section-config = "3"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1"

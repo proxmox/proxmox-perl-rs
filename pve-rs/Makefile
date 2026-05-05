@@ -32,6 +32,7 @@ PERLMOD_PACKAGES := \
 	  PVE::RS::ResourceScheduling::Static \
 	  PVE::RS::ResourceScheduling::Dynamic \
 	  PVE::RS::SDN::Fabrics \
+	  PVE::RS::SDN::RouteMaps \
 	  PVE::RS::SDN \
 	  PVE::RS::TFA
 
