@@ -1,4 +1,5 @@
 pub(crate) mod fabrics;
+pub(crate) mod prefix_lists;
 pub(crate) mod route_maps;
 
 #[perlmod::package(name = "PVE::RS::SDN", lib = "pve_rs")]
