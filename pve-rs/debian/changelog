@@ -1,3 +1,17 @@
+libpve-rs-perl (0.13.1) trixie; urgency=medium
+
+  * sdn: add Perl bindings for prefix lists and route maps, exposing the
+    proxmox-ve-config types and CRUD helpers for the upcoming pve-network API
+    endpoints.
+
+  * sdn: extend the FRR config generation helper to also emit prefix list and
+    route map sections before the fabric configuration, so that fabric
+    generation can reference them.
+
+  * update proxmox-frr to 0.4 and proxmox-ve-config to 0.6.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 May 2026 02:26:44 +0200
+
 libpve-rs-perl (0.13.0) trixie; urgency=medium
 
   * resource-scheduling: use generic usage implementation, which prepares for
