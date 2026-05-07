@@ -126,4 +126,15 @@ pub mod proxmox_rs_subscription {
 
         Ok(info)
     }
+
+    /// Get server ID candidates.
+    ///
+    /// See [`proxmox_subscription::get_hardware_address_candidates()`]
+    #[export]
+    pub fn get_hardware_address_candidates() -> Result<Vec<(String, String)>, Error> {
+        Ok(proxmox_subscription::get_hardware_address_candidates()?
+            .into_iter()
+            .map(|id| (id.kind().to_string(), id.to_string()))
+            .collect())
+    }
 }
