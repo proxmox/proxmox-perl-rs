@@ -18,9 +18,13 @@ pub mod pve_rs_sdn_prefix_lists {
     use perlmod::Value;
     use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
     use proxmox_ve_config::sdn::prefix_list::api::{
-        PrefixList as ApiPrefixList, PrefixListDeletableProperties, PrefixListUpdater,
+        PrefixList as ApiPrefixList, PrefixListDeletableProperties,
+        PrefixListEntry as ApiPrefixListEntry, PrefixListEntryDeletableProperties,
+        PrefixListEntryUpdater, PrefixListUpdater,
     };
-    use proxmox_ve_config::sdn::prefix_list::{PrefixList as ConfigPrefixList, PrefixListId};
+    use proxmox_ve_config::sdn::prefix_list::{
+        PrefixList as ConfigPrefixList, PrefixListEntry as ConfigPrefixListEntry, PrefixListId,
+    };
 
     /// A SDN PrefixList config instance.
     #[derive(Serialize, Deserialize)]
@@ -93,19 +97,13 @@ pub mod pve_rs_sdn_prefix_lists {
 
     /// Method: Returns all prefix lists as a hash indexed with the IDs of the prefix lists.
     #[export]
-    pub fn list(
-        #[try_from_ref] this: &PerlPrefixListConfig,
-    ) -> Result<HashMap<String, ApiPrefixList>, Error> {
-        Ok(this
-            .prefix_lists
+    pub fn list(#[try_from_ref] this: &PerlPrefixListConfig) -> HashMap<String, ConfigPrefixList> {
+        this.prefix_lists
             .lock()
             .unwrap()
             .iter()
-            .map(|(id, prefix_list)| {
-                let ConfigPrefixList::PrefixList(prefix_list) = prefix_list;
-                (id.clone(), prefix_list.clone())
-            })
-            .collect())
+            .map(|(id, prefix_list)| (id.clone(), prefix_list.clone()))
+            .collect()
     }
 
     /// Method: Create a new PrefixList.
@@ -121,7 +119,9 @@ pub mod pve_rs_sdn_prefix_lists {
                 "prefix list already exists in configuration: {}",
                 prefix_list.id()
             ),
-            Entry::Vacant(vacancy) => vacancy.insert(ConfigPrefixList::PrefixList(prefix_list)),
+            Entry::Vacant(vacancy) => {
+                vacancy.insert(ConfigPrefixList::PrefixList(prefix_list.try_into()?))
+            }
         };
 
         Ok(())
@@ -132,16 +132,12 @@ pub mod pve_rs_sdn_prefix_lists {
     pub fn get(
         #[try_from_ref] this: &PerlPrefixListConfig,
         id: PrefixListId,
-    ) -> Result<Option<ApiPrefixList>, Error> {
-        Ok(this
-            .prefix_lists
+    ) -> Option<ConfigPrefixList> {
+        this.prefix_lists
             .lock()
             .unwrap()
             .get(&id.to_string())
-            .map(|prefix_list| {
-                let ConfigPrefixList::PrefixList(prefix_list) = prefix_list;
-                prefix_list.clone()
-            }))
+            .cloned()
     }
 
     /// Method: Update a PrefixList.
@@ -158,21 +154,7 @@ pub mod pve_rs_sdn_prefix_lists {
             .get_mut(id.as_str())
             .ok_or_else(|| anyhow!("Could not find prefix list with id: {}", id))?;
 
-        let PrefixListUpdater { entries } = updater;
-
-        if let Some(entries) = entries {
-            prefix_list.entries = entries;
-        }
-
-        for deletable_property in delete.unwrap_or_default() {
-            match deletable_property {
-                PrefixListDeletableProperties::Entries => {
-                    prefix_list.entries = Vec::new();
-                }
-            }
-        }
-
-        Ok(())
+        prefix_list.try_update(updater, delete)
     }
 
     /// Method: Delete a PrefixList.
@@ -185,8 +167,7 @@ pub mod pve_rs_sdn_prefix_lists {
             .lock()
             .unwrap()
             .remove(&id.to_string())
-            .ok_or_else(|| anyhow!("could not find prefix list with id: {id}"))?;
-
-        Ok(())
+            .map(|_| ())
+            .ok_or_else(|| anyhow!("could not find prefix list with id: {id}"))
     }
 }
