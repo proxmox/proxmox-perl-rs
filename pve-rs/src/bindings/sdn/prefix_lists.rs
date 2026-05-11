@@ -17,6 +17,7 @@ pub mod pve_rs_sdn_prefix_lists {
 
     use perlmod::Value;
     use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
+    use proxmox_ve_config::common::valid::Validatable;
     use proxmox_ve_config::sdn::prefix_list::api::{
         PrefixList as ApiPrefixList, PrefixListDeletableProperties,
         PrefixListEntry as ApiPrefixListEntry, PrefixListEntryDeletableProperties,
@@ -41,6 +42,10 @@ pub mod pve_rs_sdn_prefix_lists {
         let raw_config = std::str::from_utf8(raw_config)?;
         let config = ConfigPrefixList::parse_section_config("prefix-lists.cfg", raw_config)?;
 
+        for prefix_list in config.values() {
+            prefix_list.validate()?;
+        }
+
         Ok(
             perlmod::instantiate_magic!(&class, MAGIC => Box::new(PerlPrefixListConfig {
                 prefix_lists: Mutex::new(config.deref().clone()),
@@ -57,6 +62,10 @@ pub mod pve_rs_sdn_prefix_lists {
         let prefix_lists: SectionConfigData<ConfigPrefixList> =
             SectionConfigData::from_iter(prefix_lists);
 
+        for prefix_list in prefix_lists.values() {
+            prefix_list.validate()?;
+        }
+
         Ok(
             perlmod::instantiate_magic!(&class, MAGIC => Box::new(PerlPrefixListConfig {
                 prefix_lists: Mutex::new(prefix_lists.deref().clone()),
@@ -70,6 +79,11 @@ pub mod pve_rs_sdn_prefix_lists {
         #[try_from_ref] this: &PerlPrefixListConfig,
     ) -> Result<HashMap<String, ConfigPrefixList>, Error> {
         let config = this.prefix_lists.lock().unwrap();
+
+        for prefix_list in config.values() {
+            prefix_list.validate()?;
+        }
+
         Ok(config.deref().clone())
     }
 
@@ -79,6 +93,10 @@ pub mod pve_rs_sdn_prefix_lists {
     #[export]
     pub fn to_raw(#[try_from_ref] this: &PerlPrefixListConfig) -> Result<String, Error> {
         let config = this.prefix_lists.lock().unwrap();
+
+        for prefix_list in config.values() {
+            prefix_list.validate()?;
+        }
 
         let prefix_lists: SectionConfigData<ConfigPrefixList> =
             SectionConfigData::from_iter(config.deref().clone());
