@@ -4,6 +4,7 @@ pub mod pve_rs_sdn_route_maps {
 
     use std::collections::hash_map::Entry;
     use std::collections::HashMap;
+    use std::collections::HashSet;
     use std::ops::Deref;
     use std::sync::Mutex;
 
@@ -85,6 +86,32 @@ pub mod pve_rs_sdn_route_maps {
         let hash = hash(MessageDigest::sha256(), config.as_bytes())?;
 
         Ok(hex::encode(hash))
+    }
+
+    #[derive(Clone, Serialize, Deserialize, Hash)]
+    pub(crate) struct RouteMap {
+        id: RouteMapId,
+    }
+
+    /// Method: Returns all route maps.
+    #[export]
+    pub fn list_route_maps(
+        #[try_from_ref] this: &PerlRouteMapConfig,
+    ) -> Result<Vec<RouteMap>, Error> {
+        let route_maps = this.route_maps.lock().unwrap();
+
+        let route_map_ids: HashSet<&RouteMapId> = route_maps
+            .iter()
+            .map(|(_id, route_map_entry)| {
+                let ConfigRouteMap::RouteMapEntry(route_map) = route_map_entry;
+                route_map.id().route_map_id()
+            })
+            .collect();
+
+        Ok(route_map_ids
+            .into_iter()
+            .map(|id| RouteMap { id: id.clone() })
+            .collect())
     }
 
     /// Method: Returns all route map entries as a hash indexed with the IDs of the entries.
