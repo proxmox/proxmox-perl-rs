@@ -170,4 +170,90 @@ pub mod pve_rs_sdn_prefix_lists {
             .map(|_| ())
             .ok_or_else(|| anyhow!("could not find prefix list with id: {id}"))
     }
+
+    /// Method: Get a specific prefix list entry.
+    #[export]
+    pub fn list_entries(
+        #[try_from_ref] this: &PerlPrefixListConfig,
+        id: PrefixListId,
+    ) -> Result<Vec<ConfigPrefixListEntry>, Error> {
+        let prefix_lists = this.prefix_lists.lock().unwrap();
+
+        let ConfigPrefixList::PrefixList(prefix_list) = prefix_lists
+            .get(&id.to_string())
+            .ok_or_else(|| anyhow!("could not find prefix list with id: {id}"))?;
+
+        Ok(prefix_list.entries().into_iter().cloned().collect())
+    }
+
+    /// Method: Get a specific prefix list entry.
+    #[export]
+    pub fn get_entry(
+        #[try_from_ref] this: &PerlPrefixListConfig,
+        id: PrefixListId,
+        seq: u32,
+    ) -> Option<ConfigPrefixListEntry> {
+        this.prefix_lists
+            .lock()
+            .unwrap()
+            .get(&id.to_string())
+            .and_then(|prefix_list| {
+                let ConfigPrefixList::PrefixList(prefix_list) = prefix_list;
+                prefix_list.entry(seq)
+            })
+            .cloned()
+    }
+
+    /// Method: Get a specific prefix list entry.
+    #[export]
+    pub fn create_entry(
+        #[try_from_ref] this: &PerlPrefixListConfig,
+        id: PrefixListId,
+        entry: ApiPrefixListEntry,
+    ) -> Result<(), Error> {
+        let mut prefix_lists = this.prefix_lists.lock().unwrap();
+
+        let ConfigPrefixList::PrefixList(prefix_list) = prefix_lists
+            .get_mut(&id.to_string())
+            .ok_or_else(|| anyhow::anyhow!("could not find prefix list with id {id}"))?;
+
+        prefix_list.try_insert_api_entry(entry)
+    }
+
+    /// Method: Get a specific prefix list entry.
+    #[export]
+    pub fn update_entry(
+        #[try_from_ref] this: &PerlPrefixListConfig,
+        id: PrefixListId,
+        seq: u32,
+        updater: PrefixListEntryUpdater,
+        delete: Option<Vec<PrefixListEntryDeletableProperties>>,
+    ) -> Result<(), Error> {
+        let mut prefix_lists = this.prefix_lists.lock().unwrap();
+
+        let ConfigPrefixList::PrefixList(prefix_list) = prefix_lists
+            .get_mut(&id.to_string())
+            .ok_or_else(|| anyhow::anyhow!("could not find prefix list with id {id}"))?;
+
+        prefix_list.try_update_entry(seq, updater, delete.unwrap_or_default())
+    }
+
+    /// Method: Remove a specific prefix list entry.
+    #[export]
+    pub fn delete_entry(
+        #[try_from_ref] this: &PerlPrefixListConfig,
+        id: PrefixListId,
+        seq: u32,
+    ) -> Result<(), Error> {
+        this.prefix_lists
+            .lock()
+            .unwrap()
+            .get_mut(&id.to_string())
+            .and_then(|prefix_list| {
+                let ConfigPrefixList::PrefixList(prefix_list) = prefix_list;
+                prefix_list.remove_entry(seq)
+            })
+            .map(|_| ())
+            .ok_or_else(|| anyhow::anyhow!("could not find prefix list entry with seq {seq}"))
+    }
 }
