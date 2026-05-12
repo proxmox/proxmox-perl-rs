@@ -20,6 +20,7 @@ pub mod pve_rs_sdn_fabrics {
     use perlmod::Value;
 
     use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
+    use proxmox_schema::property_string::PropertyString;
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_ve_config::common::valid::{Valid, Validatable};
 
@@ -333,6 +334,43 @@ pub mod pve_rs_sdn_fabrics {
                 .map(InterfaceName::from_string)
                 .transpose(),
         }
+    }
+
+    #[export]
+    /// Parses a wireguard interface property-string (create-only parameters) and returns it as a struct.
+    ///
+    /// Helper for pve-network API methods, that need to parse the property strings for
+    /// handling the WireGuard key generation logic.
+    pub fn parse_wireguard_create_interface(
+        property_string: &str,
+    ) -> Result<WireGuardInterfaceCreateProperties, Error> {
+        Ok(property_string
+            .parse::<PropertyString<WireGuardInterfaceCreateProperties>>()?
+            .into_inner())
+    }
+
+    #[export]
+    /// Parse a wireguard interface property-string and returns it as a struct.
+    ///
+    /// Helper for pve-network API methods, that need to parse the property strings for
+    /// handling the WireGuard key generation logic.
+    pub fn parse_wireguard_interface(
+        property_string: &str,
+    ) -> Result<WireGuardInterfaceProperties, Error> {
+        Ok(property_string
+            .parse::<PropertyString<WireGuardInterfaceProperties>>()?
+            .into_inner())
+    }
+
+    #[export]
+    /// Formats a given wireguard interface as a property string.
+    ///
+    /// Helper for pve-network API methods, that need to print the property strings for
+    /// handling the WireGuard key generation logic.
+    pub fn print_wireguard_interface(
+        wireguard_interface: WireGuardInterfaceProperties,
+    ) -> Result<String, Error> {
+        Ok(PropertyString::new(wireguard_interface).to_property_string()?)
     }
 
     /// Method: Map all interface names of a node to a different one, according to the given
