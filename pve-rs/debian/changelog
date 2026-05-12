@@ -1,3 +1,16 @@
+libpve-rs-perl (0.13.2) trixie; urgency=medium
+
+  * sdn: prefix lists: refactor API, splitting prefix-list and entry CRUD
+    into dedicated bindings. Adds entry-level CRUD methods that auto-assign
+    missing sequence numbers and validate entries before persisting.
+
+  * sdn: route maps: add list method that returns route map IDs only, used
+    by the new route map selector in the UI.
+
+  * update proxmox-ve-config to 0.7.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 12 May 2026 02:10:24 +0200
+
 libpve-rs-perl (0.13.1) trixie; urgency=medium
 
   * sdn: add Perl bindings for prefix lists and route maps, exposing the
