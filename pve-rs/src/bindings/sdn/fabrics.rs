@@ -32,7 +32,13 @@ pub mod pve_rs_sdn_fabrics {
     use proxmox_ve_config::sdn::fabric::section_config::interface::InterfaceName;
     use proxmox_ve_config::sdn::fabric::section_config::node::{Node as ConfigNode, NodeId};
     use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
+    use proxmox_ve_config::sdn::wireguard::WireGuardConfigBuilder;
 
+    use proxmox_ve_config::sdn::fabric::section_config::protocol::wireguard::{
+        WireGuardInterfaceCreateProperties, WireGuardInterfaceProperties, WireGuardNode,
+    };
+
+    use crate::bindings::sdn::wireguard::pve_rs_sdn_wireguard::PerlWireguardPrivateKeyConfig;
     use crate::sdn::status::{self, RunningConfig};
 
     /// A SDN Fabric config instance.
@@ -361,6 +367,7 @@ pub mod pve_rs_sdn_fabrics {
                         }
                     }
                 }
+                ConfigNode::WireGuard(_) => {}
             }
         }
 
@@ -453,14 +460,78 @@ pub mod pve_rs_sdn_fabrics {
                 FabricEntry::Openfabric(_) => {
                     daemons.insert("fabricd");
                 }
+                FabricEntry::WireGuard(_) => {} // not a frr fabric
             };
         }
 
         daemons.into_iter().map(String::from).collect()
     }
 
+    /// Returns the WireGuard configuration for the interfaces of the given node,
+    ///
+    /// It is a hash with the interface name as key and the configuration for that interface
+    /// as a string in INI-style as accepted by wg(8).
+    #[export]
+    pub fn get_wireguard_raw_config(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+        #[try_from_ref] private_keys: &PerlWireguardPrivateKeyConfig,
+    ) -> Result<HashMap<String, String>, Error> {
+        let config = this.fabric_config.lock().unwrap().clone().into_valid()?;
+        let private_keys = private_keys.private_keys.lock().unwrap().clone();
+
+        let configs = WireGuardConfigBuilder::new(config, private_keys).build(node_id)?;
+
+        let mut result = HashMap::new();
+
+        for (id, config) in configs {
+            result.insert(id.clone(), config.to_raw_config()?);
+        }
+
+        Ok(result)
+    }
+
+    /// Helper function to generate the section for a WireGuard interface in `/etc/network/interfaces.d/sdn`.
+    fn render_wireguard_interface<'a>(
+        wireguard_interface: &WireGuardInterfaceProperties,
+        allowed_ips: impl Iterator<Item = &'a Cidr>,
+    ) -> Result<String, Error> {
+        let mut interface = String::new();
+        let name = wireguard_interface.name();
+
+        writeln!(interface)?;
+        writeln!(interface, "auto {name}")?;
+
+        if let Some(ip) = wireguard_interface.ip() {
+            writeln!(interface, "iface {name} inet static")?;
+            writeln!(interface, "\taddress {ip}")?;
+        } else {
+            writeln!(interface, "iface {name} inet manual")?;
+        }
+
+        writeln!(interface, "\tlink-type wireguard")?;
+        writeln!(interface, "\tip-forward 1")?;
+        writeln!(
+            interface,
+            "\tpost-up wg syncconf {name} /etc/wireguard/proxmox/{name}.conf"
+        )?;
+
+        for ip in allowed_ips {
+            writeln!(interface, "\tpost-up ip route add {ip} dev {name}")?;
+            writeln!(interface, "\tdown ip route del {ip} dev {name}")?;
+        }
+
+        if let Some(ip) = wireguard_interface.ip6() {
+            writeln!(interface)?;
+            writeln!(interface, "iface {name} inet6 static")?;
+            writeln!(interface, "\taddress {ip}")?;
+        }
+
+        Ok(interface)
+    }
+
     /// Helper function to generate the default `/etc/network/interfaces` config for a given CIDR.
-    fn render_interface(name: &str, cidr: Cidr, is_dummy: bool) -> Result<String, Error> {
+    fn render_interface(name: &str, cidr: Cidr, link_type: Option<&str>) -> Result<String, Error> {
         let mut interface = String::new();
 
         writeln!(interface, "auto {name}")?;
@@ -469,12 +540,40 @@ pub mod pve_rs_sdn_fabrics {
             Cidr::Ipv6(_) => writeln!(interface, "iface {name} inet6 static")?,
         }
         writeln!(interface, "\taddress {cidr}")?;
-        if is_dummy {
-            writeln!(interface, "\tlink-type dummy")?;
+        if let Some(link_type) = link_type {
+            writeln!(interface, "\tlink-type {link_type}")?;
         }
         writeln!(interface, "\tip-forward 1")?;
 
         Ok(interface)
+    }
+
+    fn render_dummy_interfaces(
+        interfaces: &mut String,
+        fabric: &Fabric,
+        node: &ConfigNode,
+    ) -> Result<(), Error> {
+        if let Some(ip) = node.ip() {
+            let interface = render_interface(
+                &format!("dummy_{}", fabric.id()),
+                Cidr::new_v4(ip, 32)?,
+                Some("dummy"),
+            )?;
+            writeln!(interfaces)?;
+            write!(interfaces, "{interface}")?;
+        }
+
+        if let Some(ip6) = node.ip6() {
+            let interface = render_interface(
+                &format!("dummy_{}", fabric.id()),
+                Cidr::new_v6(ip6, 128)?,
+                Some("dummy"),
+            )?;
+            writeln!(interfaces)?;
+            write!(interfaces, "{interface}")?;
+        }
+
+        Ok(())
     }
 
     /// Method: Generate the ifupdown2 configuration for a given node.
@@ -494,37 +593,20 @@ pub mod pve_rs_sdn_fabrics {
         });
 
         for (fabric, node) in node_fabrics {
-            // dummy interface
-            if let Some(ip) = node.ip() {
-                let interface = render_interface(
-                    &format!("dummy_{}", fabric.id()),
-                    Cidr::new_v4(ip, 32)?,
-                    true,
-                )?;
-                writeln!(interfaces)?;
-                write!(interfaces, "{interface}")?;
-            }
-            if let Some(ip6) = node.ip6() {
-                let interface = render_interface(
-                    &format!("dummy_{}", fabric.id()),
-                    Cidr::new_v6(ip6, 128)?,
-                    true,
-                )?;
-                writeln!(interfaces)?;
-                write!(interfaces, "{interface}")?;
-            }
+            render_dummy_interfaces(&mut interfaces, fabric, node)?;
+
             match node {
                 ConfigNode::Openfabric(node_section) => {
                     for interface in node_section.properties().interfaces() {
                         if let Some(ip) = interface.ip() {
                             let interface =
-                                render_interface(interface.name(), Cidr::from(ip), false)?;
+                                render_interface(interface.name(), Cidr::from(ip), None)?;
                             writeln!(interfaces)?;
                             write!(interfaces, "{interface}")?;
                         }
                         if let Some(ip) = interface.ip6() {
                             let interface =
-                                render_interface(interface.name(), Cidr::from(ip), false)?;
+                                render_interface(interface.name(), Cidr::from(ip), None)?;
                             writeln!(interfaces)?;
                             write!(interfaces, "{interface}")?;
                         }
@@ -541,7 +623,7 @@ pub mod pve_rs_sdn_fabrics {
                             } else {
                                 anyhow::bail!("there has to be a ipv4 or ipv6 node address");
                             });
-                            let interface = render_interface(interface.name(), cidr, false)?;
+                            let interface = render_interface(interface.name(), cidr, None)?;
                             writeln!(interfaces)?;
                             write!(interfaces, "{interface}")?;
                         }
@@ -549,10 +631,10 @@ pub mod pve_rs_sdn_fabrics {
                 }
                 ConfigNode::Ospf(node_section) => {
                     for interface in node_section.properties().interfaces() {
+                        writeln!(interfaces)?;
                         if let Some(ip) = interface.ip() {
                             let interface =
-                                render_interface(interface.name(), Cidr::from(ip), false)?;
-                            writeln!(interfaces)?;
+                                render_interface(interface.name(), Cidr::from(ip), None)?;
                             write!(interfaces, "{interface}")?;
                         } else {
                             let interface = render_interface(
@@ -560,9 +642,41 @@ pub mod pve_rs_sdn_fabrics {
                                 Cidr::from(IpAddr::from(node.ip().ok_or_else(|| {
                                     anyhow::anyhow!("there has to be a ipv4 address")
                                 })?)),
-                                false,
+                                None,
                             )?;
-                            writeln!(interfaces)?;
+                            write!(interfaces, "{interface}")?;
+                        }
+                    }
+                }
+                ConfigNode::WireGuard(node_section) => {
+                    if let WireGuardNode::Internal(node_properties) = node_section.properties() {
+                        for interface in node_properties.interfaces() {
+                            let entry = config
+                                .get_fabric(fabric.id())
+                                // safe because we use the fabric we obtained earlier from the same config
+                                .expect("entry for fabric exists in fabric config");
+
+                            let allowed_ips = node_properties
+                                .peers()
+                                .filter_map(|peer| {
+                                    if peer.skip_route_generation()
+                                        || peer.iface() != interface.name()
+                                    {
+                                        return None;
+                                    }
+
+                                    let ConfigNode::WireGuard(node) =
+                                        entry.get_node(peer.node()).ok()?
+                                    else {
+                                        return None;
+                                    };
+
+                                    Some(node.properties().allowed_ips())
+                                })
+                                .flatten();
+
+                            let interface = render_wireguard_interface(interface, allowed_ips)?;
+
                             write!(interfaces, "{interface}")?;
                         }
                     }
@@ -659,6 +773,7 @@ pub mod pve_rs_sdn_fabrics {
 
                 status::get_routes(fabric_id, config, ospf_routes, proxmox_sys::nodename())
             }
+            FabricEntry::WireGuard(_) => Ok(Vec::new()),
         }
     }
 
@@ -717,6 +832,7 @@ pub mod pve_rs_sdn_fabrics {
                 )
                 .map(|v| v.into())
             }
+            FabricEntry::WireGuard(_) => Ok(status::NeighborStatus::WireGuard(Vec::new())),
         }
     }
 
@@ -776,6 +892,7 @@ pub mod pve_rs_sdn_fabrics {
                 )
                 .map(|v| v.into())
             }
+            FabricEntry::WireGuard(_) => Ok(status::InterfaceStatus::WireGuard(Vec::new())),
         }
     }
 

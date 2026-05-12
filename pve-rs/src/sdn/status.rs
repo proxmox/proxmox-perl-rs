@@ -80,12 +80,22 @@ mod openfabric {
     }
 }
 
+mod wireguard {
+    use serde::Serialize;
+
+    #[derive(Debug, Serialize)]
+    pub struct NeighborStatus;
+    #[derive(Debug, Serialize)]
+    pub struct InterfaceStatus;
+}
+
 /// Common NeighborStatus that contains either OSPF or Openfabric neighbors
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NeighborStatus {
     Openfabric(Vec<openfabric::NeighborStatus>),
     Ospf(Vec<ospf::NeighborStatus>),
+    WireGuard(Vec<wireguard::NeighborStatus>),
 }
 
 impl From<Vec<openfabric::NeighborStatus>> for NeighborStatus {
@@ -105,6 +115,7 @@ impl From<Vec<ospf::NeighborStatus>> for NeighborStatus {
 pub enum InterfaceStatus {
     Openfabric(Vec<openfabric::InterfaceStatus>),
     Ospf(Vec<ospf::InterfaceStatus>),
+    WireGuard(Vec<wireguard::InterfaceStatus>),
 }
 
 impl From<Vec<openfabric::InterfaceStatus>> for InterfaceStatus {
@@ -135,6 +146,8 @@ pub enum Protocol {
     Openfabric,
     /// OSPF
     Ospf,
+    /// WireGuard
+    WireGuard,
 }
 
 /// The status of a fabric.
@@ -217,6 +230,7 @@ pub fn get_routes(
                 .interfaces()
                 .map(|i| i.name().as_str())
                 .collect(),
+            ConfigNode::WireGuard(_) => HashSet::new(),
         };
 
         let dummy_interface = format!("dummy_{}", fabric_id.as_str());
@@ -429,6 +443,7 @@ pub fn get_status(
         let (current_protocol, all_routes) = match &node {
             ConfigNode::Openfabric(_) => (Protocol::Openfabric, &routes.openfabric.0),
             ConfigNode::Ospf(_) => (Protocol::Ospf, &routes.ospf.0),
+            ConfigNode::WireGuard(_) => (Protocol::WireGuard, &BTreeMap::new()),
         };
 
         // get interfaces
@@ -443,6 +458,7 @@ pub fn get_status(
                 .interfaces()
                 .map(|i| i.name().as_str())
                 .collect(),
+            ConfigNode::WireGuard(_n) => HashSet::new(),
         };
 
         // determine status by checking if any routes exist for our interfaces
@@ -458,13 +474,16 @@ pub fn get_status(
             })
         });
 
+        let status = match current_protocol {
+            Protocol::Openfabric if has_routes => FabricStatus::Ok,
+            Protocol::Ospf if has_routes => FabricStatus::Ok,
+            Protocol::WireGuard => FabricStatus::Ok,
+            _ => FabricStatus::NotOk,
+        };
+
         let fabric = Status {
             ty: "network".to_owned(),
-            status: if has_routes {
-                FabricStatus::Ok
-            } else {
-                FabricStatus::NotOk
-            },
+            status,
             protocol: current_protocol,
             network: fabric_id.clone(),
             network_type: "fabric".to_string(),
