@@ -49,7 +49,7 @@ proxmox-subscription = "1"
 proxmox-sys = "1"
 proxmox-tfa = { version = "6.0.3", features = ["api"] }
 proxmox-time = "2"
-proxmox-ve-config = { version = "0.6", features = [ "frr" ] }
+proxmox-ve-config = { version = "0.7", features = [ "frr" ] }
 
 # [patch.crates-io]
 # pbs-api-types = { path = "../../proxmox/pbs-api-types" }
