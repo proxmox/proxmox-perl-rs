@@ -35,6 +35,7 @@ PERLMOD_PACKAGES := \
 	  PVE::RS::SDN::Fabrics \
 	  PVE::RS::SDN::PrefixLists \
 	  PVE::RS::SDN::RouteMaps \
+	  PVE::RS::SDN::WireGuard::PrivateKeys \
 	  PVE::RS::SDN \
 	  PVE::RS::TFA
 

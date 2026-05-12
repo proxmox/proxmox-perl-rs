@@ -1,6 +1,7 @@
 pub(crate) mod fabrics;
 pub(crate) mod prefix_lists;
 pub(crate) mod route_maps;
+pub(crate) mod wireguard;
 
 #[perlmod::package(name = "PVE::RS::SDN", lib = "pve_rs")]
 pub mod pve_rs_sdn {
