@@ -37,6 +37,7 @@ pub mod pve_rs_sdn_fabrics {
 
     use proxmox_ve_config::sdn::fabric::section_config::protocol::wireguard::{
         WireGuardInterfaceCreateProperties, WireGuardInterfaceProperties, WireGuardNode,
+        WireGuardNodePeer,
     };
 
     use crate::bindings::sdn::wireguard::pve_rs_sdn_wireguard::PerlWireguardPrivateKeyConfig;
@@ -691,29 +692,51 @@ pub mod pve_rs_sdn_fabrics {
                         for interface in node_properties.interfaces() {
                             let entry = config
                                 .get_fabric(fabric.id())
-                                // safe because we use the fabric we obtained earlier from the same config
                                 .expect("entry for fabric exists in fabric config");
 
-                            let allowed_ips = node_properties
-                                .peers()
-                                .filter_map(|peer| {
-                                    if peer.skip_route_generation()
-                                        || peer.iface() != interface.name()
-                                    {
-                                        return None;
+                            let mut allowed_ips: Vec<Cidr> = Vec::new();
+
+                            for peer in node_properties.peers() {
+                                if peer.skip_route_generation() || peer.iface() != interface.name()
+                                {
+                                    continue;
+                                }
+
+                                let Ok(ConfigNode::WireGuard(peer_node)) =
+                                    entry.get_node(peer.node())
+                                else {
+                                    continue;
+                                };
+
+                                if let WireGuardNodePeer::Internal(_) = peer {
+                                    if let Some(ip) = peer_node.ip() {
+                                        allowed_ips.push(Ipv4Cidr::from(ip).into());
                                     }
+                                    if let (WireGuardNode::Internal(peer_props), Some(node_iface)) =
+                                        (peer_node.properties(), peer.node_iface())
+                                    {
+                                        if let Some(peer_iface) =
+                                            peer_props.interfaces().find(|i| i.name() == node_iface)
+                                        {
+                                            if let Some(ip) = peer_iface.ip() {
+                                                allowed_ips
+                                                    .push(Ipv4Cidr::new(*ip.address(), 32)?.into());
+                                            }
+                                            if let Some(ip6) = peer_iface.ip6() {
+                                                allowed_ips.push(
+                                                    Ipv6Cidr::new(*ip6.address(), 128)?.into(),
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
 
-                                    let ConfigNode::WireGuard(node) =
-                                        entry.get_node(peer.node()).ok()?
-                                    else {
-                                        return None;
-                                    };
+                                allowed_ips.extend(peer_node.properties().allowed_ips().cloned());
+                                allowed_ips.extend(peer.allowed_ips().iter().cloned());
+                            }
 
-                                    Some(node.properties().allowed_ips())
-                                })
-                                .flatten();
-
-                            let interface = render_wireguard_interface(interface, allowed_ips)?;
+                            let interface =
+                                render_wireguard_interface(interface, allowed_ips.iter())?;
 
                             write!(interfaces, "{interface}")?;
                         }
