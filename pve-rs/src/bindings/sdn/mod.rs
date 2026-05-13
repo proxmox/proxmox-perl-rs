@@ -9,7 +9,7 @@ pub mod pve_rs_sdn {
     //! This provides general methods for generating the frr config.
 
     use anyhow::Error;
-    use proxmox_frr::ser::{serializer::to_raw_config, FrrConfig};
+    use proxmox_frr::ser::{FrrConfig, serializer::to_raw_config};
 
     use proxmox_ve_config::common::valid::Validatable;
     use proxmox_ve_config::sdn::fabric::section_config::node::NodeId;

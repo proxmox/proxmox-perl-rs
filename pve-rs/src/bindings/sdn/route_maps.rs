@@ -2,26 +2,26 @@
 pub mod pve_rs_sdn_route_maps {
     //! The `PVE::RS::SDN::RouteMaps` package.
 
-    use std::collections::hash_map::Entry;
     use std::collections::HashMap;
     use std::collections::HashSet;
+    use std::collections::hash_map::Entry;
     use std::ops::Deref;
     use std::sync::Mutex;
 
-    use anyhow::{anyhow, Error};
-    use openssl::hash::{hash, MessageDigest};
+    use anyhow::{Error, anyhow};
+    use openssl::hash::{MessageDigest, hash};
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
 
     use proxmox_schema::Updater;
     use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
-    use proxmox_ve_config::sdn::route_map::api::RouteMapDeletableProperties;
-    use proxmox_ve_config::sdn::route_map::api::RouteMapEntry as ApiRouteMap;
-    use proxmox_ve_config::sdn::route_map::api::RouteMapEntryUpdater;
     use proxmox_ve_config::sdn::route_map::RouteMap as ConfigRouteMap;
     use proxmox_ve_config::sdn::route_map::RouteMapEntryId;
     use proxmox_ve_config::sdn::route_map::RouteMapId;
+    use proxmox_ve_config::sdn::route_map::api::RouteMapDeletableProperties;
+    use proxmox_ve_config::sdn::route_map::api::RouteMapEntry as ApiRouteMap;
+    use proxmox_ve_config::sdn::route_map::api::RouteMapEntryUpdater;
 
     /// A SDN RouteMap config instance.
     #[derive(Serialize, Deserialize)]

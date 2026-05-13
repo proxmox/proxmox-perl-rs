@@ -6,13 +6,13 @@ pub mod pve_rs_sdn_prefix_lists {
     //! / writing the configuration, as well as for generating ifupdown2 and FRR configuration.
 
     use core::clone::Clone;
-    use std::collections::hash_map::Entry;
     use std::collections::HashMap;
+    use std::collections::hash_map::Entry;
     use std::ops::Deref;
     use std::sync::Mutex;
 
-    use anyhow::{anyhow, Error};
-    use openssl::hash::{hash, MessageDigest};
+    use anyhow::{Error, anyhow};
+    use openssl::hash::{MessageDigest, hash};
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
