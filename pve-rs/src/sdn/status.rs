@@ -6,6 +6,7 @@ use proxmox_network_types::mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
 
 use proxmox_frr::de::{self};
+use proxmox_ve_config::sdn::fabric::section_config::protocol::bgp::BgpNode;
 use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::{
     OspfNodeProperties, OspfProperties,
 };
@@ -89,13 +90,33 @@ mod wireguard {
     pub struct InterfaceStatus;
 }
 
-/// Common NeighborStatus that contains either OSPF or Openfabric neighbors
+mod bgp {
+    use serde::Serialize;
+
+    /// The status of a BGP neighbor.
+    #[derive(Debug, Serialize, PartialEq, Eq)]
+    pub struct NeighborStatus {
+        pub neighbor: String,
+        pub status: String,
+        pub uptime: String,
+    }
+
+    /// The status of a BGP fabric interface.
+    #[derive(Debug, Serialize, PartialEq, Eq)]
+    pub struct InterfaceStatus {
+        pub name: String,
+        pub state: super::InterfaceState,
+    }
+}
+
+/// Common NeighborStatus that contains either OSPF, Openfabric, or BGP neighbors
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NeighborStatus {
     Openfabric(Vec<openfabric::NeighborStatus>),
     Ospf(Vec<ospf::NeighborStatus>),
     WireGuard(Vec<wireguard::NeighborStatus>),
+    Bgp(Vec<bgp::NeighborStatus>),
 }
 
 impl From<Vec<openfabric::NeighborStatus>> for NeighborStatus {
@@ -108,14 +129,20 @@ impl From<Vec<ospf::NeighborStatus>> for NeighborStatus {
         NeighborStatus::Ospf(value)
     }
 }
+impl From<Vec<bgp::NeighborStatus>> for NeighborStatus {
+    fn from(value: Vec<bgp::NeighborStatus>) -> Self {
+        NeighborStatus::Bgp(value)
+    }
+}
 
-/// Common InterfaceStatus that contains either OSPF or Openfabric interfaces
+/// Common InterfaceStatus that contains either OSPF, Openfabric, or BGP interfaces
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum InterfaceStatus {
     Openfabric(Vec<openfabric::InterfaceStatus>),
     Ospf(Vec<ospf::InterfaceStatus>),
     WireGuard(Vec<wireguard::InterfaceStatus>),
+    Bgp(Vec<bgp::InterfaceStatus>),
 }
 
 impl From<Vec<openfabric::InterfaceStatus>> for InterfaceStatus {
@@ -126,6 +153,11 @@ impl From<Vec<openfabric::InterfaceStatus>> for InterfaceStatus {
 impl From<Vec<ospf::InterfaceStatus>> for InterfaceStatus {
     fn from(value: Vec<ospf::InterfaceStatus>) -> Self {
         InterfaceStatus::Ospf(value)
+    }
+}
+impl From<Vec<bgp::InterfaceStatus>> for InterfaceStatus {
+    fn from(value: Vec<bgp::InterfaceStatus>) -> Self {
+        InterfaceStatus::Bgp(value)
     }
 }
 
@@ -148,6 +180,8 @@ pub enum Protocol {
     Ospf,
     /// WireGuard
     WireGuard,
+    /// BGP
+    Bgp,
 }
 
 /// The status of a fabric.
@@ -186,6 +220,8 @@ pub struct RoutesParsed {
     pub openfabric: de::Routes,
     /// All ospf routes in FRR
     pub ospf: de::Routes,
+    /// All bgp routes in FRR
+    pub bgp: de::Routes,
 }
 
 /// Config used to parse the fabric part of the running-config
@@ -231,6 +267,10 @@ pub fn get_routes(
                 .map(|i| i.name().as_str())
                 .collect(),
             ConfigNode::WireGuard(_) => HashSet::new(),
+            ConfigNode::Bgp(n) => match n.properties() {
+                BgpNode::Internal(props) => props.interfaces().map(|i| i.name().as_str()).collect(),
+                BgpNode::External(_) => HashSet::new(),
+            },
         };
 
         let dummy_interface = format!("dummy_{}", fabric_id.as_str());
@@ -422,6 +462,62 @@ pub fn get_interfaces_ospf(
     Ok(stats)
 }
 
+/// Convert the `show bgp neighbors json` output into a list of [`bgp::NeighborStatus`].
+///
+/// BGP neighbors are filtered by the fabric's peer-group name (which matches the fabric ID).
+pub fn get_neighbors_bgp(
+    fabric_id: FabricId,
+    neighbors: BTreeMap<String, BgpNeighborInfo>,
+) -> Result<Vec<bgp::NeighborStatus>, anyhow::Error> {
+    let mut stats = Vec::new();
+
+    for (peer_name, info) in &neighbors {
+        if info.peer_group.as_deref() == Some(fabric_id.as_str()) {
+            stats.push(bgp::NeighborStatus {
+                neighbor: peer_name.clone(),
+                status: info.bgp_state.clone(),
+                uptime: info.bgp_timer_up_string.clone().unwrap_or_default(),
+            });
+        }
+    }
+
+    Ok(stats)
+}
+
+/// Convert the `show bgp neighbors json` output into a list of [`bgp::InterfaceStatus`].
+///
+/// For BGP unnumbered, each interface peer maps to a fabric interface.
+pub fn get_interfaces_bgp(
+    fabric_id: FabricId,
+    neighbors: BTreeMap<String, BgpNeighborInfo>,
+) -> Result<Vec<bgp::InterfaceStatus>, anyhow::Error> {
+    let mut stats = Vec::new();
+
+    for (peer_name, info) in &neighbors {
+        if info.peer_group.as_deref() == Some(fabric_id.as_str()) {
+            stats.push(bgp::InterfaceStatus {
+                name: peer_name.clone(),
+                state: if info.bgp_state == "Established" {
+                    InterfaceState::Up
+                } else {
+                    InterfaceState::Down
+                },
+            });
+        }
+    }
+
+    Ok(stats)
+}
+
+/// Minimal BGP neighbor info from `show bgp neighbors json`
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BgpNeighborInfo {
+    pub bgp_state: String,
+    pub peer_group: Option<String>,
+    pub bgp_timer_up_string: Option<String>,
+}
+
 /// Get the status for each fabric using the parsed routes from frr
 ///
 /// Using the parsed routes we get from frr, filter and map them to a HashMap mapping every
@@ -444,6 +540,7 @@ pub fn get_status(
             ConfigNode::Openfabric(_) => (Protocol::Openfabric, &routes.openfabric.0),
             ConfigNode::Ospf(_) => (Protocol::Ospf, &routes.ospf.0),
             ConfigNode::WireGuard(_) => (Protocol::WireGuard, &BTreeMap::new()),
+            ConfigNode::Bgp(_) => (Protocol::Bgp, &routes.bgp.0),
         };
 
         // get interfaces
@@ -459,6 +556,10 @@ pub fn get_status(
                 .map(|i| i.name().as_str())
                 .collect(),
             ConfigNode::WireGuard(_n) => HashSet::new(),
+            ConfigNode::Bgp(n) => match n.properties() {
+                BgpNode::Internal(props) => props.interfaces().map(|i| i.name().as_str()).collect(),
+                BgpNode::External(_) => HashSet::new(),
+            },
         };
 
         // determine status by checking if any routes exist for our interfaces
@@ -477,6 +578,7 @@ pub fn get_status(
         let status = match current_protocol {
             Protocol::Openfabric if has_routes => FabricStatus::Ok,
             Protocol::Ospf if has_routes => FabricStatus::Ok,
+            Protocol::Bgp if has_routes => FabricStatus::Ok,
             Protocol::WireGuard => FabricStatus::Ok,
             _ => FabricStatus::NotOk,
         };

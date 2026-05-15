@@ -864,6 +864,37 @@ pub mod pve_rs_sdn_fabrics {
                 status::get_routes(fabric_id, config, ospf_routes, proxmox_sys::nodename())
             }
             FabricEntry::WireGuard(_) => Ok(Vec::new()),
+            FabricEntry::Bgp(_) => {
+                let bgp_ipv4_routes_string = String::from_utf8(
+                    Command::new("sh")
+                        .env("VTYSH_HISTFILE", "/dev/null")
+                        .args(["-c", "vtysh -c 'show ip route bgp json'"])
+                        .output()?
+                        .stdout,
+                )?;
+
+                let bgp_ipv6_routes_string = String::from_utf8(
+                    Command::new("sh")
+                        .env("VTYSH_HISTFILE", "/dev/null")
+                        .args(["-c", "vtysh -c 'show ipv6 route bgp json'"])
+                        .output()?
+                        .stdout,
+                )?;
+
+                let mut bgp_routes: proxmox_frr::de::Routes = if bgp_ipv4_routes_string.is_empty() {
+                    proxmox_frr::de::Routes::default()
+                } else {
+                    serde_json::from_str(&bgp_ipv4_routes_string)
+                        .with_context(|| "error parsing bgp ipv4 routes")?
+                };
+                if !bgp_ipv6_routes_string.is_empty() {
+                    let bgp_ipv6_routes: proxmox_frr::de::Routes =
+                        serde_json::from_str(&bgp_ipv6_routes_string)
+                            .with_context(|| "error parsing bgp ipv6 routes")?;
+                    bgp_routes.0.extend(bgp_ipv6_routes.0);
+                }
+                status::get_routes(fabric_id, config, bgp_routes, proxmox_sys::nodename())
+            }
         }
     }
 
@@ -923,6 +954,24 @@ pub mod pve_rs_sdn_fabrics {
                 .map(|v| v.into())
             }
             FabricEntry::WireGuard(_) => Ok(status::NeighborStatus::WireGuard(Vec::new())),
+            FabricEntry::Bgp(_) => {
+                let bgp_neighbors_string = String::from_utf8(
+                    Command::new("sh")
+                        .env("VTYSH_HISTFILE", "/dev/null")
+                        .args(["-c", "vtysh -c 'show bgp neighbors json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let bgp_neighbors: std::collections::BTreeMap<String, status::BgpNeighborInfo> =
+                    if bgp_neighbors_string.is_empty() {
+                        std::collections::BTreeMap::new()
+                    } else {
+                        serde_json::from_str(&bgp_neighbors_string)
+                            .with_context(|| "error parsing bgp neighbors")?
+                    };
+
+                status::get_neighbors_bgp(fabric_id, bgp_neighbors).map(|v| v.into())
+            }
         }
     }
 
@@ -983,6 +1032,24 @@ pub mod pve_rs_sdn_fabrics {
                 .map(|v| v.into())
             }
             FabricEntry::WireGuard(_) => Ok(status::InterfaceStatus::WireGuard(Vec::new())),
+            FabricEntry::Bgp(_) => {
+                let bgp_neighbors_string = String::from_utf8(
+                    Command::new("sh")
+                        .env("VTYSH_HISTFILE", "/dev/null")
+                        .args(["-c", "vtysh -c 'show bgp neighbors json'"])
+                        .output()?
+                        .stdout,
+                )?;
+                let bgp_neighbors: std::collections::BTreeMap<String, status::BgpNeighborInfo> =
+                    if bgp_neighbors_string.is_empty() {
+                        std::collections::BTreeMap::new()
+                    } else {
+                        serde_json::from_str(&bgp_neighbors_string)
+                            .with_context(|| "error parsing bgp neighbors")?
+                    };
+
+                status::get_interfaces_bgp(fabric_id, bgp_neighbors).map(|v| v.into())
+            }
         }
     }
 
@@ -1043,9 +1110,39 @@ pub mod pve_rs_sdn_fabrics {
                 .with_context(|| "error parsing ospf routes")?
         };
 
+        let bgp_ipv4_routes_string = String::from_utf8(
+            Command::new("sh")
+                .env("VTYSH_HISTFILE", "/dev/null")
+                .args(["-c", "vtysh -c 'show ip route bgp json'"])
+                .output()?
+                .stdout,
+        )?;
+
+        let bgp_ipv6_routes_string = String::from_utf8(
+            Command::new("sh")
+                .env("VTYSH_HISTFILE", "/dev/null")
+                .args(["-c", "vtysh -c 'show ipv6 route bgp json'"])
+                .output()?
+                .stdout,
+        )?;
+
+        let mut bgp_routes: proxmox_frr::de::Routes = if bgp_ipv4_routes_string.is_empty() {
+            proxmox_frr::de::Routes::default()
+        } else {
+            serde_json::from_str(&bgp_ipv4_routes_string)
+                .with_context(|| "error parsing bgp ipv4 routes")?
+        };
+        if !bgp_ipv6_routes_string.is_empty() {
+            let bgp_ipv6_routes: proxmox_frr::de::Routes =
+                serde_json::from_str(&bgp_ipv6_routes_string)
+                    .with_context(|| "error parsing bgp ipv6 routes")?;
+            bgp_routes.0.extend(bgp_ipv6_routes.0);
+        }
+
         let route_status = status::RoutesParsed {
             openfabric: openfabric_routes,
             ospf: ospf_routes,
+            bgp: bgp_routes,
         };
 
         status::get_status(config, route_status, proxmox_sys::nodename())
