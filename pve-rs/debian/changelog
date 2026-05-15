@@ -1,3 +1,57 @@
+libpve-rs-perl (0.14.0) trixie; urgency=medium
+
+  * sdn: fabrics: wireguard: add bindings for generating the wg(8)
+    configuration and the matching ifupdown2 stanzas in
+    /etc/network/interfaces.d/sdn. The latter ensures route entries mirror the
+    AllowedIPs the builder computes for each peer.
+
+  * sdn: fabrics: wireguard: add a bindings module for the cluster-replicated
+    private-key store at /etc/pve/priv/wg-keys.cfg, exposing read, write, and
+    cleanup helpers for orphaned keys.
+
+  * sdn: fabrics: expose helpers for parsing interface property strings, so
+    the pve-network API layer can validate fabric interface configuration
+    without re-implementing the section-config types in Perl.
+
+  * pve: add bindings for accessing NVIDIA vGPU info, returning the creatable
+    and supported vGPU types for a given device. The 'supported' helper is not
+    yet used but will be needed for upcoming PCI passthrough UX improvements.
+
+  * common: subscription: expose a server ID candidates binding that returns
+    both the legacy ssh-host-key hash and the new machine-id based form,
+    letting the Perl side migrate from the singular helper without losing
+    backwards compatibility.
+
+  * update proxmox-frr to 0.5, which adds BGP local-as for neighbor peerings
+    with a different AS than the router's primary one, adds (ext)community
+    list types, and adds an OSPF `redistribute` setting for importing
+    connected, kernel, or static routes into OSPF.
+
+  * update proxmox-ve-config to 0.9.1, which exposes the new OSPF redistribute
+    setting and the network-type interface property (Broadcast, NonBroadcast,
+    PointToPoint, PointToMultipoint) in the fabric API. Previously OSPF picked
+    the network type implicitly based on whether the interface had an IP,
+    leaving users no way to override it. The 0.9.1 point release also lets
+    WireGuardPrivateKeys::cleanup report whether anything was actually
+    removed, used by the new binding below.
+
+  * sdn: fabrics: wireguard: have the cleanup binding propagate whether any
+    orphan node or interface key was actually removed, so Perl callers can
+    skip an unconditional rewrite of cluster-replicated
+    /etc/pve/priv/wg-keys.cfg on every SDN apply when there is nothing to
+    clean up.
+
+  * update proxmox-subscription to 1.0.2, which underpins the new server ID
+    candidates binding and adds typed request bodies for the per-node
+    subscription endpoints.
+
+  * update proxmox-resource-scheduling to 2.1.0, which clamps the load
+    imbalance metric to the unit interval by normalizing the coefficient of
+    variation against its theoretical upper bound, yielding a value that can
+    be interpreted on its own rather than only in comparison to other ones.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 05:59:39 +0200
+
 libpve-rs-perl (0.13.2) trixie; urgency=medium
 
   * sdn: prefix lists: refactor API, splitting prefix-list and entry CRUD
