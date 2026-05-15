@@ -32,6 +32,7 @@ pub mod pve_rs_sdn_fabrics {
     };
     use proxmox_ve_config::sdn::fabric::section_config::interface::InterfaceName;
     use proxmox_ve_config::sdn::fabric::section_config::node::{Node as ConfigNode, NodeId};
+    use proxmox_ve_config::sdn::fabric::section_config::protocol::bgp::BgpNode;
     use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
     use proxmox_ve_config::sdn::wireguard::WireGuardConfigBuilder;
 
@@ -407,6 +408,15 @@ pub mod pve_rs_sdn_fabrics {
                     }
                 }
                 ConfigNode::WireGuard(_) => {}
+                ConfigNode::Bgp(node_section) => {
+                    if let BgpNode::Internal(properties) = node_section.properties_mut() {
+                        for interface in properties.interfaces_mut() {
+                            if let Some(mapped_name) = map_name(&mapping, interface.name())? {
+                                interface.set_name(mapped_name);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -500,6 +510,9 @@ pub mod pve_rs_sdn_fabrics {
                     daemons.insert("fabricd");
                 }
                 FabricEntry::WireGuard(_) => {} // not a frr fabric
+                FabricEntry::Bgp(_) => {
+                    daemons.insert("bgpd");
+                }
             };
         }
 
@@ -739,6 +752,22 @@ pub mod pve_rs_sdn_fabrics {
                                 render_wireguard_interface(interface, allowed_ips.iter())?;
 
                             write!(interfaces, "{interface}")?;
+                        }
+                    }
+                }
+                ConfigNode::Bgp(node_section) => {
+                    if let BgpNode::Internal(properties) = node_section.properties() {
+                        for interface in properties.interfaces() {
+                            let name = interface.name();
+                            writeln!(interfaces)?;
+                            writeln!(interfaces, "auto {name}")?;
+                            writeln!(interfaces, "iface {name} inet manual")?;
+                            writeln!(interfaces, "\tip-forward 1")?;
+                            writeln!(interfaces, "\tip6-forward 1")?;
+                            // BGP unnumbered uses RAs to discover peer link-local
+                            // addresses. frr listens for them itself, but the kernel
+                            // would otherwise install RA-derived routes we don't want.
+                            writeln!(interfaces, "\taccept-ra 0")?;
                         }
                     }
                 }
