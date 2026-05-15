@@ -89,10 +89,13 @@ pub mod pve_rs_sdn_wireguard {
 
     #[export]
     /// Method: Deletes all private keys from `this` that do not exist in the `fabric_config`.
+    ///
+    /// Returns whether anything was actually removed, so callers can skip an unconditional
+    /// rewrite of the cluster-replicated wg-keys.cfg on the steady-state apply path.
     pub fn cleanup(
         #[try_from_ref] this: &PerlWireguardPrivateKeyConfig,
         #[try_from_ref] fabric_config: &PerlFabricConfig,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         let mut private_key_config = this.private_keys.lock().unwrap();
         let fabric_config = fabric_config.fabric_config.lock().unwrap();
 
