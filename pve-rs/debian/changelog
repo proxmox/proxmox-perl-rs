@@ -1,3 +1,12 @@
+libpve-rs-perl (0.14.1) trixie; urgency=medium
+
+  * rebuild against proxmox-wireguard 0.1.2 / proxmox-ini 0.1.1 to drop a
+    leftover debug print that could leak the formatted configuration, into the
+    SDN apply task log. This was noticed during QA for the new WireGuard
+    fabric and so did not affect any as production-ready released feature.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 17 May 2026 02:17:04 +0200
+
 libpve-rs-perl (0.14.0) trixie; urgency=medium
 
   * sdn: fabrics: wireguard: add bindings for generating the wg(8)
