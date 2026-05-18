@@ -1,3 +1,16 @@
+libpve-rs-perl (0.15.0) trixie; urgency=medium
+
+  * sdn: fabrics: add BGP bindings: config-generation glue (interface mapping
+    and ifupdown2 stanza writing for unnumbered eBGP fabric links, with `bgpd`
+    added to the per-node FRR daemon set when a BGP fabric is present) and
+    per-fabric status endpoints (neighbor, interface and route state derived
+    from vtysh BGP queries).
+
+  * rebuild against proxmox-frr 0.5.1 and proxmox-ve-config 0.10 for the new
+    BgpRouter::merge_fabric() helper and the BGP fabric section config types.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 18 May 2026 11:01:32 +0200
+
 libpve-rs-perl (0.14.1) trixie; urgency=medium
 
   * rebuild against proxmox-wireguard 0.1.2 / proxmox-ini 0.1.1 to drop a
