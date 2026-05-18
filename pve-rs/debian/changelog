@@ -1,3 +1,10 @@
+libpve-rs-perl (0.15.1) trixie; urgency=medium
+
+  * rebuild against proxmox-ve-config 0.10.1 to pick up the new `tag`
+    route-map match action in the API schema.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 18 May 2026 19:30:00 +0200
+
 libpve-rs-perl (0.15.0) trixie; urgency=medium
 
   * sdn: fabrics: add BGP bindings: config-generation glue (interface mapping
