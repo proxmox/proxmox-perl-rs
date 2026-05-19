@@ -8,16 +8,28 @@ pub mod proxmox_rs_apt_repositories {
 
     use proxmox_apt_api_types::{
         APTChangeRepositoryOptions, APTGetChangelogOptions, APTRepositoriesResult,
-        APTRepositoryHandle, APTUpdateInfo, APTUpdateOptions,
+        APTRepositoryHandle, APTUpdateInfo, APTUpdateOptions, HostProduct,
     };
     use proxmox_config_digest::ConfigDigest;
+
+    /// Map the perl-side product slug to the typed `HostProduct`. Lowercases first so the
+    /// regex-gated `Unknown(_)` fallback catches casefold variants; non-kebab-case junk
+    /// (whitespace, punctuation) cannot construct an invalid `Unknown` payload anymore and
+    /// instead surfaces as an error to the perl caller.
+    fn parse_host_product(product: &str) -> Result<HostProduct, Error> {
+        let mut lower = product.to_string();
+        lower.make_ascii_lowercase();
+        lower
+            .parse::<HostProduct>()
+            .map_err(|e| anyhow::anyhow!("invalid host product {product:?}: {e}"))
+    }
 
     /// Get information about configured repositories and standard repositories for `product`.
     ///
     /// See [`proxmox_apt::list_repositories`].
     #[export]
     pub fn repositories(product: &str) -> Result<APTRepositoriesResult, Error> {
-        proxmox_apt::list_repositories(product)
+        proxmox_apt::list_repositories(&parse_host_product(product)?)
     }
 
     /// Add the repository identified by the `handle` and `product`.
@@ -32,7 +44,7 @@ pub mod proxmox_rs_apt_repositories {
         product: &str,
         digest: Option<ConfigDigest>,
     ) -> Result<(), Error> {
-        proxmox_apt::add_repository_handle(product, handle, digest)
+        proxmox_apt::add_repository_handle(&parse_host_product(product)?, handle, digest)
     }
 
     /// Change the properties of the specified repository.
