@@ -1,3 +1,32 @@
+libpve-rs-perl (0.15.2) trixie; urgency=medium
+
+  * add Ceph Tentacle as a new standard Proxmox repository option in the PVE
+    repository configuration API.
+
+  * fix detecting the legacy `pvetest` deb822 component that PVE 8 wrote out
+    (PVE 9 standardized to `pve-test`), so already-configured test
+    repositories on upgraded hosts get recognized rather than offered as still
+    addable. The next write through the repository API rewrites the component
+    to the canonical `pve-test` form, fixing the on-disk file; the legacy path
+    is no longer hosted on download.proxmox.com and would otherwise 404 on the
+    next apt update.
+
+  * fix adding a standard PVE repository through the API always writing a new
+    sources file instead of just enabling an already-configured one, due to a
+    hardcoded internal PBS product reference.
+
+  * rebuild against proxmox-apt 1.0.1 / proxmox-apt-api-types 3.0; the APT API
+    boundary now takes a typed HostProduct enum, and the canonicalize-on-write
+    fix lands here via the 1.0.1 point release.
+
+  * rebuild against proxmox-ve-config 0.10.2; SDN WireGuard fabric node and
+    peer endpoints are now stored and parsed as a full host:port, with CIDR
+    notation and other malformed values rejected instead of silently accepted,
+    avoiding the malformed ip:port:port entries previously written to the
+    generated WireGuard config.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 20 May 2026 04:32:07 +0200
+
 libpve-rs-perl (0.15.1) trixie; urgency=medium
 
   * rebuild against proxmox-ve-config 0.10.1 to pick up the new `tag`
