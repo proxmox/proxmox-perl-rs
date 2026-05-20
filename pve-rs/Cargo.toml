@@ -30,7 +30,7 @@ url = "2"
 
 perlmod = { version = "0.14", features = ["exporter"] }
 
-proxmox-apt = { version = "1.0", features = ["cache"] }
+proxmox-apt = { version = "1.0.1", features = ["cache"] }
 proxmox-apt-api-types = "3"
 proxmox-base64 = "1"
 proxmox-config-digest = "1"
