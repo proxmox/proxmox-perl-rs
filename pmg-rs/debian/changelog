@@ -1,3 +1,23 @@
+libpmg-rs-perl (0.8.2) trixie; urgency=medium
+
+  * fix detecting the legacy `pmgtest` deb822 component that PMG 8 wrote out
+    (PMG 9 standardized to `pmg-test`), so already-configured test
+    repositories on upgraded hosts get recognized rather than offered as still
+    addable. The next write through the repository API rewrites the component
+    to the canonical `pmg-test` form, fixing the on-disk file; the legacy path
+    is no longer hosted on download.proxmox.com and would otherwise 404 on the
+    next apt update.
+
+  * fix adding a standard PMG repository through the API always writing a new
+    sources file instead of just enabling an already-configured one, due to a
+    hardcoded internal PBS product reference.
+
+  * rebuild against proxmox-apt 1.0.1 / proxmox-apt-api-types 3.0; the APT API
+    boundary now takes a typed HostProduct enum, and the canonicalize-on-write
+    fix lands here via the 1.0.1 point release.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 20 May 2026 03:15:57 +0200
+
 libpmg-rs-perl (0.8.1) trixie; urgency=medium
 
   * re-build with newer proxmox-tfa crate to ignore backup state and
