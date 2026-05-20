@@ -50,7 +50,7 @@ proxmox-subscription = "1.0.2"
 proxmox-sys = "1"
 proxmox-tfa = { version = "6.0.3", features = ["api"] }
 proxmox-time = "2"
-proxmox-ve-config = { version = "0.10.1", features = [ "frr" ] }
+proxmox-ve-config = { version = "0.10.2", features = [ "frr" ] }
 proxmox-wireguard = { version = "0.1.2" }
 
 # [patch.crates-io]
