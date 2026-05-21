@@ -1,3 +1,17 @@
+libpve-rs-perl (0.15.3) trixie; urgency=medium
+
+  * rebuild against proxmox-ve-config 0.10.3, which reverts the WireGuard
+    endpoint schema change from 0.10.2; internal node and peer endpoints store
+    only the host again, with the connect port derived from the referenced
+    interface's listen_port at config-generation time.
+
+  * Raise the build dependency on proxmox-network-types to 1.1.2 so the
+    stricter HostnameOrIpAddr parsing that the reverted endpoint schema
+    relies on for rejecting accidental host:port input is guaranteed to be
+    present at build time.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 21 May 2026 11:30:35 +0200
+
 libpve-rs-perl (0.15.2) trixie; urgency=medium
 
   * add Ceph Tentacle as a new standard Proxmox repository option in the PVE
