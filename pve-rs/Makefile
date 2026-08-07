@@ -49,6 +49,9 @@ else
 TARGET_DIR=debug
 endif
 
+# Used to tell tests where the compiled .so file resides
+export LD_LIBRARY_PATH := $(CURDIR)/target/$(TARGET_DIR)
+
 # better way to automate this without a massively annoying cargo-metatdata + jq
 # chain that spits out errors?
 PROXMOX_DOC_CRATES := \
@@ -76,10 +79,6 @@ PROXMOX_DOC_URL_FLAGS = $(foreach crate,$(PROXMOX_DOC_CRATES),$(call make_rustdo
 
 all: PVE
 	cargo build $(CARGO_BUILD_ARGS)
-	mkdir -p test/Proxmox/Lib
-	sed -r -e \
-	  's@^sub libfile.*$$@sub libfile { "$(shell pwd)/target/$(TARGET_DIR)/libpve_rs.so"; }@' \
-	  Proxmox/Lib/PVE.pm >test/Proxmox/Lib/PVE.pm
 
 Proxmox: Proxmox/Lib/PVE.pm
 PVE: $(PERLMOD_PACKAGE_FILES)
