@@ -42,6 +42,7 @@ endif
 # better way to automate this without a massively annoying cargo-metatdata + jq
 # chain that spits out errors?
 PROXMOX_DOC_CRATES := \
+    proxmox-access-log \
     proxmox-acme \
     proxmox-apt \
     proxmox-apt-api-types \

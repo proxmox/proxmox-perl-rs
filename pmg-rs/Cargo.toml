@@ -28,6 +28,7 @@ url = "2"
 
 perlmod = { version = "0.14", features = ["exporter"] }
 
+proxmox-access-log = { version = "0.1", features = ["query"] }
 proxmox-acme = { version = "1", features = ["client", "api-types"] }
 proxmox-apt = { version = "1.0.1", features = ["cache"] }
 proxmox-apt-api-types = "3"

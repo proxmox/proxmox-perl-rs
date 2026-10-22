@@ -2,6 +2,9 @@
 
 #![deny(missing_docs)]
 
+mod access_log;
+pub use access_log::proxmox_rs_access_log;
+
 mod apt_repositories;
 pub use apt_repositories::proxmox_rs_apt_repositories;
 

@@ -55,6 +55,7 @@ export LD_LIBRARY_PATH := $(CURDIR)/target/$(TARGET_DIR)
 # better way to automate this without a massively annoying cargo-metatdata + jq
 # chain that spits out errors?
 PROXMOX_DOC_CRATES := \
+    proxmox-access-log \
     proxmox-apt \
     proxmox-apt-api-types \
     proxmox-base64 \

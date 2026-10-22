@@ -1,0 +1,72 @@
+#[perlmod::package(name = "Proxmox::RS::AccessLog")]
+pub mod proxmox_rs_access_log {
+    //! The `Proxmox::RS::AccessLog` package.
+    //!
+    //! Reads the API access log written by pve-http-server, the HTTP server of the Perl based
+    //! products.
+    //!
+    //! See [`proxmox_access_log`].
+
+    use std::path::Path;
+
+    use anyhow::Error;
+
+    use proxmox_access_log::{AccessLogFilter, InvalidRequest, LogFormat, QueryResult};
+    use proxmox_http_error::{HttpError, StatusCode};
+
+    /// Reads a page of the entries of the access log at `path` and its rotated copies that match
+    /// `filter`, newest first, continuing at `cursor` if given. With `redact`, the values of query
+    /// parameters get replaced, as clients can pass any parameter there, passwords included.
+    ///
+    /// See [`proxmox_access_log::query`] and [`proxmox_access_log::AccessLogEntry::redact`].
+    #[export(serialize_error)]
+    pub fn query(
+        path: &str,
+        filter: AccessLogFilter,
+        limit: Option<u64>,
+        cursor: Option<&str>,
+        redact: bool,
+    ) -> Result<QueryResult, HttpError> {
+        let result = proxmox_access_log::query(Path::new(path), FORMAT, &filter, limit, cursor)
+            .map_err(api_error)?;
+        Ok(redacted(result, redact))
+    }
+
+    /// Reads the entries of the access log at `path` and its rotated copies that match `filter`
+    /// and got logged after the position of the `head` cursor of an earlier page, newest first,
+    /// redacted like for [`query`].
+    ///
+    /// See [`proxmox_access_log::query_newer`].
+    #[export(serialize_error)]
+    pub fn query_newer(
+        path: &str,
+        filter: AccessLogFilter,
+        limit: Option<u64>,
+        head: &str,
+        redact: bool,
+    ) -> Result<QueryResult, HttpError> {
+        let result = proxmox_access_log::query_newer(Path::new(path), FORMAT, &filter, limit, head)
+            .map_err(api_error)?;
+        Ok(redacted(result, redact))
+    }
+
+    fn api_error(err: Error) -> HttpError {
+        let code = if err.is::<InvalidRequest>() {
+            StatusCode::BAD_REQUEST
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        };
+        HttpError::new(code, err.to_string())
+    }
+
+    const FORMAT: LogFormat = LogFormat::PveHttpServer;
+
+    fn redacted(mut result: QueryResult, redact: bool) -> QueryResult {
+        if redact {
+            for entry in &mut result.entries {
+                entry.redact(FORMAT);
+            }
+        }
+        result
+    }
+}

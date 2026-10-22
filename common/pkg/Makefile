@@ -21,6 +21,7 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 	--lib-prefix=Proxmox
 
 PERLMOD_PACKAGES := \
+	  Proxmox::RS::AccessLog \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
 	  Proxmox::RS::OIDC \
