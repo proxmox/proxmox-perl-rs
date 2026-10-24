@@ -11,7 +11,9 @@ pub mod proxmox_rs_access_log {
 
     use anyhow::Error;
 
-    use proxmox_access_log::{AccessLogFilter, InvalidRequest, LogFormat, QueryResult};
+    use proxmox_access_log::{
+        AccessLogFilter, AccessLogStats, InvalidRequest, LogFormat, QueryResult, StatsOptions,
+    };
     use proxmox_http_error::{HttpError, StatusCode};
 
     /// Reads a page of the entries of the access log at `path` and its rotated copies that match
@@ -48,6 +50,28 @@ pub mod proxmox_rs_access_log {
         let result = proxmox_access_log::query_newer(Path::new(path), FORMAT, &filter, limit, head)
             .map_err(api_error)?;
         Ok(redacted(result, redact))
+    }
+
+    /// Counts the requests of the access log at `path` and its rotated copies that match `filter`
+    /// in its time range, listing the `top` values with the most requests and a histogram with
+    /// buckets of `bucket` seconds. The lists hold no query of the request targets, only what
+    /// redacted entries show too, so they need no redacting.
+    ///
+    /// See [`proxmox_access_log::stats`].
+    #[export(serialize_error)]
+    pub fn stats(
+        path: &str,
+        filter: AccessLogFilter,
+        top: Option<u64>,
+        bucket: Option<u64>,
+    ) -> Result<AccessLogStats, HttpError> {
+        proxmox_access_log::stats(
+            Path::new(path),
+            FORMAT,
+            &filter,
+            StatsOptions { top, bucket },
+        )
+        .map_err(api_error)
     }
 
     fn api_error(err: Error) -> HttpError {
