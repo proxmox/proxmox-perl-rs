@@ -5,6 +5,9 @@
 mod access_log;
 pub use access_log::proxmox_rs_access_log;
 
+mod apt_changelog;
+pub use apt_changelog::proxmox_rs_apt_changelog;
+
 mod apt_history;
 pub use apt_history::proxmox_rs_apt_history;
 

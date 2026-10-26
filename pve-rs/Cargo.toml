@@ -36,6 +36,8 @@ proxmox-apt-api-types = "3"
 proxmox-apt-history = { version = "0.1", features = ["impl"] }
 proxmox-base64 = "1"
 proxmox-config-digest = "1"
+proxmox-deb-changelog = { version = "0.1", features = ["impl"] }
+proxmox-deb-version = "0.1.1"
 proxmox-frr = { version = "0.6.0" }
 proxmox-http = { version = "1.0.2", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
@@ -64,6 +66,8 @@ proxmox-wireguard = { version = "0.1.2" }
 # proxmox-api-macro = { path = "../../proxmox/proxmox-api-macro" }
 # proxmox-apt-api-types = { path = "../../proxmox/proxmox-apt-api-types" }
 # proxmox-apt-history = { path = "../../proxmox/proxmox-apt-history" }
+# proxmox-deb-changelog = { path = "../../proxmox/proxmox-deb-changelog" }
+# proxmox-deb-version = { path = "../../proxmox/proxmox-deb-version" }
 # proxmox-apt = { path = "../../proxmox/proxmox-apt" }
 # proxmox-async = { path = "../../proxmox/proxmox-async" }
 # proxmox-auth-api = { path = "../../proxmox/proxmox-auth-api" }

@@ -34,6 +34,8 @@ proxmox-apt = { version = "1.0.1", features = ["cache"] }
 proxmox-apt-api-types = "3"
 proxmox-apt-history = { version = "0.1", features = ["impl"] }
 proxmox-config-digest = "1"
+proxmox-deb-changelog = { version = "0.1", features = ["impl"] }
+proxmox-deb-version = "0.1.1"
 proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"

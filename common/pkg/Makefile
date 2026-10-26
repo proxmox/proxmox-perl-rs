@@ -22,6 +22,7 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 
 PERLMOD_PACKAGES := \
 	  Proxmox::RS::AccessLog \
+	  Proxmox::RS::APT::Changelog \
 	  Proxmox::RS::APT::History \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \

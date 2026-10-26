@@ -8,9 +8,10 @@ use warnings;
 
 use HTTP::Status qw(:constants);
 
-use PVE::Exception qw(raise);
+use PVE::Exception qw(raise raise_param_exc);
 use PVE::JSONSchema qw(get_standard_option);
 
+use Proxmox::RS::APT::Changelog;
 use Proxmox::RS::APT::History;
 
 my $package_name_pattern = qr/[a-z0-9][-+.a-z0-9]+/;
@@ -239,6 +240,114 @@ sub term_log_method {
             ) if !defined($log);
 
             return $log;
+        },
+    };
+}
+
+my sub changelog_entry {
+    return {
+        type => 'object',
+        properties => {
+            package => {
+                description => "Name of the source package.",
+                type => 'string',
+            },
+            version => {
+                description => "Version of the source package.",
+                type => 'string',
+            },
+            distributions => {
+                description =>
+                    "Distributions the version was uploaded to, separated by spaces.",
+                type => 'string',
+            },
+            urgency => {
+                description => "Urgency of the upload.",
+                type => 'string',
+                optional => 1,
+            },
+            changes => {
+                description =>
+                    "The changes as written in the changelog, usually as an indented list.",
+                type => 'string',
+            },
+            maintainer => {
+                description => "Name and email address of the author of the entry.",
+                type => 'string',
+                optional => 1,
+            },
+            date => {
+                description => "Date of the entry as written in the changelog.",
+                type => 'string',
+                optional => 1,
+            },
+        },
+    };
+}
+
+sub installed_changelog_method {
+    my ($permissions) = @_;
+
+    return {
+        name => 'installed_changelog',
+        path => 'installed-changelog',
+        method => 'GET',
+        description => "Get the Debian changelog that an installed package ships, optionally"
+            . " limited to a version range.",
+        permissions => $permissions,
+        proxyto => 'node',
+        parameters => {
+            additionalProperties => 0,
+            properties => {
+                node => get_standard_option('pve-node'),
+                name => {
+                    description => "Name of the installed package.",
+                    type => 'string',
+                    pattern => $package_name_pattern,
+                    typetext => '<package>',
+                    maxLength => 128,
+                },
+                'since-version' => {
+                    description => "Only list the entries of versions later than this one.",
+                    type => 'string',
+                    maxLength => 128,
+                    optional => 1,
+                },
+                'to-version' => {
+                    description => "Only list the entries of versions up to including this one,"
+                        . " or only the newest entry if the changelog does not list this version.",
+                    type => 'string',
+                    maxLength => 128,
+                    optional => 1,
+                },
+            },
+        },
+        returns => {
+            description => "The changelog entries, usually newest first.",
+            type => 'array',
+            items => changelog_entry(),
+        },
+        code => sub {
+            my ($param) = @_;
+
+            for my $limit ('since-version', 'to-version') {
+                next if !defined($param->{$limit});
+                eval { Proxmox::RS::APT::Changelog::check_version($param->{$limit}) };
+                if (my $err = $@) {
+                    chomp($err);
+                    raise_param_exc({ $limit => $err });
+                }
+            }
+
+            my $entries = Proxmox::RS::APT::Changelog::installed_changelog(
+                $param->{name},
+                $param->{'since-version'},
+                $param->{'to-version'},
+            );
+            raise("no changelog found for package '$param->{name}'\n", code => HTTP_NOT_FOUND)
+                if !defined($entries);
+
+            return $entries;
         },
     };
 }
