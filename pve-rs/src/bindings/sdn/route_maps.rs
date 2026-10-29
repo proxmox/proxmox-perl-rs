@@ -10,6 +10,8 @@ pub mod pve_rs_sdn_route_maps {
 
     use anyhow::{Error, anyhow};
     use openssl::hash::{MessageDigest, hash};
+    use proxmox_schema::PropertyString;
+    use proxmox_ve_config::sdn::route_map::MatchAction;
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
@@ -285,5 +287,15 @@ pub mod pve_rs_sdn_route_maps {
             .ok_or_else(|| anyhow!("could not find route map entry with id: {id}"))?;
 
         Ok(())
+    }
+
+    /// Class method: Parse a match statement property string
+    #[export]
+    pub fn parse_match(match_action: &[u8]) -> Result<MatchAction, Error> {
+        let raw_property_string = std::str::from_utf8(match_action)?;
+
+        Ok(raw_property_string
+            .parse::<PropertyString<MatchAction>>()?
+            .into_inner())
     }
 }
