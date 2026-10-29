@@ -15,6 +15,7 @@ pub mod pve_rs_sdn_fabrics {
     use anyhow::{Context, Error, format_err};
     use openssl::hash::{MessageDigest, hash};
     use proxmox_ve_config::sdn::fabric::section_config::node::api::{Node, NodeUpdater};
+    use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::OspfRedistribution;
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
@@ -32,7 +33,9 @@ pub mod pve_rs_sdn_fabrics {
     };
     use proxmox_ve_config::sdn::fabric::section_config::interface::InterfaceName;
     use proxmox_ve_config::sdn::fabric::section_config::node::{Node as ConfigNode, NodeId};
-    use proxmox_ve_config::sdn::fabric::section_config::protocol::bgp::BgpNode;
+    use proxmox_ve_config::sdn::fabric::section_config::protocol::bgp::{
+        BgpNode, BgpRedistribution,
+    };
     use proxmox_ve_config::sdn::fabric::{FabricConfig, FabricEntry};
     use proxmox_ve_config::sdn::wireguard::WireGuardConfigBuilder;
 
@@ -1196,5 +1199,21 @@ pub mod pve_rs_sdn_fabrics {
             .with_context(|| "error parsing l2vpn routes")?;
 
         status::get_l2vpn_routes(routes)
+    }
+
+    /// Class method: Parse a ospf redistribute property string
+    #[export]
+    pub fn parse_ospf_redistribute(redistribute: &str) -> Result<OspfRedistribution, Error> {
+        Ok(redistribute
+            .parse::<PropertyString<OspfRedistribution>>()?
+            .into_inner())
+    }
+
+    /// Class method: Parse a bgp redistribute property string
+    #[export]
+    pub fn parse_bgp_redistribute(redistribute: &str) -> Result<BgpRedistribution, Error> {
+        Ok(redistribute
+            .parse::<PropertyString<BgpRedistribution>>()?
+            .into_inner())
     }
 }
