@@ -95,7 +95,7 @@ upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEBS)
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com upload --product pmg --dist $(DEB_DISTRIBUTION)
+	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com upload --product pmg --dist $(UPLOAD_DIST)
 
 $(BUILDDIR): src debian common/src Cargo.toml rustfmt.toml Makefile .cargo/config.toml Fixup.pm
 	rm -rf $(BUILDDIR) $(BUILDDIR).tmp

@@ -69,7 +69,7 @@ upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEB)
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - $(DEB) | ssh -X repoman@repo.proxmox.com upload --product pve,pmg --dist $(DEB_DISTRIBUTION)
+	tar cf - $(DEB) | ssh -X repoman@repo.proxmox.com upload --product pve,pmg --dist $(UPLOAD_DIST)
 
 clean:
 	rm -f *.deb *.dsc *.tar.* *.build *.buildinfo *.changes
