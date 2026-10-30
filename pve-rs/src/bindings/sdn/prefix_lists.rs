@@ -16,6 +16,7 @@ pub mod pve_rs_sdn_prefix_lists {
     use serde::{Deserialize, Serialize};
 
     use perlmod::Value;
+    use proxmox_sdn_types::prefix_lists::PrefixListId;
     use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
     use proxmox_ve_config::common::valid::Validatable;
     use proxmox_ve_config::sdn::prefix_list::api::{
@@ -24,7 +25,7 @@ pub mod pve_rs_sdn_prefix_lists {
         PrefixListEntryUpdater, PrefixListUpdater,
     };
     use proxmox_ve_config::sdn::prefix_list::{
-        PrefixList as ConfigPrefixList, PrefixListEntry as ConfigPrefixListEntry, PrefixListId,
+        PrefixList as ConfigPrefixList, PrefixListEntry as ConfigPrefixListEntry,
     };
 
     /// A SDN PrefixList config instance.

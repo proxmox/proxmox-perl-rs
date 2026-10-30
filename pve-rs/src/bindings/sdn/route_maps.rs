@@ -17,10 +17,9 @@ pub mod pve_rs_sdn_route_maps {
     use perlmod::Value;
 
     use proxmox_schema::Updater;
+    use proxmox_sdn_types::route_maps::{RouteMapEntryId, RouteMapId};
     use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
     use proxmox_ve_config::sdn::route_map::RouteMap as ConfigRouteMap;
-    use proxmox_ve_config::sdn::route_map::RouteMapEntryId;
-    use proxmox_ve_config::sdn::route_map::RouteMapId;
     use proxmox_ve_config::sdn::route_map::api::RouteMapDeletableProperties;
     use proxmox_ve_config::sdn::route_map::api::RouteMapEntry as ApiRouteMap;
     use proxmox_ve_config::sdn::route_map::api::RouteMapEntryUpdater;
