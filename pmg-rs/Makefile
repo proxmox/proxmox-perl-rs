@@ -71,9 +71,9 @@ Proxmox/Lib/PMG.pm $(PERLMOD_PACKAGE_FILES) &: Fixup.pm
 	$(PERLMOD_GENPACKAGE) $(PERLMOD_PACKAGES)
 
 .PHONY: install
-install: target/release/libpmg_rs.so Proxmox/Lib/PMG.pm $(PERLMOD_PACKAGE_FILES)
+install: target/$(TARGET_DIR)/libpmg_rs.so Proxmox/Lib/PMG.pm $(PERLMOD_PACKAGE_FILES)
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto
-	install -m644 target/release/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
+	install -m644 target/$(TARGET_DIR)/libpmg_rs.so $(DESTDIR)$(PERL_INSTALLVENDORARCH)/auto/libpmg_rs.so
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)
 	install -d -m755 $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib
 	install -m644 Proxmox/Lib/PMG.pm $(DESTDIR)$(PERL_INSTALLVENDORLIB)/Proxmox/Lib/PMG.pm
