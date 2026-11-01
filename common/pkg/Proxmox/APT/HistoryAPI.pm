@@ -352,6 +352,54 @@ sub installed_changelog_method {
     };
 }
 
+sub changelogs_schema {
+    return {
+        description => "The changelog entries, grouped by source package, upgrades first,"
+            . " then downgrades, installs and other changes, each sorted by name.",
+        type => 'array',
+        items => {
+            type => 'object',
+            properties => {
+                source => {
+                    description => "Name of the source package as its changelog lists it, or as"
+                        . " APT names it for a changelog that could not be downloaded. Missing if"
+                        . " no changelog is installed for the packages, or the source package is"
+                        . " not known.",
+                    type => 'string',
+                    optional => 1,
+                },
+                packages => {
+                    description => "The changes to binary packages of the source package"
+                        . " that show these entries.",
+                    type => 'array',
+                    items => package_change(),
+                },
+                entries => {
+                    description => "The entries of the versions that upgrades and"
+                        . " downgrades changed between, for other changes only the newest"
+                        . " one up to the new version, usually newest first.",
+                    type => 'array',
+                    items => changelog_entry(),
+                },
+                'unlisted-version' => {
+                    description =>
+                        "The changelog does not list the version the entries go up to,"
+                        . " as for signed kernels, so the entries are only its newest one, which"
+                        . " can belong to a later version.",
+                    type => 'boolean',
+                    optional => 1,
+                    default => 0,
+                },
+                error => {
+                    description => "Why the changelog could not be read.",
+                    type => 'string',
+                    optional => 1,
+                },
+            },
+        },
+    };
+}
+
 sub transaction_changelogs_method {
     my ($permissions) = @_;
 
@@ -369,49 +417,7 @@ sub transaction_changelogs_method {
             additionalProperties => 0,
             properties => { transaction_parameters() },
         },
-        returns => {
-            description => "The changelog entries, grouped by source package, upgrades first,"
-                . " then downgrades, installs and other changes, each sorted by name.",
-            type => 'array',
-            items => {
-                type => 'object',
-                properties => {
-                    source => {
-                        description => "Name of the source package as its changelog lists it,"
-                            . " missing if no changelog is installed for the packages or it"
-                            . " could not be read.",
-                        type => 'string',
-                        optional => 1,
-                    },
-                    packages => {
-                        description => "The changes to binary packages of the source package"
-                            . " that show these entries, in the order APT logged them.",
-                        type => 'array',
-                        items => package_change(),
-                    },
-                    entries => {
-                        description => "The entries of the versions that upgrades and"
-                            . " downgrades changed between, for other changes only the newest"
-                            . " one up to the new version, usually newest first.",
-                        type => 'array',
-                        items => changelog_entry(),
-                    },
-                    'unlisted-version' => {
-                        description => "The changelog does not list the version the entries go"
-                            . " up to, as for signed kernels, so the entries are only its newest"
-                            . " one, which can belong to a later version.",
-                        type => 'boolean',
-                        optional => 1,
-                        default => 0,
-                    },
-                    error => {
-                        description => "Why the changelog could not be read.",
-                        type => 'string',
-                        optional => 1,
-                    },
-                },
-            },
-        },
+        returns => changelogs_schema(),
         code => sub {
             my ($param) = @_;
 
