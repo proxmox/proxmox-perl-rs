@@ -1,3 +1,34 @@
+libpve-rs-perl (0.15.4) trixie; urgency=medium
+
+  * oci: rebuild against proxmox-oci 0.2.2, hardening the root file system
+    extraction when creating a container from an OCI image:
+    - reject layer entries with absolute paths or '..' components, and
+      entries whose path leads out of the rootfs through a symlink from an
+      earlier layer, which could otherwise remove files outside of the
+      rootfs. Images with such entries now fail to extract.
+    - let a directory from a later layer replace a symlink, as on an overlay
+      file system, instead of applying the directory's contents, whiteouts
+      and permissions to the symlink's target, which could even be outside
+      of the rootfs.
+    - fix whiteouts being ignored for dangling symlinks and for file names
+      that are not valid UTF-8, and opaque whiteouts of directories
+      containing a dangling symlink failing the extraction.
+
+  * sdn: rebuild against proxmox-ve-config 0.11 and proxmox-frr 0.6:
+    - validate values that end up in the generated FRR configuration more
+      strictly, like interface, route map and prefix list names or the
+      values of route map actions, so they can no longer break it or inject
+      additional statements. Such values are now rejected.
+    - fix #8008: evpn: treat the hostname of EVPN routes as optional, as FRR
+      only reports it if the peer announced one. Showing the MAC-VRF of an
+      EVPN VNet failed otherwise.
+
+  * sdn: add helpers to parse OSPF and BGP redistribute and route map match
+    property strings, so the API can check the permissions for the route
+    maps and prefix lists they reference.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 Nov 2026 23:11:03 +0100
+
 libpve-rs-perl (0.15.3) trixie; urgency=medium
 
   * rebuild against proxmox-ve-config 0.10.3, which reverts the WireGuard
