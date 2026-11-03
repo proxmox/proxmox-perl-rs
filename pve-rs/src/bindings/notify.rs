@@ -12,7 +12,7 @@ pub mod pve_rs_notify {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{bail, Error};
+    use anyhow::{Error, bail};
     use serde_json::Value as JSONValue;
 
     use perlmod::Value;
@@ -33,7 +33,7 @@ pub mod pve_rs_notify {
         DeleteableWebhookProperty, WebhookConfig, WebhookConfigUpdater,
     };
     use proxmox_notify::matcher::{DeleteableMatcherProperty, MatcherConfig, MatcherConfigUpdater};
-    use proxmox_notify::{api, Config, Notification, Severity};
+    use proxmox_notify::{Config, Notification, Severity, api};
 
     /// A notification catalog instance.
     ///
@@ -464,9 +464,15 @@ pub mod pve_rs_notify {
     pub fn get_matcher(
         #[try_from_ref] this: &NotificationConfig,
         id: &str,
+        migrate_to_expression: Option<bool>,
     ) -> Result<MatcherConfig, HttpError> {
         let config = this.config.lock().unwrap();
-        api::matcher::get_matcher(&config, id)
+
+        if migrate_to_expression.unwrap_or(false) {
+            api::matcher::get_matcher_as_expression(&config, id)
+        } else {
+            api::matcher::get_matcher(&config, id)
+        }
     }
 
     /// Method: Add a matcher.
