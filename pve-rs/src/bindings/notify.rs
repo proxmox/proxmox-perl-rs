@@ -12,7 +12,7 @@ pub mod pve_rs_notify {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use anyhow::{Error, bail};
+    use anyhow::{bail, Error};
     use serde_json::Value as JSONValue;
 
     use perlmod::Value;
@@ -26,17 +26,14 @@ pub mod pve_rs_notify {
         DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
     };
     use proxmox_notify::endpoints::smtp::{
-        DeleteableSmtpProperty, SmtpConfig, SmtpConfigUpdater, SmtpMode, SmtpPrivateConfig,
+        DeleteableSmtpProperty, SmtpConfig, SmtpConfigUpdater, SmtpPrivateConfig,
         SmtpPrivateConfigUpdater,
     };
     use proxmox_notify::endpoints::webhook::{
         DeleteableWebhookProperty, WebhookConfig, WebhookConfigUpdater,
     };
-    use proxmox_notify::matcher::{
-        CalendarMatcher, DeleteableMatcherProperty, FieldMatcher, MatchModeOperator, MatcherConfig,
-        MatcherConfigUpdater, SeverityMatcher,
-    };
-    use proxmox_notify::{Config, Notification, Severity, api};
+    use proxmox_notify::matcher::{DeleteableMatcherProperty, MatcherConfig, MatcherConfigUpdater};
+    use proxmox_notify::{api, Config, Notification, Severity};
 
     /// A notification catalog instance.
     ///
@@ -189,49 +186,23 @@ pub mod pve_rs_notify {
     ///
     /// See [`api::sendmail::add_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn add_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
-        name: String,
-        mailto: Option<Vec<String>>,
-        mailto_user: Option<Vec<String>>,
-        from_address: Option<String>,
-        author: Option<String>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        sendmail_config: SendmailConfig,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
 
-        api::sendmail::add_endpoint(
-            &mut config,
-            SendmailConfig {
-                name,
-                mailto: mailto.unwrap_or_default(),
-                mailto_user: mailto_user.unwrap_or_default(),
-                from_address,
-                author,
-                comment,
-                disable,
-                filter: None,
-                origin: None,
-            },
-        )
+        api::sendmail::add_endpoint(&mut config, sendmail_config)
     }
 
     /// Method: Update a sendmail endpoint.
     ///
     /// See [`api::sendmail::update_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn update_sendmail_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-        mailto: Option<Vec<String>>,
-        mailto_user: Option<Vec<String>>,
-        from_address: Option<String>,
-        author: Option<String>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        updater: SendmailConfigUpdater,
         delete: Option<Vec<DeleteableSendmailProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -241,14 +212,7 @@ pub mod pve_rs_notify {
         api::sendmail::update_endpoint(
             &mut config,
             name,
-            SendmailConfigUpdater {
-                mailto,
-                mailto_user,
-                from_address,
-                author,
-                comment,
-                disable,
-            },
+            updater,
             delete.as_deref(),
             digest.as_deref(),
         )
@@ -295,39 +259,22 @@ pub mod pve_rs_notify {
     #[export(serialize_error)]
     pub fn add_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
-        name: String,
-        server: String,
-        token: String,
-        comment: Option<String>,
-        disable: Option<bool>,
+        gotify_config: GotifyConfig,
+        gotify_private_config: GotifyPrivateConfig,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        api::gotify::add_endpoint(
-            &mut config,
-            GotifyConfig {
-                name: name.clone(),
-                server,
-                comment,
-                disable,
-                filter: None,
-                origin: None,
-            },
-            GotifyPrivateConfig { name, token },
-        )
+        api::gotify::add_endpoint(&mut config, gotify_config, gotify_private_config)
     }
 
     /// Method: Update a 'gotify' endpoint.
     ///
     /// See [`api::gotify::update_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn update_gotify_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-        server: Option<String>,
-        token: Option<String>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        updater: GotifyConfigUpdater,
+        private_updater: GotifyPrivateConfigUpdater,
         delete: Option<Vec<DeleteableGotifyProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -337,12 +284,8 @@ pub mod pve_rs_notify {
         api::gotify::update_endpoint(
             &mut config,
             name,
-            GotifyConfigUpdater {
-                server,
-                comment,
-                disable,
-            },
-            GotifyPrivateConfigUpdater { token },
+            updater,
+            private_updater,
             delete.as_deref(),
             digest.as_deref(),
         )
@@ -387,62 +330,24 @@ pub mod pve_rs_notify {
     ///
     /// See [`api::smtp::add_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn add_smtp_endpoint(
         #[try_from_ref] this: &NotificationConfig,
-        name: String,
-        server: String,
-        port: Option<u16>,
-        mode: Option<SmtpMode>,
-        username: Option<String>,
-        password: Option<String>,
-        mailto: Option<Vec<String>>,
-        mailto_user: Option<Vec<String>>,
-        from_address: String,
-        author: Option<String>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        smtp_config: SmtpConfig,
+        smtp_private_config: SmtpPrivateConfig,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        api::smtp::add_endpoint(
-            &mut config,
-            SmtpConfig {
-                name: name.clone(),
-                server,
-                port,
-                mode,
-                username,
-                mailto: mailto.unwrap_or_default(),
-                mailto_user: mailto_user.unwrap_or_default(),
-                from_address,
-                author,
-                comment,
-                disable,
-                origin: None,
-            },
-            SmtpPrivateConfig { name, password },
-        )
+        api::smtp::add_endpoint(&mut config, smtp_config, smtp_private_config)
     }
 
     /// Method: Update an SMTP endpoint.
     ///
     /// See [`api::smtp::update_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn update_smtp_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-        server: Option<String>,
-        port: Option<u16>,
-        mode: Option<SmtpMode>,
-        username: Option<String>,
-        password: Option<String>,
-        mailto: Option<Vec<String>>,
-        mailto_user: Option<Vec<String>>,
-        from_address: Option<String>,
-        author: Option<String>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        updater: SmtpConfigUpdater,
+        private_updater: SmtpPrivateConfigUpdater,
         delete: Option<Vec<DeleteableSmtpProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -452,19 +357,8 @@ pub mod pve_rs_notify {
         api::smtp::update_endpoint(
             &mut config,
             name,
-            SmtpConfigUpdater {
-                server,
-                port,
-                mode,
-                username,
-                mailto,
-                mailto_user,
-                from_address,
-                author,
-                comment,
-                disable,
-            },
-            SmtpPrivateConfigUpdater { password },
+            updater,
+            private_updater,
             delete.as_deref(),
             digest.as_deref(),
         )
@@ -509,7 +403,6 @@ pub mod pve_rs_notify {
     ///
     /// See [`api::webhook::add_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn add_webhook_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         endpoint_config: WebhookConfig,
@@ -522,7 +415,6 @@ pub mod pve_rs_notify {
     ///
     /// See [`api::webhook::update_endpoint`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn update_webhook_endpoint(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
@@ -581,53 +473,22 @@ pub mod pve_rs_notify {
     ///
     /// See [`api::matcher::add_matcher`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn add_matcher(
         #[try_from_ref] this: &NotificationConfig,
-        name: String,
-        target: Option<Vec<String>>,
-        match_severity: Option<Vec<SeverityMatcher>>,
-        match_field: Option<Vec<FieldMatcher>>,
-        match_calendar: Option<Vec<CalendarMatcher>>,
-        mode: Option<MatchModeOperator>,
-        invert_match: Option<bool>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        matcher_config: MatcherConfig,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        api::matcher::add_matcher(
-            &mut config,
-            MatcherConfig {
-                name,
-                match_severity: match_severity.unwrap_or_default(),
-                match_field: match_field.unwrap_or_default(),
-                match_calendar: match_calendar.unwrap_or_default(),
-                target: target.unwrap_or_default(),
-                mode,
-                invert_match,
-                comment,
-                disable,
-                origin: None,
-            },
-        )
+        api::matcher::add_matcher(&mut config, matcher_config)
     }
 
     /// Method: Update a matcher.
     ///
     /// See [`api::matcher::update_matcher`].
     #[export(serialize_error)]
-    #[allow(clippy::too_many_arguments)]
     pub fn update_matcher(
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
-        target: Option<Vec<String>>,
-        match_severity: Option<Vec<SeverityMatcher>>,
-        match_field: Option<Vec<FieldMatcher>>,
-        match_calendar: Option<Vec<CalendarMatcher>>,
-        mode: Option<MatchModeOperator>,
-        invert_match: Option<bool>,
-        comment: Option<String>,
-        disable: Option<bool>,
+        updater: MatcherConfigUpdater,
         delete: Option<Vec<DeleteableMatcherProperty>>,
         digest: Option<&str>,
     ) -> Result<(), HttpError> {
@@ -637,16 +498,7 @@ pub mod pve_rs_notify {
         api::matcher::update_matcher(
             &mut config,
             name,
-            MatcherConfigUpdater {
-                match_severity,
-                match_field,
-                match_calendar,
-                target,
-                mode,
-                invert_match,
-                comment,
-                disable,
-            },
+            updater,
             delete.as_deref(),
             digest.as_deref(),
         )
