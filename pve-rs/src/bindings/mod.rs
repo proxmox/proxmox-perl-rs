@@ -19,6 +19,9 @@ pub mod firewall;
 mod sdn;
 pub use sdn::fabrics::pve_rs_sdn_fabrics;
 
+mod notify;
+pub use notify::pve_rs_notify;
+
 #[allow(unused_imports)]
 pub use crate::common::bindings::*;
 

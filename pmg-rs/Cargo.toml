@@ -35,7 +35,6 @@ proxmox-config-digest = "1"
 proxmox-http = { version = "1", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"
-proxmox-notify = "1"
 proxmox-openid =  "1"
 proxmox-shared-cache = "1"
 proxmox-subscription = "1.0.2"

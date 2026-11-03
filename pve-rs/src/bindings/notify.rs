@@ -1,6 +1,6 @@
-#[perlmod::package(name = "Proxmox::RS::Notify")]
-pub mod proxmox_rs_notify {
-    //! The `Proxmox::RS::Notify` package.
+#[perlmod::package(name = "PVE::RS::Notify")]
+pub mod pve_rs_notify {
+    //! The `PVE::RS::Notify` package.
     //!
     //! This implements the new notification API and support code.
     //!
@@ -45,7 +45,7 @@ pub mod proxmox_rs_notify {
         config: Mutex<Config>,
     }
 
-    perlmod::declare_magic!(Box<NotificationConfig> : &NotificationConfig as "Proxmox::RS::Notify");
+    perlmod::declare_magic!(Box<NotificationConfig> : &NotificationConfig as "PVE::RS::Notify");
 
     /// Method: Support `dclone` so this can be put into the `ccache` of `PVE::Cluster`.
     #[export(name = "STORABLE_freeze", raw_return)]

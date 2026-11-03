@@ -23,7 +23,6 @@ PERLMOD_GENPACKAGE := /usr/lib/perlmod/genpackage.pl \
 PERLMOD_PACKAGES := \
 	  Proxmox::RS::APT::Repositories \
 	  Proxmox::RS::CalendarEvent \
-	  Proxmox::RS::Notify \
 	  Proxmox::RS::OIDC \
 	  Proxmox::RS::SharedCache \
 	  Proxmox::RS::Subscription
