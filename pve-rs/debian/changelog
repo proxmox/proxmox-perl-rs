@@ -1,3 +1,21 @@
+libpve-rs-perl (0.16.0) trixie; urgency=medium
+
+  * notify: rebuild against proxmox-notify 2.0, which adds nested match
+    expressions to notification matchers through the new 'expression'
+    option. The legacy 'match-*', 'mode' and 'invert-match' keys keep
+    working.
+
+  * notify: ship the notification bindings as PVE::RS::Notify instead of
+    Proxmox::RS::Notify from libproxmox-rs-perl, and pass matcher configs and
+    updaters as a whole. As both changes need adapted callers, older
+    libpve-notify-perl and pve-manager versions are marked as broken.
+
+  * notify: get_matcher: add the 'migrate_to_expression' parameter, which
+    returns the matcher with its legacy keys converted to an equivalent
+    expression.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 04 Nov 2026 22:28:31 +0100
+
 libpve-rs-perl (0.15.4) trixie; urgency=medium
 
   * oci: rebuild against proxmox-oci 0.2.2, hardening the root file system
