@@ -1,3 +1,12 @@
+libproxmox-rs-perl (0.4.2) trixie; urgency=medium
+
+  * notify: move the notification bindings to libpve-rs-perl as
+    PVE::RS::Notify, as only Proxmox VE uses them. This drops the
+    Proxmox::RS::Notify module, so older libpve-notify-perl and pve-manager
+    versions that still load it are marked as broken.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 04 Nov 2026 22:28:31 +0100
+
 libproxmox-rs-perl (0.4.1) trixie; urgency=medium
 
   * add Add PVE::RS::SDN::Fabrics module.
