@@ -16,7 +16,10 @@ Architecture: all
 Depends: libpve-rs-perl (>= 0.10.3) | libpmg-rs-perl (>= 0.8.0),
          ${misc:Depends},
          ${perl:Depends},
-Breaks: libpmg-rs-perl (<< 0.6.2), libpve-rs-perl (<< 0.7.2),
+Breaks: libpmg-rs-perl (<< 0.6.2),
+        libpve-notify-perl (<< 9.1.9),
+        libpve-rs-perl (<< 0.7.2),
+        pve-manager (<< 9.2.26),
 Replaces: libpve-rs-perl (<< 0.6.0),
 Description: PVE/PMG common perl parts for Rust perlmod bindings
  Contains the perl side of modules provided by the libraries of both
