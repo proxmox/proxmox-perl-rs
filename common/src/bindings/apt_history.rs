@@ -8,7 +8,8 @@ pub mod proxmox_rs_apt_history {
     use anyhow::Error;
 
     use proxmox_apt_history::{
-        HistoryEntry, HistoryListOptions, PackageChange, TermLogFormat, TransactionChangelog,
+        HistoryEntry, HistoryListOptions, PackageChange, PrefetchSummary, TermLogFormat,
+        TransactionChangelog,
     };
 
     /// List the entries of the APT history log, including the rotated ones, newest first.
@@ -46,6 +47,20 @@ pub mod proxmox_rs_apt_history {
         cache_dir: &str,
     ) -> Vec<TransactionChangelog> {
         proxmox_apt_history::get_update_changelogs(changes, cache_dir.as_ref())
+    }
+
+    /// Download the changelogs of pending package changes into the cache directory, if they got
+    /// requested within the last 30 days. Returns how many it downloaded and how many failed with
+    /// the first error, or undef if it did not run.
+    ///
+    /// See [`proxmox_apt_history::prefetch_update_changelogs`].
+    #[export]
+    pub fn prefetch_update_changelogs(
+        changes: Vec<PackageChange>,
+        cache_dir: &str,
+    ) -> Result<Option<PrefetchSummary>, Error> {
+        proxmox_apt_history::prefetch_update_changelogs(changes, cache_dir.as_ref())
+            .map_err(Error::msg)
     }
 
     /// Get the changelog entries for the package changes of the APT transaction with the given
