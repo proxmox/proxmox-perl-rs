@@ -1,3 +1,30 @@
+libpve-rs-perl (0.16.1) trixie; urgency=medium
+
+  * sdn: rebuild against proxmox-ve-config 0.12, which no longer fails to
+    parse the whole IPAM state or SDN running config on some values that
+    pve-network can store. Such a failure made pve-firewall generate its
+    rules without any SDN ipsets, and for the running config also made
+    showing the MAC-VRF of an EVPN VNet fail:
+    - ipam: accept guest entries without a MAC address and skip entries of
+      an unknown kind with a warning.
+    - accept unknown zone and DHCP types, like the faucet zone, and unknown
+      properties of DHCP ranges, and ignore an IPv4 gateway of an IPv6 /32
+      subnet with a warning.
+
+  * sdn: ipam: take entries with a numeric VMID, which the API can store, as
+    guest entries. Their IP address was missing from the guest's
+    'guest-ipam-<vmid>' ipset.
+
+  * sdn: ipam: include the cause in the error if the IPAM state cannot be
+    parsed. It was missing from the warning that pve-firewall logs.
+
+  * fix #7814: notify: rebuild against proxmox-sendmail 1.0.4, which sends
+    mail of sendmail targets with CRLF line endings and drops bare CR bytes,
+    as SMTP does not allow bare CR or LF. This no longer relies on the local
+    MTA to convert line endings.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 11 Nov 2026 15:39:34 +0100
+
 libpve-rs-perl (0.16.0) trixie; urgency=medium
 
   * notify: rebuild against proxmox-notify 2.0, which adds nested match
