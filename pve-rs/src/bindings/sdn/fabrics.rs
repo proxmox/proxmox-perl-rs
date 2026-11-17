@@ -1100,7 +1100,8 @@ pub mod pve_rs_sdn_fabrics {
     ///
     /// Go through all fabrics in the config, then filter out the ones that exist on this node.
     /// Check if there are any routes in the routing table that use the interface specified in the
-    /// config. If there are, show "ok" as status, otherwise "not ok".
+    /// config. If there are, show "ok" as status, otherwise "not ok". For WireGuard fabrics, check
+    /// whether all configured interfaces are up and all configured peers are present instead.
     #[export]
     fn status() -> Result<HashMap<FabricId, status::Status>, Error> {
         // This gets called every few seconds from pve to get the status of the fabrics into the
@@ -1188,7 +1189,24 @@ pub mod pve_rs_sdn_fabrics {
             bgp: bgp_routes,
         };
 
-        status::get_status(config, route_status, proxmox_sys::nodename())
+        let node_name = proxmox_sys::nodename();
+
+        let has_wireguard_node = config.all_nodes().any(|(node_id, node)| {
+            node_id.as_str() == node_name && matches!(node, ConfigNode::WireGuard(_))
+        });
+
+        // a failure only marks the WireGuard fabrics as not ok, instead of failing the status of
+        // all fabrics
+        let wireguard = has_wireguard_node
+            .then(|| -> Result<status::WireGuardParsed, Error> {
+                Ok(status::WireGuardParsed {
+                    dump: get_wireguard_dump()?,
+                    network_interfaces: get_network_interfaces()?,
+                })
+            })
+            .and_then(Result::ok);
+
+        status::get_status(config, route_status, wireguard.as_ref(), node_name)
     }
 
     /// Get all the L3 routes for the passed zone.

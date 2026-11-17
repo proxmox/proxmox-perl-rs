@@ -6,6 +6,7 @@ use proxmox_network_types::mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
 
 use proxmox_frr::de::{self};
+use proxmox_network_api::IpLink;
 use proxmox_ve_config::sdn::fabric::section_config::protocol::bgp::BgpNode;
 use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::{
     OspfNodeProperties, OspfProperties,
@@ -13,7 +14,7 @@ use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::{
 use proxmox_ve_config::{
     common::valid::Valid,
     sdn::fabric::{
-        Entry, FabricConfig,
+        Entry, FabricConfig, FabricEntry,
         section_config::{Section, fabric::FabricId, node::Node as ConfigNode, node::NodeId},
     },
 };
@@ -436,6 +437,86 @@ pub mod wireguard {
 
         Ok(neighbors)
     }
+
+    /// Checks whether WireGuard on this node matches the fabric configuration.
+    ///
+    /// This is the case if all configured interfaces are up and use their configured public key
+    /// and, unless it is 0, their configured listen port, and the running WireGuard configuration
+    /// of each interface contains exactly the configured peers. Handshakes are not considered,
+    /// since peers do not exchange any if no traffic is sent and persistent keepalive is disabled.
+    pub fn is_node_ok(
+        wg_dump_output: &str,
+        node_section: &NodeSection<WireGuardNode>,
+        fabric: &Entry<WireGuardProperties, WireGuardNode>,
+        network_interfaces: &HashMap<String, IpLink>,
+    ) -> Result<bool, anyhow::Error> {
+        let interfaces =
+            parse_wireguard_interfaces(wg_dump_output, node_section, network_interfaces)?;
+
+        if interfaces
+            .iter()
+            .any(|interface| interface.state != WireGuardInterfaceState::Up)
+        {
+            return Ok(false);
+        }
+
+        let WireGuardNode::Internal(wireguard_node) = node_section.properties() else {
+            anyhow::bail!("is not an internal node");
+        };
+
+        let interface_names: HashSet<&str> = wireguard_node
+            .interfaces()
+            .map(|interface| interface.name().as_ref())
+            .collect();
+
+        let running_interfaces = parse_running_interfaces(wg_dump_output, &interface_names)?;
+
+        // peers only reach the interface with the configured public key and listen port, which can
+        // differ from the running ones if e.g. a key rotation failed to apply or the private key is
+        // unset
+        for interface in wireguard_node.interfaces() {
+            let Some((Some(public_key), listen_port)) =
+                running_interfaces.get(interface.name().as_ref())
+            else {
+                return Ok(false);
+            };
+
+            // a configured listen port of 0 lets the kernel choose the port
+            let other_listen_port =
+                interface.listen_port() != 0 && *listen_port != interface.listen_port();
+
+            if public_key != interface.public_key() || other_listen_port {
+                return Ok(false);
+            }
+        }
+
+        let mut running_peers: HashMap<String, HashSet<PublicKey>> = HashMap::new();
+
+        for neighbor in parse_wireguard_neighbors(wg_dump_output, node_section, fabric)? {
+            running_peers
+                .entry(neighbor.interface)
+                .or_default()
+                .insert(neighbor.public_key);
+        }
+
+        for interface in interfaces {
+            let configured_peers: HashSet<PublicKey> = fabric
+                .interface_peers(node_section.id().node_id(), &interface.name)?
+                .into_iter()
+                .map(|peer| *peer.public_key())
+                .collect();
+
+            let running_peers = running_peers.remove(&interface.name).unwrap_or_default();
+
+            // peers that are missing as well as stale ones, e.g. because applying the
+            // configuration failed on this node, mean that the configuration is not in effect
+            if configured_peers != running_peers {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
 }
 
 mod bgp {
@@ -543,12 +624,14 @@ pub enum Protocol {
 }
 
 /// The status of a fabric.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub enum FabricStatus {
-    /// The fabric exists and has a route
+    /// The fabric exists and has a route, or for WireGuard, all interfaces are up and all peers
+    /// are present
     #[serde(rename = "ok")]
     Ok,
-    /// The fabric does not exist or doesn't distribute any routes
+    /// The fabric does not exist or doesn't distribute any routes, or for WireGuard, an interface
+    /// is not up or a peer is missing
     #[serde(rename = "not ok")]
     NotOk,
 }
@@ -566,6 +649,15 @@ pub struct Status {
     network: FabricId,
     #[serde(rename = "network-type")]
     network_type: String,
+}
+
+/// Runtime state of WireGuard on this node
+///
+/// Consists of the output of `wg show all dump` and the network interfaces as reported by
+/// `ip link`.
+pub struct WireGuardParsed {
+    pub dump: String,
+    pub network_interfaces: HashMap<String, IpLink>,
 }
 
 /// Parsed routes for all protocols
@@ -884,6 +976,7 @@ pub struct BgpNeighborInfo {
 pub fn get_status(
     config: Valid<FabricConfig>,
     routes: RoutesParsed,
+    wireguard: Option<&WireGuardParsed>,
     hostname: &str,
 ) -> Result<HashMap<FabricId, Status>, anyhow::Error> {
     let mut stats: HashMap<FabricId, Status> = HashMap::new();
@@ -937,7 +1030,7 @@ pub fn get_status(
             Protocol::Openfabric if has_routes => FabricStatus::Ok,
             Protocol::Ospf if has_routes => FabricStatus::Ok,
             Protocol::Bgp if has_routes => FabricStatus::Ok,
-            Protocol::WireGuard => FabricStatus::Ok,
+            Protocol::WireGuard => get_wireguard_status(&config, node, wireguard),
             _ => FabricStatus::NotOk,
         };
 
@@ -952,6 +1045,35 @@ pub fn get_status(
     }
 
     Ok(stats)
+}
+
+/// Determine the status of a WireGuard fabric on this node.
+///
+/// Errors only mark the WireGuard fabric as not ok, so that they do not affect the status of the
+/// other fabrics.
+fn get_wireguard_status(
+    config: &FabricConfig,
+    node: &ConfigNode,
+    wireguard: Option<&WireGuardParsed>,
+) -> FabricStatus {
+    let (ConfigNode::WireGuard(node_section), Some(wireguard)) = (node, wireguard) else {
+        return FabricStatus::NotOk;
+    };
+
+    let Ok(FabricEntry::WireGuard(fabric)) = config.get_fabric(node_section.id().fabric_id())
+    else {
+        return FabricStatus::NotOk;
+    };
+
+    match wireguard::is_node_ok(
+        &wireguard.dump,
+        node_section,
+        fabric,
+        &wireguard.network_interfaces,
+    ) {
+        Ok(true) => FabricStatus::Ok,
+        _ => FabricStatus::NotOk,
+    }
 }
 /// Common for nexthops, they can be either a interface name or a ip addr
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -3149,8 +3271,8 @@ mod tests {
         };
 
         use super::super::wireguard::{
-            InterfaceStatus, NeighborStatus, WireGuardInterfaceState, parse_wireguard_interfaces,
-            parse_wireguard_neighbors,
+            InterfaceStatus, NeighborStatus, WireGuardInterfaceState, is_node_ok,
+            parse_wireguard_interfaces, parse_wireguard_neighbors,
         };
         use super::super::*;
 
@@ -3608,6 +3730,247 @@ wg0	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=	(none)	(none)	(none)	0	0	0	off"
                 parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric)
                     .expect("can parse wireguard output")
             );
+        }
+
+        #[test]
+        fn node_ok() {
+            // all interfaces are up and have exactly the configured peers
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_interface_down() {
+            // wg1 is down
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "DOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_interface_missing() {
+            // wg1 does not exist on the node
+            let wg_dump = r#"wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_peer_missing() {
+            // chronomancer is missing from wg0
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_stale_peer() {
+            // wg0 has a peer that is not part of the configuration
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off
+wg0	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=	(none)	(none)	(none)	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_other_public_key() {
+            // wg0 uses a different key pair than the configured one
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	YJ8M0XCvVUu1x1Y2fdLmSQ8w1qtlDgFr3cZyfW8ivUc=	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_without_private_key() {
+            // wg0 has no private key
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	(none)	(none)	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn node_not_ok_other_listen_port() {
+            // wg0 listens on 51899 instead of the configured 51820
+            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51899	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
+
+            let network_interfaces = network_interfaces(
+                r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#,
+            );
+
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            assert!(
+                !is_node_ok(wg_dump, elementalist(fabric), fabric, &network_interfaces)
+                    .expect("can parse wireguard output")
+            );
+        }
+
+        #[test]
+        fn fabric_status_ok() {
+            // the running WireGuard state matches the configuration
+            let wireguard = WireGuardParsed {
+                dump: r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
+wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
+wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
+wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
+wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#.to_string(),
+                network_interfaces: network_interfaces(r#"[
+                {"ifname": "wg0", "ifindex": 25, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]},
+                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
+            ]"#),
+            };
+
+            let routes = RoutesParsed {
+                openfabric: de::Routes::default(),
+                ospf: de::Routes::default(),
+                bgp: de::Routes::default(),
+            };
+
+            let status = get_status(fabric_config(), routes, Some(&wireguard), "elementalist")
+                .expect("can determine fabric status");
+
+            let fabric_id = FabricId::from_str("test").expect("valid fabric id");
+            assert_eq!(FabricStatus::Ok, status[&fabric_id].status);
+        }
+
+        #[test]
+        fn fabric_status_not_ok_without_wireguard_state() {
+            // the WireGuard state could not be determined, e.g. because wg failed
+            let routes = RoutesParsed {
+                openfabric: de::Routes::default(),
+                ospf: de::Routes::default(),
+                bgp: de::Routes::default(),
+            };
+
+            let status = get_status(fabric_config(), routes, None, "elementalist")
+                .expect("can determine fabric status");
+
+            let fabric_id = FabricId::from_str("test").expect("valid fabric id");
+            assert_eq!(FabricStatus::NotOk, status[&fabric_id].status);
         }
     }
 }
