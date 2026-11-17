@@ -980,6 +980,7 @@ pub mod pve_rs_sdn_fabrics {
                     &wg_dump,
                     fabric_entry.node_section(&current_node_id)?,
                     fabric_entry,
+                    proxmox_time::epoch_i64(),
                 )
                 .map(Into::into)
             }

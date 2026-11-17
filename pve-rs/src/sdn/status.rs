@@ -97,6 +97,60 @@ pub mod wireguard {
     use proxmox_wireguard::PublicKey;
     use serde::Serialize;
 
+    /// WireGuard does not use session keys that are older than this (`REJECT_AFTER_TIME`), so a
+    /// peer with a more recent handshake has a working session.
+    const REJECT_AFTER_TIME: u64 = 180;
+
+    /// WireGuard retries a handshake for this long before giving up.
+    const REKEY_ATTEMPT_TIME: u64 = 90;
+
+    /// The status of a WireGuard peer, derived from its latest handshake.
+    #[derive(Debug, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+    #[serde(rename_all = "lowercase")]
+    pub enum PeerStatus {
+        /// The peer had a working session recently.
+        Active,
+        /// The peer is not reachable, which can only be determined with persistent keepalive.
+        Down,
+        /// Persistent keepalive is disabled and the peer has no recent session, so whether it is
+        /// reachable is unknown.
+        Idle,
+    }
+
+    impl PeerStatus {
+        /// Determines the status of a peer at the time `now` (UNIX epoch).
+        ///
+        /// Without persistent keepalive, peers only exchange handshakes if traffic is sent, so a
+        /// peer without a recent handshake cannot be distinguished from an unreachable one. With
+        /// persistent keepalive, a reachable peer exchanges a new handshake before its session
+        /// expires after `REJECT_AFTER_TIME`, delayed by at most the keepalive interval and
+        /// `REKEY_ATTEMPT_TIME` of retries.
+        pub fn from_handshake(
+            latest_handshake: Option<u64>,
+            persistent_keepalive: Option<u16>,
+            now: i64,
+        ) -> Self {
+            let age = latest_handshake.map(|latest_handshake| {
+                u64::try_from(now)
+                    .unwrap_or(0)
+                    .saturating_sub(latest_handshake)
+            });
+
+            match persistent_keepalive {
+                None if age.is_some_and(|age| age < REJECT_AFTER_TIME) => PeerStatus::Active,
+                None => PeerStatus::Idle,
+                Some(interval)
+                    if age.is_some_and(|age| {
+                        age < REJECT_AFTER_TIME + u64::from(interval) + REKEY_ATTEMPT_TIME
+                    }) =>
+                {
+                    PeerStatus::Active
+                }
+                Some(_) => PeerStatus::Down,
+            }
+        }
+    }
+
     #[derive(Debug, Serialize, PartialEq, Eq, PartialOrd, Ord)]
     #[serde(rename_all = "kebab-case")]
     pub struct NeighborStatus {
@@ -104,6 +158,7 @@ pub mod wireguard {
         pub neighbor: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub name: Option<String>,
+        pub status: PeerStatus,
         pub interface: String,
         pub public_key: PublicKey,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -290,10 +345,15 @@ pub mod wireguard {
         (value != "(none)").then_some(value)
     }
 
+    /// Parses the peers of the fabric interfaces in the `wg show all dump` output.
+    ///
+    /// `now` is the current time (UNIX epoch), which is used for determining the status of the
+    /// peers.
     pub fn parse_wireguard_neighbors(
         wg_dump_output: &str,
         node_section: &NodeSection<WireGuardNode>,
         fabric: &Entry<WireGuardProperties, WireGuardNode>,
+        now: i64,
     ) -> Result<Vec<NeighborStatus>, anyhow::Error> {
         let WireGuardNode::Internal(wireguard_node) = node_section.properties() else {
             anyhow::bail!("is not an internal node");
@@ -425,6 +485,7 @@ pub mod wireguard {
             neighbors.push(NeighborStatus {
                 neighbor,
                 name,
+                status: PeerStatus::from_handshake(latest_handshake, persistent_keepalive, now),
                 interface: interface.to_string(),
                 public_key,
                 allowed_ips,
@@ -492,7 +553,10 @@ pub mod wireguard {
 
         let mut running_peers: HashMap<String, HashSet<PublicKey>> = HashMap::new();
 
-        for neighbor in parse_wireguard_neighbors(wg_dump_output, node_section, fabric)? {
+        // the status of the peers does not matter here, only whether they are present
+        let now = proxmox_time::epoch_i64();
+
+        for neighbor in parse_wireguard_neighbors(wg_dump_output, node_section, fabric, now)? {
             running_peers
                 .entry(neighbor.interface)
                 .or_default()
@@ -3271,7 +3335,7 @@ mod tests {
         };
 
         use super::super::wireguard::{
-            InterfaceStatus, NeighborStatus, WireGuardInterfaceState, is_node_ok,
+            InterfaceStatus, NeighborStatus, PeerStatus, WireGuardInterfaceState, is_node_ok,
             parse_wireguard_interfaces, parse_wireguard_neighbors,
         };
         use super::super::*;
@@ -3597,6 +3661,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                 NeighborStatus {
                     neighbor: Some("172.31.1.10:51820".to_string()),
                     name: Some("stormweaver".to_string()),
+                    status: PeerStatus::Idle,
                     interface: "wg1".to_string(),
                     public_key: "aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0="
                         .parse()
@@ -3610,6 +3675,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                 NeighborStatus {
                     neighbor: Some("172.31.1.2:51820".to_string()),
                     name: Some("occultist (wg0)".to_string()),
+                    status: PeerStatus::Idle,
                     interface: "wg0".to_string(),
                     public_key: "+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI="
                         .parse()
@@ -3623,6 +3689,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                 NeighborStatus {
                     neighbor: Some("172.31.1.4:51820".to_string()),
                     name: Some("chronomancer (wg0)".to_string()),
+                    status: PeerStatus::Idle,
                     interface: "wg0".to_string(),
                     public_key: "8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA="
                         .parse()
@@ -3637,7 +3704,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
 
             assert_eq!(
                 expected,
-                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric)
+                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric, 1781234627)
                     .expect("can parse wireguard output")
             );
         }
@@ -3654,6 +3721,7 @@ wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	203.0.113.50:40123	198.5
             let expected = vec![NeighborStatus {
                 neighbor: Some("203.0.113.50:40123".to_string()),
                 name: Some("occultist (wg0)".to_string()),
+                status: PeerStatus::Active,
                 interface: "wg0".to_string(),
                 public_key: "+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI="
                     .parse()
@@ -3667,7 +3735,7 @@ wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	203.0.113.50:40123	198.5
 
             assert_eq!(
                 expected,
-                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric)
+                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric, 1781234627)
                     .expect("can parse wireguard output")
             );
         }
@@ -3684,6 +3752,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	(none)	198.51.100.4/32	0
             let expected = vec![NeighborStatus {
                 neighbor: None,
                 name: Some("chronomancer (wg0)".to_string()),
+                status: PeerStatus::Idle,
                 interface: "wg0".to_string(),
                 public_key: "8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA="
                     .parse()
@@ -3697,7 +3766,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	(none)	198.51.100.4/32	0
 
             assert_eq!(
                 expected,
-                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric)
+                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric, 1781234627)
                     .expect("can parse wireguard output")
             );
         }
@@ -3714,6 +3783,7 @@ wg0	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=	(none)	(none)	(none)	0	0	0	off"
             let expected = vec![NeighborStatus {
                 neighbor: None,
                 name: None,
+                status: PeerStatus::Idle,
                 interface: "wg0".to_string(),
                 public_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                     .parse()
@@ -3727,7 +3797,7 @@ wg0	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=	(none)	(none)	(none)	0	0	0	off"
 
             assert_eq!(
                 expected,
-                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric)
+                parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric, 1781234627)
                     .expect("can parse wireguard output")
             );
         }
@@ -3971,6 +4041,56 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
 
             let fabric_id = FabricId::from_str("test").expect("valid fabric id");
             assert_eq!(FabricStatus::NotOk, status[&fabric_id].status);
+        }
+
+        #[test]
+        fn peer_status_without_keepalive() {
+            // without persistent keepalive, only a handshake within the last 180 seconds counts
+            let now = 1781234567;
+
+            assert_eq!(
+                PeerStatus::from_handshake(Some(now as u64 - 179), None, now),
+                PeerStatus::Active
+            );
+            assert_eq!(
+                PeerStatus::from_handshake(Some(now as u64 - 180), None, now),
+                PeerStatus::Idle
+            );
+            assert_eq!(
+                PeerStatus::from_handshake(None, None, now),
+                PeerStatus::Idle
+            );
+        }
+
+        #[test]
+        fn peer_status_with_keepalive() {
+            // with a keepalive interval of 25 seconds, a reachable peer exchanges a handshake
+            // within 180 + 25 + 90 seconds
+            let now = 1781234567;
+
+            assert_eq!(
+                PeerStatus::from_handshake(Some(now as u64 - 294), Some(25), now),
+                PeerStatus::Active
+            );
+            assert_eq!(
+                PeerStatus::from_handshake(Some(now as u64 - 295), Some(25), now),
+                PeerStatus::Down
+            );
+            assert_eq!(
+                PeerStatus::from_handshake(None, Some(25), now),
+                PeerStatus::Down
+            );
+        }
+
+        #[test]
+        fn peer_status_handshake_in_future() {
+            // a handshake in the future, e.g. due to clock adjustments, counts as recent
+            let now = 1781234567;
+
+            assert_eq!(
+                PeerStatus::from_handshake(Some(now as u64 + 10), None, now),
+                PeerStatus::Active
+            );
         }
     }
 }
