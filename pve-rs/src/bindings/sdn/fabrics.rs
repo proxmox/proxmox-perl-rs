@@ -14,6 +14,7 @@ pub mod pve_rs_sdn_fabrics {
 
     use anyhow::{Context, Error, format_err};
     use openssl::hash::{MessageDigest, hash};
+    use proxmox_network_api::get_network_interfaces;
     use proxmox_ve_config::sdn::fabric::section_config::node::api::{Node, NodeUpdater};
     use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::OspfRedistribution;
     use serde::{Deserialize, Serialize};
@@ -785,6 +786,14 @@ pub mod pve_rs_sdn_fabrics {
         Ok(interfaces)
     }
 
+    /// Get the output of `wg show all dump`.
+    fn get_wireguard_dump() -> Result<String, Error> {
+        let mut command = Command::new("wg");
+        command.args(["show", "all", "dump"]);
+
+        proxmox_sys::command::run_command(command, None)
+    }
+
     /// Read and parse the running-config and get the fabrics section
     ///
     /// This will return a valid FabricConfig. Note that we read the file manually and not through
@@ -961,7 +970,19 @@ pub mod pve_rs_sdn_fabrics {
                 )
                 .map(|v| v.into())
             }
-            FabricEntry::WireGuard(_) => Ok(status::NeighborStatus::WireGuard(Vec::new())),
+            FabricEntry::WireGuard(fabric_entry) => {
+                let wg_dump = get_wireguard_dump()?;
+
+                let node_name = proxmox_sys::nodename();
+                let current_node_id = NodeId::from_string(node_name.to_string())?;
+
+                status::wireguard::parse_wireguard_neighbors(
+                    &wg_dump,
+                    fabric_entry.node_section(&current_node_id)?,
+                    fabric_entry,
+                )
+                .map(Into::into)
+            }
             FabricEntry::Bgp(_) => {
                 let bgp_neighbors_string = String::from_utf8(
                     Command::new("sh")
@@ -1039,7 +1060,21 @@ pub mod pve_rs_sdn_fabrics {
                 )
                 .map(|v| v.into())
             }
-            FabricEntry::WireGuard(_) => Ok(status::InterfaceStatus::WireGuard(Vec::new())),
+            FabricEntry::WireGuard(fabric_entry) => {
+                let wg_dump = get_wireguard_dump()?;
+
+                let network_interfaces = get_network_interfaces()?;
+
+                let node_name = proxmox_sys::nodename();
+                let current_node_id = NodeId::from_string(node_name.to_string())?;
+
+                status::wireguard::parse_wireguard_interfaces(
+                    &wg_dump,
+                    fabric_entry.node_section(&current_node_id)?,
+                    &network_interfaces,
+                )
+                .map(Into::into)
+            }
             FabricEntry::Bgp(_) => {
                 let bgp_neighbors_string = String::from_utf8(
                     Command::new("sh")
