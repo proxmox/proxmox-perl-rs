@@ -566,6 +566,11 @@ pub mod pve_rs_sdn_fabrics {
 
         writeln!(interface, "\tlink-type wireguard")?;
         writeln!(interface, "\tip-forward 1")?;
+
+        if let Some(mtu) = wireguard_interface.mtu() {
+            writeln!(interface, "\tmtu {mtu}")?;
+        }
+
         writeln!(
             interface,
             "\tpost-up wg syncconf {name} /etc/wireguard/proxmox/{name}.conf"
