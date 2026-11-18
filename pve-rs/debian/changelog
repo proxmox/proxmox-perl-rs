@@ -1,3 +1,17 @@
+libpve-rs-perl (0.16.3) trixie; urgency=medium
+
+  * notify: add an 'enqueue' function that submits a notification to the
+    notification queue, from which the new pve-notify-worker service sends it.
+    This allows sending notifications from processes running as www-data, and
+    without blocking the caller on slow notification targets.
+
+  * notify: update to version 3 of proxmox-notify, which reworked its API.
+    Notifications for the legacy-sendmail mode only need the list of
+    recipients now, instead of a custom notification configuration. Testing
+    a target sends a notification addressed directly to that target.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Nov 2026 21:39:43 +0100
+
 libpve-rs-perl (0.16.2) trixie; urgency=medium
 
   * access log: add bindings for paging through and following the API
