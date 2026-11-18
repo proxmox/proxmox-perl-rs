@@ -43,7 +43,7 @@ proxmox-http = { version = "1.0.2", features = ["client-sync", "client-trait"] }
 proxmox-http-error = "1"
 proxmox-log = "1"
 proxmox-network-types = "1.1.2"
-proxmox-notify = { version = "2", features = [ "api-impl", "legacy-matchers", "pve-context", "queue-submitter", "send-impl" ] }
+proxmox-notify = { version = "3", features = [ "api-impl", "legacy-matchers", "pve-context", "queue-submitter", "send-impl" ] }
 proxmox-oci = "0.2.2"
 proxmox-openid = "1.0.2"
 proxmox-resource-scheduling = "2"
