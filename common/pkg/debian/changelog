@@ -1,3 +1,16 @@
+libproxmox-rs-perl (0.4.3) trixie; urgency=medium
+
+  * add Proxmox::RS::AccessLog module for reading the API access log.
+
+  * apt: add the Proxmox::RS::APT::History and Proxmox::RS::APT::Changelog
+    modules for the history of past APT transactions and for the changelogs
+    of installed packages, of transactions and of pending updates. The new
+    Proxmox::APT::HistoryAPI module provides the API methods for them, so
+    PVE and PMG share one implementation and only register the methods with
+    their own permissions.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Nov 2026 02:33:50 +0100
+
 libproxmox-rs-perl (0.4.2) trixie; urgency=medium
 
   * notify: move the notification bindings to libpve-rs-perl as
