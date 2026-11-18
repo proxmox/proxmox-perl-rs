@@ -13,31 +13,24 @@ pub mod pve_rs_notify {
     use std::sync::Mutex;
 
     use anyhow::{Error, bail};
-    use serde_json::Value as JSONValue;
+    use serde_json::{Value as JSONValue, json};
 
     use perlmod::Value;
+    use proxmox_config_digest::ConfigDigest;
     use proxmox_http_error::HttpError;
-    use proxmox_notify::api::Target;
-    use proxmox_notify::endpoints::gotify::{
-        DeleteableGotifyProperty, GotifyConfig, GotifyConfigUpdater, GotifyPrivateConfig,
-        GotifyPrivateConfigUpdater,
+    use proxmox_notify::api_types::{
+        DeletableGotifyProperty, DeletableMatcherProperty, DeletableSendmailProperty,
+        DeletableSmtpProperty, DeletableWebhookProperty, GotifyConfig, GotifyConfigUpdater,
+        GotifyPrivateConfig, GotifyPrivateConfigUpdater, MatcherConfig, MatcherConfigUpdater,
+        SendmailConfig, SendmailConfigUpdater, SmtpConfig, SmtpConfigUpdater, SmtpPrivateConfig,
+        SmtpPrivateConfigUpdater, Target, TargetReceiptStatus, WebhookConfig, WebhookConfigUpdater,
     };
-    use proxmox_notify::endpoints::sendmail::{
-        DeleteableSendmailProperty, SendmailConfig, SendmailConfigUpdater,
-    };
-    use proxmox_notify::endpoints::smtp::{
-        DeleteableSmtpProperty, SmtpConfig, SmtpConfigUpdater, SmtpPrivateConfig,
-        SmtpPrivateConfigUpdater,
-    };
-    use proxmox_notify::endpoints::webhook::{
-        DeleteableWebhookProperty, WebhookConfig, WebhookConfigUpdater,
-    };
-    use proxmox_notify::matcher::{DeleteableMatcherProperty, MatcherConfig, MatcherConfigUpdater};
-    use proxmox_notify::{Config, Notification, Severity, api};
+    use proxmox_notify::{Config, Notification, Recipient, Severity, api};
+    use proxmox_notify::{http_bail, http_err};
 
-    /// A notification catalog instance.
+    /// A notification configuration instance.
     ///
-    /// See [`Config`].
+    /// See [`proxmox_notify::Config`].
     pub struct NotificationConfig {
         config: Mutex<Config>,
     }
@@ -89,9 +82,11 @@ pub mod pve_rs_notify {
         let raw_config = std::str::from_utf8(raw_config)?;
         let raw_private_config = std::str::from_utf8(raw_private_config)?;
 
+        let default_config = crate::notify_context().default_config();
+
         Ok(perlmod::instantiate_magic!(&class, MAGIC => Box::new(
             NotificationConfig {
-                config: Mutex::new(Config::new(raw_config, raw_private_config)?)
+                config: Mutex::new(Config::parse_section_config(raw_config, raw_private_config, Some(default_config))?)
             }
         )))
     }
@@ -101,7 +96,7 @@ pub mod pve_rs_notify {
     pub fn write_config(
         #[try_from_ref] this: &NotificationConfig,
     ) -> Result<(String, String), Error> {
-        Ok(this.config.lock().unwrap().write()?)
+        Ok(this.config.lock().unwrap().to_section_config()?)
     }
 
     /// Method: Returns the SHA256 digest of the configuration.
@@ -110,15 +105,16 @@ pub mod pve_rs_notify {
     #[export]
     pub fn digest(#[try_from_ref] this: &NotificationConfig) -> String {
         let config = this.config.lock().unwrap();
-        hex::encode(config.digest())
+        config.digest().to_string()
     }
 
     /// Method: Send a notification from a template.
     ///
-    /// This instantiates a [`Notification`] via [`from_template`](Notification::from_template())
+    /// This instantiates a [`Notification`] via
+    /// [`template_builder`](Notification::template_builder())
     /// and sends it according to the configuration.
     ///
-    /// See [`api::common::send`].
+    /// See [`proxmox_notify::send`].
     #[export(serialize_error)]
     pub fn send(
         #[try_from_ref] this: &NotificationConfig,
@@ -128,14 +124,21 @@ pub mod pve_rs_notify {
         fields: Option<HashMap<String, String>>,
     ) -> Result<(), HttpError> {
         let config = this.config.lock().unwrap();
-        let notification = Notification::from_template(
-            severity,
-            template_name,
-            template_data.unwrap_or_default(),
-            fields.unwrap_or_default(),
-        );
 
-        api::common::send(&config, &notification)
+        let notification =
+            Notification::template_builder(template_name, template_data.unwrap_or_default())
+                .severity(severity)
+                .fields(fields.unwrap_or_default())
+                .build()
+                .map_err(|err| {
+                    http_err!(INTERNAL_SERVER_ERROR, "failed to build notification: {err}")
+                })?;
+
+        proxmox_notify::send(crate::notify_context(), &config, &notification).map_err(|err| {
+            http_err!(INTERNAL_SERVER_ERROR, "failed to send notification: {err}")
+        })?;
+
+        Ok(())
     }
 
     /// Method: Get a list of all notification targets.
@@ -149,14 +152,58 @@ pub mod pve_rs_notify {
         api::get_targets(&config)
     }
 
-    /// Method: Test a target, see [`api::common::test_target`].
+    /// Method: Test a target.
     #[export(serialize_error)]
     pub fn test_target(
         #[try_from_ref] this: &NotificationConfig,
         target: &str,
     ) -> Result<(), HttpError> {
-        let config = this.config.lock().unwrap();
-        api::common::test_target(&config, target)
+        // create a copy to make sure that we don't persist the modified configuration
+        let mut config = {
+            let config = this.config.lock().unwrap();
+            config.clone()
+        };
+
+        let context = crate::notify_context();
+
+        // Testing targets should also work if they are set to 'disabled'
+        // We don't persist the modified config, so this is ephemeral.
+        proxmox_notify::api::set_entity_disabled(&mut config, target, false)?;
+
+        let notification = Notification::template_builder("test", json!({ "target": &target }))
+            .severity(Severity::Info)
+            .recipient(Recipient::Target(target.to_string()))
+            .build()
+            .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, "{err}"))?;
+
+        let receipt = proxmox_notify::send(context, &config, &notification)
+            .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, "{err}"))?;
+
+        match receipt
+            .target_receipts()
+            .first()
+            .ok_or_else(|| {
+                http_err!(
+                    INTERNAL_SERVER_ERROR,
+                    "target receipt array did not contain expected entry"
+                )
+            })?
+            .status()
+        {
+            TargetReceiptStatus::Delivered => Ok(()),
+            TargetReceiptStatus::Error { error_message } => {
+                http_bail!(
+                    INTERNAL_SERVER_ERROR,
+                    "could not test target: {error_message}"
+                )
+            }
+            TargetReceiptStatus::Disabled => {
+                http_bail!(
+                    INTERNAL_SERVER_ERROR,
+                    "target {target} disabled while sending test notification -- this should not happen"
+                )
+            }
+        }
     }
 
     /// Method: Get sendmail endpoints.
@@ -203,19 +250,12 @@ pub mod pve_rs_notify {
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         updater: SendmailConfigUpdater,
-        delete: Option<Vec<DeleteableSendmailProperty>>,
-        digest: Option<&str>,
+        delete: Option<Vec<DeletableSendmailProperty>>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = decode_digest(digest)?;
 
-        api::sendmail::update_endpoint(
-            &mut config,
-            name,
-            updater,
-            delete.as_deref(),
-            digest.as_deref(),
-        )
+        api::sendmail::update_endpoint(&mut config, name, updater, delete.as_deref(), digest)
     }
 
     /// Method: Delete a sendmail endpoint.
@@ -275,11 +315,10 @@ pub mod pve_rs_notify {
         name: &str,
         updater: GotifyConfigUpdater,
         private_updater: GotifyPrivateConfigUpdater,
-        delete: Option<Vec<DeleteableGotifyProperty>>,
-        digest: Option<&str>,
+        delete: Option<Vec<DeletableGotifyProperty>>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = decode_digest(digest)?;
 
         api::gotify::update_endpoint(
             &mut config,
@@ -287,7 +326,7 @@ pub mod pve_rs_notify {
             updater,
             private_updater,
             delete.as_deref(),
-            digest.as_deref(),
+            digest,
         )
     }
 
@@ -348,11 +387,10 @@ pub mod pve_rs_notify {
         name: &str,
         updater: SmtpConfigUpdater,
         private_updater: SmtpPrivateConfigUpdater,
-        delete: Option<Vec<DeleteableSmtpProperty>>,
-        digest: Option<&str>,
+        delete: Option<Vec<DeletableSmtpProperty>>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = decode_digest(digest)?;
 
         api::smtp::update_endpoint(
             &mut config,
@@ -360,7 +398,7 @@ pub mod pve_rs_notify {
             updater,
             private_updater,
             delete.as_deref(),
-            digest.as_deref(),
+            digest,
         )
     }
 
@@ -419,19 +457,12 @@ pub mod pve_rs_notify {
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         config_updater: WebhookConfigUpdater,
-        delete: Option<Vec<DeleteableWebhookProperty>>,
-        digest: Option<&str>,
+        delete: Option<Vec<DeletableWebhookProperty>>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = decode_digest(digest)?;
 
-        api::webhook::update_endpoint(
-            &mut config,
-            name,
-            config_updater,
-            delete.as_deref(),
-            digest.as_deref(),
-        )
+        api::webhook::update_endpoint(&mut config, name, config_updater, delete.as_deref(), digest)
     }
 
     /// Method: Delete a webhook endpoint.
@@ -495,19 +526,12 @@ pub mod pve_rs_notify {
         #[try_from_ref] this: &NotificationConfig,
         name: &str,
         updater: MatcherConfigUpdater,
-        delete: Option<Vec<DeleteableMatcherProperty>>,
-        digest: Option<&str>,
+        delete: Option<Vec<DeletableMatcherProperty>>,
+        digest: Option<ConfigDigest>,
     ) -> Result<(), HttpError> {
         let mut config = this.config.lock().unwrap();
-        let digest = decode_digest(digest)?;
 
-        api::matcher::update_matcher(
-            &mut config,
-            name,
-            updater,
-            delete.as_deref(),
-            digest.as_deref(),
-        )
+        api::matcher::update_matcher(&mut config, name, updater, delete.as_deref(), digest)
     }
 
     /// Method: Delete a matcher.
@@ -532,12 +556,5 @@ pub mod pve_rs_notify {
     ) -> Result<Vec<String>, HttpError> {
         let config = this.config.lock().unwrap();
         api::common::get_referenced_entities(&config, name)
-    }
-
-    fn decode_digest(digest: Option<&str>) -> Result<Option<Vec<u8>>, HttpError> {
-        digest
-            .map(hex::decode)
-            .transpose()
-            .map_err(|e| api::http_err!(BAD_REQUEST, "invalid digest: {e}"))
     }
 }

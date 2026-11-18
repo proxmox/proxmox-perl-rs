@@ -31,13 +31,10 @@ pub mod proxmox_lib_pve {
     //!
     //! This contains the `init` function executed by the module on startup.
 
-    use proxmox_notify::context::pve::PVE_CONTEXT;
-
     use crate::common;
 
     #[export]
     fn init() {
         common::logger::init("PVE_LOG", "info");
-        proxmox_notify::context::set_context(&PVE_CONTEXT);
     }
 }
