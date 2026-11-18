@@ -25,7 +25,8 @@ pub mod pve_rs_notify {
         SendmailConfig, SendmailConfigUpdater, SmtpConfig, SmtpConfigUpdater, SmtpPrivateConfig,
         SmtpPrivateConfigUpdater, Target, TargetReceiptStatus, WebhookConfig, WebhookConfigUpdater,
     };
-    use proxmox_notify::{Config, Notification, Recipient, Severity, api};
+    use proxmox_notify::queue::QueueSubmitter;
+    use proxmox_notify::{Config, EmailRecipient, Notification, Recipient, Severity, api};
     use proxmox_notify::{http_bail, http_err};
 
     /// A notification configuration instance.
@@ -556,5 +557,48 @@ pub mod pve_rs_notify {
     ) -> Result<Vec<String>, HttpError> {
         let config = this.config.lock().unwrap();
         api::common::get_referenced_entities(&config, name)
+    }
+
+    /// Send a notification by submitting it to the product's notification
+    /// queue.
+    ///
+    /// A dedicated worker task (pve-notify-worker) regularly processes all
+    /// queued notifications and sends them to the appropriate destinations.
+    ///
+    /// If `recipient` is set, the `recipient` field will be set
+    /// to [`Recipient::Email`] with the provided [`EmailRecipient`]. This is
+    /// to support the old, legacy-sendmail mode also for notifications sent
+    /// through the notification worker.
+    ///
+    /// # Errors
+    ///
+    ///   - The notification could not be serialized
+    ///   - The serialized notification could not be written to the queue (e.g. permissions of the
+    ///     queue directory are set wrong, the directory does not exist, etc.)
+    #[export]
+    pub fn enqueue(
+        severity: Severity,
+        template_name: String,
+        template_data: Option<JSONValue>,
+        fields: Option<HashMap<String, String>>,
+        recipient: Option<EmailRecipient>,
+    ) -> Result<(), anyhow::Error> {
+        const QUEUE_BASE_PATH: &str = "/var/lib/pve-manager/notifications/queue";
+
+        let mut notification_builder =
+            Notification::template_builder(template_name, template_data.unwrap_or_default())
+                .severity(severity)
+                .fields(fields.unwrap_or_default());
+
+        if let Some(recipient) = recipient {
+            notification_builder = notification_builder.recipient(Recipient::Email(recipient));
+        }
+
+        let notification = notification_builder.build()?;
+
+        let queue = QueueSubmitter::new(QUEUE_BASE_PATH);
+        queue.submit(&notification)?;
+
+        Ok(())
     }
 }
