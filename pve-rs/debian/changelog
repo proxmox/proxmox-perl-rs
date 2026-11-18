@@ -1,3 +1,23 @@
+libpve-rs-perl (0.16.2) trixie; urgency=medium
+
+  * access log: add bindings for paging through and following the API
+    access log of the node, including its rotated and compressed copies,
+    and for request statistics of a time range. Callers can have the
+    values of query parameters redacted, as clients can pass passwords
+    in them.
+
+  * apt: add bindings for the history of past APT transactions, with their
+    package changes and terminal output, so the update history of a node
+    can be shown through the API.
+
+  * apt: add bindings for the changelogs of an installed package, of all
+    package changes of a transaction and of all pending updates. The
+    changelogs of pending updates get downloaded in one APT run and cached,
+    and the cache can be filled after refreshing the package lists, so
+    showing them usually needs no download.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Nov 2026 02:33:50 +0100
+
 libpve-rs-perl (0.16.1) trixie; urgency=medium
 
   * sdn: rebuild against proxmox-ve-config 0.12, which no longer fails to
