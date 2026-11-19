@@ -485,6 +485,42 @@ pub mod pve_rs_sdn_fabrics {
         ifaces
     }
 
+    /// Method: Check whether an interface is configured in a fabric on the given node.
+    #[export]
+    pub fn is_fabric_interface(
+        #[try_from_ref] this: &PerlFabricConfig,
+        node_id: NodeId,
+        interface_name: &str,
+    ) -> bool {
+        let config = this.fabric_config.lock().unwrap();
+
+        config
+            .values()
+            .filter_map(|entry| entry.get_node(&node_id).ok())
+            .any(|node| match node {
+                ConfigNode::Openfabric(node) => node
+                    .properties()
+                    .interfaces()
+                    .any(|interface| interface.name().as_str() == interface_name),
+                ConfigNode::Ospf(node) => node
+                    .properties()
+                    .interfaces()
+                    .any(|interface| interface.name().as_str() == interface_name),
+                ConfigNode::WireGuard(node) => match node.properties() {
+                    WireGuardNode::Internal(properties) => properties
+                        .interfaces()
+                        .any(|interface| interface.name().as_str() == interface_name),
+                    WireGuardNode::External(_) => false,
+                },
+                ConfigNode::Bgp(node) => match node.properties() {
+                    BgpNode::Internal(properties) => properties
+                        .interfaces()
+                        .any(|interface| interface.name().as_str() == interface_name),
+                    BgpNode::External(_) => false,
+                },
+            })
+    }
+
     /// Method: Return all FRR daemons that need to be enabled for this fabric configuration
     /// instance.
     ///
