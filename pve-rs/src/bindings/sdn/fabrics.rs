@@ -841,6 +841,23 @@ pub mod pve_rs_sdn_fabrics {
         .transpose()
     }
 
+    /// Run a single `vtysh` command and return its stdout.
+    ///
+    /// The command is passed as a single argument, so it is not interpreted by a shell. A missing
+    /// `vtysh` binary yields empty output instead of an error.
+    fn vtysh(command: &str) -> Result<String, Error> {
+        let output = match Command::new("vtysh")
+            .env("VTYSH_HISTFILE", "/dev/null")
+            .args(["-c", command])
+            .output()
+        {
+            Ok(output) => output,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(String::new()),
+            Err(err) => return Err(err.into()),
+        };
+        Ok(String::from_utf8(output.stdout)?)
+    }
+
     /// Get the routes that have been learned and distributed by this specific fabric on this node.
     ///
     /// Read and parse the fabric config to get the protocol and the interfaces. Parse the vtysh
@@ -855,6 +872,7 @@ pub mod pve_rs_sdn_fabrics {
         };
 
         let fabric = config.get_fabric(&fabric_id)?;
+        let vrf = fabric.fabric_vrf_name();
         match fabric {
             FabricEntry::Openfabric(_) => {
                 let openfabric_ipv4_routes_string = String::from_utf8(
@@ -892,12 +910,11 @@ pub mod pve_rs_sdn_fabrics {
                 )
             }
             FabricEntry::Ospf(_) => {
-                let ospf_routes_string = String::from_utf8(
-                    Command::new("sh")
-                        .args(["-c", "vtysh -c 'show ip route ospf json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let command = match &vrf {
+                    Some(vrf) => format!("show ip route vrf {vrf} ospf json"),
+                    None => "show ip route ospf json".to_string(),
+                };
+                let ospf_routes_string = vtysh(&command)?;
                 let ospf_routes: proxmox_frr::de::Routes = if ospf_routes_string.is_empty() {
                     proxmox_frr::de::Routes::default()
                 } else {
@@ -909,21 +926,17 @@ pub mod pve_rs_sdn_fabrics {
             }
             FabricEntry::WireGuard(_) => Ok(Vec::new()),
             FabricEntry::Bgp(_) => {
-                let bgp_ipv4_routes_string = String::from_utf8(
-                    Command::new("sh")
-                        .env("VTYSH_HISTFILE", "/dev/null")
-                        .args(["-c", "vtysh -c 'show ip route bgp json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let ipv4_command = match &vrf {
+                    Some(vrf) => format!("show ip route vrf {vrf} bgp json"),
+                    None => "show ip route bgp json".to_string(),
+                };
+                let ipv6_command = match &vrf {
+                    Some(vrf) => format!("show ipv6 route vrf {vrf} bgp json"),
+                    None => "show ipv6 route bgp json".to_string(),
+                };
+                let bgp_ipv4_routes_string = vtysh(&ipv4_command)?;
 
-                let bgp_ipv6_routes_string = String::from_utf8(
-                    Command::new("sh")
-                        .env("VTYSH_HISTFILE", "/dev/null")
-                        .args(["-c", "vtysh -c 'show ipv6 route bgp json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let bgp_ipv6_routes_string = vtysh(&ipv6_command)?;
 
                 let mut bgp_routes: proxmox_frr::de::Routes = if bgp_ipv4_routes_string.is_empty() {
                     proxmox_frr::de::Routes::default()
@@ -955,6 +968,7 @@ pub mod pve_rs_sdn_fabrics {
         };
 
         let fabric = config.get_fabric(&fabric_id)?;
+        let vrf = fabric.fabric_vrf_name();
 
         match fabric {
             FabricEntry::Openfabric(_) => {
@@ -975,12 +989,11 @@ pub mod pve_rs_sdn_fabrics {
                 status::get_neighbors_openfabric(fabric_id, openfabric_neighbors).map(|v| v.into())
             }
             FabricEntry::Ospf(fabric) => {
-                let ospf_neighbors_string = String::from_utf8(
-                    Command::new("sh")
-                        .args(["-c", "vtysh -c 'show ip ospf neighbor json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let command = match &vrf {
+                    Some(vrf) => format!("show ip ospf vrf {vrf} neighbor json"),
+                    None => "show ip ospf neighbor json".to_string(),
+                };
+                let ospf_neighbors_string = vtysh(&command)?;
                 let ospf_neighbors: proxmox_frr::de::ospf::Neighbors =
                     if ospf_neighbors_string.is_empty() {
                         proxmox_frr::de::ospf::Neighbors::default()
@@ -1012,13 +1025,11 @@ pub mod pve_rs_sdn_fabrics {
                 .map(Into::into)
             }
             FabricEntry::Bgp(_) => {
-                let bgp_neighbors_string = String::from_utf8(
-                    Command::new("sh")
-                        .env("VTYSH_HISTFILE", "/dev/null")
-                        .args(["-c", "vtysh -c 'show bgp neighbors json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let command = match &vrf {
+                    Some(vrf) => format!("show bgp vrf {vrf} neighbors json"),
+                    None => "show bgp neighbors json".to_string(),
+                };
+                let bgp_neighbors_string = vtysh(&command)?;
                 let bgp_neighbors: std::collections::BTreeMap<String, status::BgpNeighborInfo> =
                     if bgp_neighbors_string.is_empty() {
                         std::collections::BTreeMap::new()
@@ -1045,6 +1056,7 @@ pub mod pve_rs_sdn_fabrics {
         };
 
         let fabric = config.get_fabric(&fabric_id)?;
+        let vrf = fabric.fabric_vrf_name();
 
         match fabric {
             FabricEntry::Openfabric(_) => {
@@ -1066,12 +1078,11 @@ pub mod pve_rs_sdn_fabrics {
                     .map(|v| v.into())
             }
             FabricEntry::Ospf(fabric) => {
-                let ospf_interfaces_string = String::from_utf8(
-                    Command::new("sh")
-                        .args(["-c", "vtysh -c 'show ip ospf interface json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let command = match &vrf {
+                    Some(vrf) => format!("show ip ospf vrf {vrf} interface json"),
+                    None => "show ip ospf interface json".to_string(),
+                };
+                let ospf_interfaces_string = vtysh(&command)?;
                 let ospf_interfaces: proxmox_frr::de::ospf::Interfaces =
                     if ospf_interfaces_string.is_empty() {
                         proxmox_frr::de::ospf::Interfaces::default()
@@ -1104,13 +1115,11 @@ pub mod pve_rs_sdn_fabrics {
                 .map(Into::into)
             }
             FabricEntry::Bgp(_) => {
-                let bgp_neighbors_string = String::from_utf8(
-                    Command::new("sh")
-                        .env("VTYSH_HISTFILE", "/dev/null")
-                        .args(["-c", "vtysh -c 'show bgp neighbors json'"])
-                        .output()?
-                        .stdout,
-                )?;
+                let command = match &vrf {
+                    Some(vrf) => format!("show bgp vrf {vrf} neighbors json"),
+                    None => "show bgp neighbors json".to_string(),
+                };
+                let bgp_neighbors_string = vtysh(&command)?;
                 let bgp_neighbors: std::collections::BTreeMap<String, status::BgpNeighborInfo> =
                     if bgp_neighbors_string.is_empty() {
                         std::collections::BTreeMap::new()
