@@ -592,7 +592,12 @@ pub mod pve_rs_sdn_fabrics {
     }
 
     /// Helper function to generate the default `/etc/network/interfaces` config for a given CIDR.
-    fn render_interface(name: &str, cidr: Cidr, link_type: Option<&str>) -> Result<String, Error> {
+    fn render_interface(
+        name: &str,
+        cidr: Cidr,
+        link_type: Option<&str>,
+        vrf: Option<&str>,
+    ) -> Result<String, Error> {
         let mut interface = String::new();
 
         writeln!(interface, "auto {name}")?;
@@ -604,6 +609,9 @@ pub mod pve_rs_sdn_fabrics {
         if let Some(link_type) = link_type {
             writeln!(interface, "\tlink-type {link_type}")?;
         }
+        if let Some(vrf) = vrf {
+            writeln!(interface, "\tvrf {vrf}")?;
+        }
         writeln!(interface, "\tip-forward 1")?;
 
         Ok(interface)
@@ -613,12 +621,14 @@ pub mod pve_rs_sdn_fabrics {
         interfaces: &mut String,
         fabric: &Fabric,
         node: &ConfigNode,
+        vrf: Option<&str>,
     ) -> Result<(), Error> {
         if let Some(ip) = node.ip() {
             let interface = render_interface(
                 &format!("dummy_{}", fabric.id()),
                 Cidr::new_v4(ip, 32)?,
                 Some("dummy"),
+                vrf,
             )?;
             writeln!(interfaces)?;
             write!(interfaces, "{interface}")?;
@@ -629,6 +639,7 @@ pub mod pve_rs_sdn_fabrics {
                 &format!("dummy_{}", fabric.id()),
                 Cidr::new_v6(ip6, 128)?,
                 Some("dummy"),
+                vrf,
             )?;
             writeln!(interfaces)?;
             write!(interfaces, "{interface}")?;
@@ -646,28 +657,35 @@ pub mod pve_rs_sdn_fabrics {
         let config = this.fabric_config.lock().unwrap();
         let mut interfaces = String::new();
 
-        let node_fabrics = config.values().filter_map(|entry| {
-            entry
-                .get_node(&node_id)
-                .map(|node| (entry.fabric(), node))
-                .ok()
-        });
+        let node_fabrics = config
+            .values()
+            .filter_map(|entry| entry.get_node(&node_id).map(|node| (entry, node)).ok());
 
-        for (fabric, node) in node_fabrics {
-            render_dummy_interfaces(&mut interfaces, fabric, node)?;
+        for (entry, node) in node_fabrics {
+            let fabric = entry.fabric();
+            let vrf = entry.fabric_vrf_name();
+            render_dummy_interfaces(&mut interfaces, fabric, node, vrf.as_deref())?;
 
             match node {
                 ConfigNode::Openfabric(node_section) => {
                     for interface in node_section.properties().interfaces() {
                         if let Some(ip) = interface.ip() {
-                            let interface =
-                                render_interface(interface.name(), Cidr::from(ip), None)?;
+                            let interface = render_interface(
+                                interface.name(),
+                                Cidr::from(ip),
+                                None,
+                                vrf.as_deref(),
+                            )?;
                             writeln!(interfaces)?;
                             write!(interfaces, "{interface}")?;
                         }
                         if let Some(ip) = interface.ip6() {
-                            let interface =
-                                render_interface(interface.name(), Cidr::from(ip), None)?;
+                            let interface = render_interface(
+                                interface.name(),
+                                Cidr::from(ip),
+                                None,
+                                vrf.as_deref(),
+                            )?;
                             writeln!(interfaces)?;
                             write!(interfaces, "{interface}")?;
                         }
@@ -684,7 +702,8 @@ pub mod pve_rs_sdn_fabrics {
                             } else {
                                 anyhow::bail!("there has to be a ipv4 or ipv6 node address");
                             });
-                            let interface = render_interface(interface.name(), cidr, None)?;
+                            let interface =
+                                render_interface(interface.name(), cidr, None, vrf.as_deref())?;
                             writeln!(interfaces)?;
                             write!(interfaces, "{interface}")?;
                         }
@@ -694,8 +713,12 @@ pub mod pve_rs_sdn_fabrics {
                     for interface in node_section.properties().interfaces() {
                         writeln!(interfaces)?;
                         if let Some(ip) = interface.ip() {
-                            let interface =
-                                render_interface(interface.name(), Cidr::from(ip), None)?;
+                            let interface = render_interface(
+                                interface.name(),
+                                Cidr::from(ip),
+                                None,
+                                vrf.as_deref(),
+                            )?;
                             write!(interfaces, "{interface}")?;
                         } else {
                             let interface = render_interface(
@@ -704,6 +727,7 @@ pub mod pve_rs_sdn_fabrics {
                                     anyhow::anyhow!("there has to be a ipv4 address")
                                 })?)),
                                 None,
+                                vrf.as_deref(),
                             )?;
                             write!(interfaces, "{interface}")?;
                         }
@@ -771,6 +795,9 @@ pub mod pve_rs_sdn_fabrics {
                             writeln!(interfaces)?;
                             writeln!(interfaces, "auto {name}")?;
                             writeln!(interfaces, "iface {name} inet manual")?;
+                            if let Some(vrf) = &vrf {
+                                writeln!(interfaces, "\tvrf {vrf}")?;
+                            }
                             writeln!(interfaces, "\tip-forward 1")?;
                             writeln!(interfaces, "\tip6-forward 1")?;
                             // BGP unnumbered uses RAs to discover peer link-local
