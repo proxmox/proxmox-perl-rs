@@ -869,6 +869,20 @@ pub fn get_neighbors_openfabric(
     Ok(stats)
 }
 
+/// Extract status output nested under a VRF name, or return non-VRF output unchanged.
+pub fn extract_vrf_status(
+    mut output: serde_json::Value,
+    vrf: Option<&str>,
+) -> Result<serde_json::Value, anyhow::Error> {
+    match vrf {
+        Some(vrf) => output
+            .get_mut(vrf)
+            .map(serde_json::Value::take)
+            .ok_or_else(|| anyhow::anyhow!("missing status for VRF '{vrf}'")),
+        None => Ok(output),
+    }
+}
+
 /// Convert the parsed ospf neighbor neighbor information into a list of [`ospf::NeighborStatus`].
 ///
 /// Ospf does not use the name of the fabric at all, so we again need to retrieve the interfaces of
@@ -1050,6 +1064,10 @@ pub fn get_status(
             continue;
         }
         let fabric_id = node.id().fabric_id();
+        let vrf_name = config
+            .get_fabric(fabric_id)?
+            .fabric_vrf_name()
+            .unwrap_or_else(|| "default".to_string());
 
         let (current_protocol, all_routes) = match &node {
             ConfigNode::Openfabric(_) => (Protocol::Openfabric, &routes.openfabric.0),
@@ -1080,13 +1098,14 @@ pub fn get_status(
         // determine status by checking if any routes exist for our interfaces
         let has_routes = all_routes.values().any(|v| {
             v.iter().any(|route| {
-                route.nexthops.iter().any(|nexthop| {
-                    if let Some(iface_name) = &nexthop.interface_name {
-                        interface_names.contains(iface_name.as_str())
-                    } else {
-                        false
-                    }
-                })
+                route.vrf_name == vrf_name
+                    && route.nexthops.iter().any(|nexthop| {
+                        if let Some(iface_name) = &nexthop.interface_name {
+                            interface_names.contains(iface_name.as_str())
+                        } else {
+                            false
+                        }
+                    })
             })
         });
 
@@ -1944,11 +1963,8 @@ mod tests {
             }
             "#;
 
-            let neighbors: de::ospf::Neighbors = if json_output.is_empty() {
-                de::ospf::Neighbors::default()
-            } else {
-                serde_json::from_str(json_output).expect("error parsing json output")
-            };
+            let neighbors: de::ospf::Neighbors =
+                serde_json::from_str(json_output).expect("error parsing json output");
 
             let fabric_config = sample_one_fabric_config();
 
@@ -1978,6 +1994,94 @@ mod tests {
                 },
             ];
             assert_eq!(reference, output);
+        }
+
+        #[test]
+        fn neighbors_vrf() {
+            let json_output = r#"
+            {
+              "vrf_vrf": {
+                "vrfName": "vrf_vrf",
+                "vrfId": 6,
+                "neighbors": {
+                  "4.4.4.3": [{
+                    "nbrState": "Full\/-",
+                    "upTime": "13m35s",
+                    "ifaceAddress": "4.4.4.3",
+                    "ifaceName": "nic1:4.4.4.1"
+                  }],
+                  "4.4.4.2": [{
+                    "nbrState": "Full\/-",
+                    "upTime": "13m35s",
+                    "ifaceAddress": "4.4.4.2",
+                    "ifaceName": "nic2:4.4.4.1"
+                  }]
+                }
+              },
+              "other_vrf": { "neighbors": {} }
+            }
+            "#;
+
+            let output = serde_json::from_str(json_output).unwrap();
+            let output = extract_vrf_status(output, Some("vrf_vrf")).unwrap();
+            let neighbors: de::ospf::Neighbors = serde_json::from_value(output).unwrap();
+            assert_eq!(neighbors.neighbors.len(), 2);
+            for (address, interface) in [("4.4.4.3", "nic1"), ("4.4.4.2", "nic2")] {
+                let neighbor = &neighbors.neighbors[address];
+                assert_eq!(neighbor.len(), 1);
+                assert_eq!(neighbor[0].interface_address, address);
+                assert_eq!(neighbor[0].interface_name, format!("{interface}:4.4.4.1"));
+                assert_eq!(neighbor[0].neighbor_state, "Full/-");
+                assert_eq!(neighbor[0].up_time, "13m35s");
+            }
+        }
+
+        #[test]
+        fn interfaces_vrf() {
+            let json_output = r#"
+            {
+              "vrf_vrf": {
+                "vrfName": "vrf_vrf",
+                "vrfId": 6,
+                "interfaces": {
+                  "dummy_fabric": { "ifUp": true, "networkType": "BROADCAST" },
+                  "nic1": { "ifUp": true, "networkType": "POINTOPOINT" },
+                  "nic2": { "ifUp": true, "networkType": "POINTOPOINT" }
+                }
+              },
+              "other_vrf": { "interfaces": {} }
+            }
+            "#;
+
+            let output = serde_json::from_str(json_output).unwrap();
+            let output = extract_vrf_status(output, Some("vrf_vrf")).unwrap();
+            let interfaces: de::ospf::Interfaces = serde_json::from_value(output).unwrap();
+            assert_eq!(interfaces.interfaces.len(), 3);
+            for (name, ty) in [
+                ("dummy_fabric", de::ospf::NetworkType::Broadcast),
+                ("nic1", de::ospf::NetworkType::PointToPoint),
+                ("nic2", de::ospf::NetworkType::PointToPoint),
+            ] {
+                let interface = &interfaces.interfaces[name];
+                assert!(interface.if_up);
+                assert_eq!(interface.network_type, ty);
+            }
+        }
+
+        #[test]
+        fn extract_non_vrf_status() {
+            for output in [
+                serde_json::json!({ "neighbors": {} }),
+                serde_json::json!({ "interfaces": {} }),
+            ] {
+                assert_eq!(extract_vrf_status(output.clone(), None).unwrap(), output);
+            }
+        }
+
+        #[test]
+        fn extract_missing_vrf_status() {
+            let output = serde_json::json!({ "other_vrf": { "neighbors": {} } });
+            assert!(extract_vrf_status(output, Some("vrf_vrf")).is_err());
         }
 
         #[test]
@@ -2053,11 +2157,8 @@ mod tests {
             }
             "#;
 
-            let neighbors: de::ospf::Neighbors = if json_output.is_empty() {
-                de::ospf::Neighbors::default()
-            } else {
-                serde_json::from_str(json_output).expect("error parsing json output")
-            };
+            let neighbors: de::ospf::Neighbors =
+                serde_json::from_str(json_output).expect("error parsing json output");
 
             let fabric_config = sample_two_fabric_config();
 
@@ -2216,11 +2317,8 @@ mod tests {
             }
             "#;
 
-            let interfaces: de::ospf::Interfaces = if json_output.is_empty() {
-                de::ospf::Interfaces::default()
-            } else {
-                serde_json::from_str(json_output).expect("error parsing json output")
-            };
+            let interfaces: de::ospf::Interfaces =
+                serde_json::from_str(json_output).expect("error parsing json output");
 
             let fabric_config = sample_one_fabric_config();
 
@@ -2448,11 +2546,8 @@ mod tests {
             }
             "#;
 
-            let interfaces: de::ospf::Interfaces = if json_output.is_empty() {
-                de::ospf::Interfaces::default()
-            } else {
-                serde_json::from_str(json_output).expect("error parsing json output")
-            };
+            let interfaces: de::ospf::Interfaces =
+                serde_json::from_str(json_output).expect("error parsing json output");
 
             let fabric_config = sample_two_fabric_config();
 

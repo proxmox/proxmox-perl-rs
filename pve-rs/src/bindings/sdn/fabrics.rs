@@ -5,7 +5,7 @@ pub mod pve_rs_sdn_fabrics {
     //! This provides the configuration for the SDN fabrics, as well as helper methods for reading
     //! / writing the configuration, as well as for generating ifupdown2 and FRR configuration.
 
-    use std::collections::{BTreeMap, HashMap, HashSet};
+    use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
     use std::fmt::Write;
     use std::net::IpAddr;
     use std::ops::Deref;
@@ -994,13 +994,15 @@ pub mod pve_rs_sdn_fabrics {
                     None => "show ip ospf neighbor json".to_string(),
                 };
                 let ospf_neighbors_string = vtysh(&command)?;
-                let ospf_neighbors: proxmox_frr::de::ospf::Neighbors =
-                    if ospf_neighbors_string.is_empty() {
-                        proxmox_frr::de::ospf::Neighbors::default()
-                    } else {
-                        serde_json::from_str(&ospf_neighbors_string)
-                            .with_context(|| "error parsing ospf neighbors")?
-                    };
+                let ospf_neighbors = if ospf_neighbors_string.is_empty() {
+                    proxmox_frr::de::ospf::Neighbors::default()
+                } else {
+                    let output = serde_json::from_str(&ospf_neighbors_string)
+                        .with_context(|| "error parsing ospf neighbors")?;
+                    let output = status::extract_vrf_status(output, vrf.as_deref())?;
+                    serde_json::from_value(output)
+                        .with_context(|| "error parsing ospf neighbors")?
+                };
 
                 status::get_neighbors_ospf(
                     fabric_id,
@@ -1083,13 +1085,15 @@ pub mod pve_rs_sdn_fabrics {
                     None => "show ip ospf interface json".to_string(),
                 };
                 let ospf_interfaces_string = vtysh(&command)?;
-                let ospf_interfaces: proxmox_frr::de::ospf::Interfaces =
-                    if ospf_interfaces_string.is_empty() {
-                        proxmox_frr::de::ospf::Interfaces::default()
-                    } else {
-                        serde_json::from_str(&ospf_interfaces_string)
-                            .with_context(|| "error parsing ospf interfaces")?
-                    };
+                let ospf_interfaces = if ospf_interfaces_string.is_empty() {
+                    proxmox_frr::de::ospf::Interfaces::default()
+                } else {
+                    let output = serde_json::from_str(&ospf_interfaces_string)
+                        .with_context(|| "error parsing ospf interfaces")?;
+                    let output = status::extract_vrf_status(output, vrf.as_deref())?;
+                    serde_json::from_value(output)
+                        .with_context(|| "error parsing ospf interfaces")?
+                };
 
                 status::get_interfaces_ospf(
                     fabric_id,
@@ -1133,6 +1137,78 @@ pub mod pve_rs_sdn_fabrics {
         }
     }
 
+    fn extend_routes(destination: &mut proxmox_frr::de::Routes, source: proxmox_frr::de::Routes) {
+        for (prefix, routes) in source.0 {
+            destination.0.entry(prefix).or_default().extend(routes);
+        }
+    }
+
+    /// Query and merge routes from multiple FRR commands in a single `vtysh` process.
+    ///
+    /// The exit status is ignored, like in the single-command queries: if FRR is not running,
+    /// `vtysh` fails without printing anything to stdout, which yields no routes. This is polled
+    /// by pvestatd, so an error here would be logged on every cycle.
+    fn query_routes(
+        commands: impl IntoIterator<Item = String>,
+        protocol: &str,
+    ) -> Result<proxmox_frr::de::Routes, Error> {
+        let mut command = Command::new("vtysh");
+        command.env("VTYSH_HISTFILE", "/dev/null");
+        for query in commands {
+            command.args(["-c", &query]);
+        }
+
+        let output = match command.output() {
+            Ok(output) => output,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(proxmox_frr::de::Routes::default());
+            }
+            Err(err) => return Err(err.into()),
+        };
+
+        parse_routes(&output.stdout, protocol)
+    }
+
+    fn parse_routes(raw: &[u8], protocol: &str) -> Result<proxmox_frr::de::Routes, Error> {
+        let mut routes = proxmox_frr::de::Routes::default();
+        let route_stream =
+            serde_json::Deserializer::from_slice(raw).into_iter::<proxmox_frr::de::Routes>();
+        for queried_routes in route_stream {
+            extend_routes(
+                &mut routes,
+                queried_routes.with_context(|| format!("error parsing {protocol} routes"))?,
+            );
+        }
+
+        Ok(routes)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::parse_routes;
+
+        #[test]
+        fn parses_batched_routes_with_duplicate_prefixes() {
+            let raw = br#"
+                {"10.0.0.0/24":[{"nexthops":[],"metric":10,"protocol":"bgp","vrfName":"vrf_a"}]}
+                {"10.0.0.0/24":[{"nexthops":[],"metric":10,"protocol":"bgp","vrfName":"vrf_b"}]}
+            "#;
+
+            let routes = parse_routes(raw, "BGP").expect("batched routes should parse");
+            let routes = routes.0.values().next().expect("route should exist");
+
+            assert_eq!(routes.len(), 2);
+            assert_eq!(routes[0].vrf_name, "vrf_a");
+            assert_eq!(routes[1].vrf_name, "vrf_b");
+        }
+
+        #[test]
+        fn parses_empty_output() {
+            let routes = parse_routes(b"", "BGP").expect("empty output should parse");
+            assert!(routes.0.is_empty());
+        }
+    }
+
     /// Return the status of all fabrics on this node.
     ///
     /// Go through all fabrics in the config, then filter out the ones that exist on this node.
@@ -1149,76 +1225,47 @@ pub mod pve_rs_sdn_fabrics {
             return Ok(HashMap::new());
         };
 
-        let openfabric_ipv4_routes_string = String::from_utf8(
-            Command::new("sh")
-                .args(["-c", "vtysh -c 'show ip route openfabric json'"])
-                .output()?
-                .stdout,
+        let openfabric_routes = query_routes(
+            [
+                "show ip route openfabric json".to_string(),
+                "show ipv6 route openfabric json".to_string(),
+            ],
+            "OpenFabric",
         )?;
 
-        let openfabric_ipv6_routes_string = String::from_utf8(
-            Command::new("sh")
-                .args(["-c", "vtysh -c 'show ipv6 route openfabric json'"])
-                .output()?
-                .stdout,
-        )?;
+        let node_id = NodeId::from_string(proxmox_sys::nodename().to_string())?;
+        let ospf_vrfs: BTreeSet<_> = config
+            .values()
+            .filter(|entry| {
+                matches!(entry, FabricEntry::Ospf(_)) && entry.get_node(&node_id).is_ok()
+            })
+            .filter_map(FabricEntry::fabric_vrf_name)
+            .collect();
+        let mut ospf_commands = vec!["show ip route ospf json".to_string()];
+        ospf_commands.extend(
+            ospf_vrfs
+                .iter()
+                .map(|vrf| format!("show ip route vrf {vrf} ospf json")),
+        );
+        let ospf_routes = query_routes(ospf_commands, "OSPF")?;
 
-        let ospf_routes_string = String::from_utf8(
-            Command::new("sh")
-                .args(["-c", "vtysh -c 'show ip route ospf json'"])
-                .output()?
-                .stdout,
-        )?;
-
-        let mut openfabric_routes: proxmox_frr::de::Routes =
-            if openfabric_ipv4_routes_string.is_empty() {
-                proxmox_frr::de::Routes::default()
-            } else {
-                serde_json::from_str(&openfabric_ipv4_routes_string)
-                    .with_context(|| "error parsing openfabric ipv4 routes")?
-            };
-        if !openfabric_ipv6_routes_string.is_empty() {
-            let openfabric_ipv6_routes: proxmox_frr::de::Routes =
-                serde_json::from_str(&openfabric_ipv6_routes_string)
-                    .with_context(|| "error parsing openfabric ipv6 routes")?;
-            openfabric_routes.0.extend(openfabric_ipv6_routes.0);
+        let bgp_vrfs: BTreeSet<_> = config
+            .values()
+            .filter(|entry| {
+                matches!(entry, FabricEntry::Bgp(_)) && entry.get_node(&node_id).is_ok()
+            })
+            .filter_map(FabricEntry::fabric_vrf_name)
+            .collect();
+        let mut bgp_commands = vec![
+            "show ip route bgp json".to_string(),
+            "show ipv6 route bgp json".to_string(),
+        ];
+        for vrf in bgp_vrfs {
+            bgp_commands.extend(
+                ["ip", "ipv6"].map(|family| format!("show {family} route vrf {vrf} bgp json")),
+            );
         }
-
-        let ospf_routes: proxmox_frr::de::Routes = if ospf_routes_string.is_empty() {
-            proxmox_frr::de::Routes::default()
-        } else {
-            serde_json::from_str(&ospf_routes_string)
-                .with_context(|| "error parsing ospf routes")?
-        };
-
-        let bgp_ipv4_routes_string = String::from_utf8(
-            Command::new("sh")
-                .env("VTYSH_HISTFILE", "/dev/null")
-                .args(["-c", "vtysh -c 'show ip route bgp json'"])
-                .output()?
-                .stdout,
-        )?;
-
-        let bgp_ipv6_routes_string = String::from_utf8(
-            Command::new("sh")
-                .env("VTYSH_HISTFILE", "/dev/null")
-                .args(["-c", "vtysh -c 'show ipv6 route bgp json'"])
-                .output()?
-                .stdout,
-        )?;
-
-        let mut bgp_routes: proxmox_frr::de::Routes = if bgp_ipv4_routes_string.is_empty() {
-            proxmox_frr::de::Routes::default()
-        } else {
-            serde_json::from_str(&bgp_ipv4_routes_string)
-                .with_context(|| "error parsing bgp ipv4 routes")?
-        };
-        if !bgp_ipv6_routes_string.is_empty() {
-            let bgp_ipv6_routes: proxmox_frr::de::Routes =
-                serde_json::from_str(&bgp_ipv6_routes_string)
-                    .with_context(|| "error parsing bgp ipv6 routes")?;
-            bgp_routes.0.extend(bgp_ipv6_routes.0);
-        }
+        let bgp_routes = query_routes(bgp_commands, "BGP")?;
 
         let route_status = status::RoutesParsed {
             openfabric: openfabric_routes,
