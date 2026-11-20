@@ -1049,20 +1049,13 @@ pub mod pve_rs_sdn_fabrics {
                 )
                 .map(|v| v.into())
             }
-            FabricEntry::WireGuard(fabric_entry) => {
-                let wg_dump = get_wireguard_dump()?;
-
-                let node_name = proxmox_sys::nodename();
-                let current_node_id = NodeId::from_string(node_name.to_string())?;
-
-                status::wireguard::parse_wireguard_neighbors(
-                    &wg_dump,
-                    fabric_entry.node_section(&current_node_id)?,
-                    fabric_entry,
-                    proxmox_time::epoch_i64(),
-                )
-                .map(Into::into)
-            }
+            FabricEntry::WireGuard(fabric_entry) => status::wireguard::get_neighbors(
+                fabric_entry,
+                &NodeId::from_string(proxmox_sys::nodename().to_string())?,
+                get_wireguard_dump,
+                proxmox_time::epoch_i64(),
+            )
+            .map(Into::into),
             FabricEntry::Bgp(_) => {
                 let command = match &vrf {
                     Some(vrf) => format!("show bgp vrf {vrf} neighbors json"),
@@ -1140,21 +1133,13 @@ pub mod pve_rs_sdn_fabrics {
                 )
                 .map(|v| v.into())
             }
-            FabricEntry::WireGuard(fabric_entry) => {
-                let wg_dump = get_wireguard_dump()?;
-
-                let network_interfaces = get_network_interfaces()?;
-
-                let node_name = proxmox_sys::nodename();
-                let current_node_id = NodeId::from_string(node_name.to_string())?;
-
-                status::wireguard::parse_wireguard_interfaces(
-                    &wg_dump,
-                    fabric_entry.node_section(&current_node_id)?,
-                    &network_interfaces,
-                )
-                .map(Into::into)
-            }
+            FabricEntry::WireGuard(fabric_entry) => status::wireguard::get_interfaces(
+                fabric_entry,
+                &NodeId::from_string(proxmox_sys::nodename().to_string())?,
+                get_wireguard_dump,
+                get_network_interfaces,
+            )
+            .map(Into::into),
             FabricEntry::Bgp(_) => {
                 let command = match &vrf {
                     Some(vrf) => format!("show bgp vrf {vrf} neighbors json"),

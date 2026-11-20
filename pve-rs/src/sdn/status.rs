@@ -90,7 +90,7 @@ pub mod wireguard {
     use proxmox_ve_config::sdn::fabric::{
         Entry, WireGuardInterfacePeer,
         section_config::{
-            node::NodeSection,
+            node::{NodeId, NodeSection},
             protocol::wireguard::{WireGuardNode, WireGuardProperties},
         },
     };
@@ -340,6 +340,37 @@ pub mod wireguard {
         Ok(interface_status)
     }
 
+    /// Returns the node section of `node_id` if it is an internal node of the fabric.
+    ///
+    /// An external peer can have the name of a node that is not part of the fabric, but does not
+    /// make that node a member.
+    fn internal_node_section<'a>(
+        fabric: &'a Entry<WireGuardProperties, WireGuardNode>,
+        node_id: &NodeId,
+    ) -> Option<&'a NodeSection<WireGuardNode>> {
+        fabric
+            .node_section(node_id)
+            .ok()
+            .filter(|section| matches!(section.properties(), WireGuardNode::Internal(_)))
+    }
+
+    /// Returns the status of the interfaces of the node `node_id` in the fabric.
+    ///
+    /// If the node is not part of the fabric, an empty list is returned without querying WireGuard
+    /// or the network interfaces.
+    pub fn get_interfaces(
+        fabric: &Entry<WireGuardProperties, WireGuardNode>,
+        node_id: &NodeId,
+        wg_dump: impl FnOnce() -> Result<String, anyhow::Error>,
+        network_interfaces: impl FnOnce() -> Result<HashMap<String, IpLink>, anyhow::Error>,
+    ) -> Result<Vec<InterfaceStatus>, anyhow::Error> {
+        let Some(node_section) = internal_node_section(fabric, node_id) else {
+            return Ok(Vec::new());
+        };
+
+        parse_wireguard_interfaces(&wg_dump()?, node_section, &network_interfaces()?)
+    }
+
     /// Returns `None` for values that wg prints as "(none)".
     fn optional_value(value: &str) -> Option<&str> {
         (value != "(none)").then_some(value)
@@ -497,6 +528,22 @@ pub mod wireguard {
         }
 
         Ok(neighbors)
+    }
+
+    /// Returns the status of the neighbors of the node `node_id` in the fabric.
+    ///
+    /// If the node is not part of the fabric, an empty list is returned without querying WireGuard.
+    pub fn get_neighbors(
+        fabric: &Entry<WireGuardProperties, WireGuardNode>,
+        node_id: &NodeId,
+        wg_dump: impl FnOnce() -> Result<String, anyhow::Error>,
+        now: i64,
+    ) -> Result<Vec<NeighborStatus>, anyhow::Error> {
+        let Some(node_section) = internal_node_section(fabric, node_id) else {
+            return Ok(Vec::new());
+        };
+
+        parse_wireguard_neighbors(&wg_dump()?, node_section, fabric, now)
     }
 
     /// Checks whether WireGuard on this node matches the fabric configuration.
@@ -3430,8 +3477,8 @@ mod tests {
         };
 
         use super::super::wireguard::{
-            InterfaceStatus, NeighborStatus, PeerStatus, WireGuardInterfaceState, is_node_ok,
-            parse_wireguard_interfaces, parse_wireguard_neighbors,
+            InterfaceStatus, NeighborStatus, PeerStatus, WireGuardInterfaceState, get_interfaces,
+            get_neighbors, is_node_ok, parse_wireguard_interfaces, parse_wireguard_neighbors,
         };
         use super::super::*;
 
@@ -3741,6 +3788,25 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
         }
 
         #[test]
+        fn interfaces_non_member_node() {
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            // summoner is not part of the fabric, stormweaver is an external peer
+            for node in ["summoner", "stormweaver"] {
+                let interfaces = get_interfaces(
+                    fabric,
+                    &NodeId::from_str(node).expect("valid node id"),
+                    || panic!("wg must not be queried"),
+                    || panic!("network interfaces must not be queried"),
+                )
+                .expect("can get interfaces");
+
+                assert!(interfaces.is_empty());
+            }
+        }
+
+        #[test]
         fn neighbors() {
             // all configured peers are present, but there was no handshake yet
             let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
@@ -3802,6 +3868,25 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                 parse_wireguard_neighbors(wg_dump, elementalist(fabric), fabric, 1781234627)
                     .expect("can parse wireguard output")
             );
+        }
+
+        #[test]
+        fn neighbors_non_member_node() {
+            let config = fabric_config();
+            let fabric = wireguard_fabric(&config);
+
+            // summoner is not part of the fabric, stormweaver is an external peer
+            for node in ["summoner", "stormweaver"] {
+                let neighbors = get_neighbors(
+                    fabric,
+                    &NodeId::from_str(node).expect("valid node id"),
+                    || panic!("wg must not be queried"),
+                    1781234627,
+                )
+                .expect("can get neighbors");
+
+                assert!(neighbors.is_empty());
+            }
         }
 
         #[test]
