@@ -1,3 +1,26 @@
+libpve-rs-perl (0.16.4) trixie; urgency=medium
+
+  * sdn: fabrics: wireguard: write the configured MTU to the interface
+    configuration.
+
+  * sdn: fabrics: wireguard: report the status of fabrics, interfaces and
+    neighbors. A fabric is ok if all its interfaces on the node are up, use
+    their configured public key and listen port, and have exactly the
+    configured peers. A neighbor is active, idle or down, depending on its
+    latest handshake and whether persistent keepalive is enabled.
+
+  * sdn: fabrics: support fabrics in the VRF of a simple zone, put their
+    interfaces into the VRF, and query their routes, neighbors and interfaces
+    in that VRF for the status.
+
+  * sdn: fabrics: tell whether a host interface belongs to a fabric, so that
+    the network editor can leave its VRF under the control of the fabric.
+
+  * sdn: provide the static routes of simple zones with a dedicated VRF for
+    generating the FRR configuration.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 20 Nov 2026 05:45:32 +0100
+
 libpve-rs-perl (0.16.3) trixie; urgency=medium
 
   * notify: add an 'enqueue' function that submits a notification to the
