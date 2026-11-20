@@ -219,7 +219,8 @@ pub mod pve_rs_sdn_fabrics {
             .map_err(anyhow::Error::from)
     }
 
-    /// Method: List all nodes in the configuraiton.
+    /// Method: List the nodes of all fabrics, keyed by their section ID (`<fabric>_<node>`), since
+    /// a host can be part of multiple fabrics.
     #[export]
     pub fn list_nodes(
         #[try_from_ref] this: &PerlFabricConfig,
@@ -232,7 +233,7 @@ pub mod pve_rs_sdn_fabrics {
             .flat_map(|entry| {
                 entry
                     .nodes()
-                    .map(|(id, node)| (id.to_string(), node.clone().into()))
+                    .map(|(_node_id, node)| (node.id().to_string(), node.clone().into()))
             })
             .collect())
     }
@@ -1221,7 +1222,11 @@ pub mod pve_rs_sdn_fabrics {
 
     #[cfg(test)]
     mod tests {
-        use super::parse_routes;
+        use std::sync::Mutex;
+
+        use proxmox_ve_config::sdn::fabric::FabricConfig;
+
+        use super::{PerlFabricConfig, parse_routes};
 
         #[test]
         fn parses_batched_routes_with_duplicate_prefixes() {
@@ -1236,6 +1241,39 @@ pub mod pve_rs_sdn_fabrics {
             assert_eq!(routes.len(), 2);
             assert_eq!(routes[0].vrf_name, "vrf_a");
             assert_eq!(routes[1].vrf_name, "vrf_b");
+        }
+
+        #[test]
+        fn list_nodes_returns_host_of_every_fabric() {
+            let raw = "
+wireguard_fabric: test
+
+wireguard_node: test_node1
+\tinterfaces name=wg0,listen_port=51820,public_key=rsS0GeYRbguBG1DAzc+xxQqPDvouxlKtc+c1PPEM92I=
+\trole internal
+
+ospf_fabric: underlay
+\tarea 0
+\tip_prefix 10.0.0.0/24
+
+ospf_node: underlay_node1
+\tinterfaces name=nic1
+\tip 10.0.0.1
+";
+            let config = PerlFabricConfig {
+                fabric_config: Mutex::new(
+                    FabricConfig::parse_section_config(raw)
+                        .expect("config should parse")
+                        .into_inner(),
+                ),
+            };
+
+            let nodes = super::list_nodes(&config).expect("nodes should be listed");
+
+            assert_eq!(
+                nodes.keys().collect::<Vec<_>>(),
+                ["test_node1", "underlay_node1"],
+            );
         }
 
         #[test]
