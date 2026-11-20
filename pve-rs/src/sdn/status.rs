@@ -194,8 +194,10 @@ pub mod wireguard {
         #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
         pub ty: Option<String>,
         pub state: WireGuardInterfaceState,
-        pub public_key: PublicKey,
-        pub listen_port: u16,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub public_key: Option<PublicKey>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub listen_port: Option<u16>,
     }
 
     fn is_wireguard_interface(network_interface: &IpLink) -> bool {
@@ -292,9 +294,9 @@ pub mod wireguard {
 
     /// Returns the status of every interface the fabric configuration defines for the node.
     ///
-    /// Interfaces that do not exist or whose state wg could not read are included as well. If wg
-    /// does not report a public key for an interface, the configured public key and listen port are
-    /// returned instead.
+    /// Interfaces that do not exist or whose state wg could not read are included as well.
+    /// Properties that cannot be determined from the running state are omitted instead of being
+    /// taken from the configuration.
     pub fn parse_wireguard_interfaces(
         wg_dump_output: &str,
         node_section: &NodeSection<WireGuardNode>,
@@ -329,8 +331,8 @@ pub mod wireguard {
                     .then(|| "wireguard".to_string());
 
                 let (public_key, listen_port) = match running_interface {
-                    Some((Some(public_key), listen_port)) => (*public_key, *listen_port),
-                    _ => (*interface.public_key(), interface.listen_port()),
+                    Some((public_key, listen_port)) => (*public_key, Some(*listen_port)),
+                    None => (None, None),
                 };
 
                 InterfaceStatus {
@@ -3587,19 +3589,23 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                     name: "wg1".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Down,
-                    public_key: "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51821,
+                    public_key: Some(
+                        "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
+                            .parse()
+                            .expect("valid public key"),
+                    ),
+                    listen_port: Some(51821),
                 },
                 InterfaceStatus {
                     name: "wg0".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Up,
-                    public_key: "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51820,
+                    public_key: Some(
+                        "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
+                            .parse()
+                            .expect("valid public key"),
+                    ),
+                    listen_port: Some(51820),
                 },
             ];
 
@@ -3612,7 +3618,7 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
 
         #[test]
         fn interface_missing() {
-            // wg1 does not exist on the node, so its values are taken from the configuration
+            // wg1 does not exist on the node, so there is no public key or listen port to report
             let wg_dump = r#"wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
 wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
 wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
@@ -3631,19 +3637,19 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                     name: "wg1".to_string(),
                     ty: None,
                     state: WireGuardInterfaceState::Missing,
-                    public_key: "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51821,
+                    public_key: None,
+                    listen_port: None,
                 },
                 InterfaceStatus {
                     name: "wg0".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Up,
-                    public_key: "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51820,
+                    public_key: Some(
+                        "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
+                            .parse()
+                            .expect("valid public key"),
+                    ),
+                    listen_port: Some(51820),
                 },
             ];
 
@@ -3676,19 +3682,19 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                     name: "wg1".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Unknown,
-                    public_key: "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51821,
+                    public_key: None,
+                    listen_port: None,
                 },
                 InterfaceStatus {
                     name: "wg0".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Up,
-                    public_key: "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51820,
+                    public_key: Some(
+                        "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
+                            .parse()
+                            .expect("valid public key"),
+                    ),
+                    listen_port: Some(51820),
                 },
             ];
 
@@ -3701,10 +3707,11 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
 
         #[test]
         fn interface_without_private_key() {
-            // wg0 has no private key, so its public key and listen port are taken from the configuration
+            // wg0 has no private key, so wg reports no public key, and its running listen port
+            // differs from the configured one
             let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
 wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
-wg0	(none)	(none)	0	off
+wg0	(none)	(none)	51830	off
 wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
 wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
 
@@ -3723,19 +3730,19 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
                     name: "wg1".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Up,
-                    public_key: "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51821,
+                    public_key: Some(
+                        "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
+                            .parse()
+                            .expect("valid public key"),
+                    ),
+                    listen_port: Some(51821),
                 },
                 InterfaceStatus {
                     name: "wg0".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Up,
-                    public_key: "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51820,
+                    public_key: None,
+                    listen_port: Some(51830),
                 },
             ];
 
@@ -3748,63 +3755,16 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
 
         #[test]
         fn interface_not_wireguard() {
-            // wg0 exists, but is not a WireGuard interface
-            let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
-wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off
-wg0	GDHQ8ivFvwz53U0bSmQ7uTD2bJ8GpcFCCxGeU1G9m2U=	AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M=	51820	off
-wg0	+PA/xNCZ3G+Wy1DeqF251Us5mcZhBTGc9CT3AaJ89HI=	(none)	172.31.1.2:51820	198.51.100.2/32,203.0.113.0/28	0	0	0	off
-wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.100.4/32	0	0	0	off"#;
-
-            let network_interfaces = network_interfaces(
-                r#"[
-                {"ifname": "wg0", "ifindex": 25, "link_type": "ether", "address": "a2:5f:3c:11:22:33", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "dummy"}, "flags": ["BROADCAST", "NOARP", "UP", "LOWER_UP"]},
-                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
-            ]"#,
-            );
-
-            let config = fabric_config();
-            let fabric = wireguard_fabric(&config);
-
-            let expected = vec![
-                InterfaceStatus {
-                    name: "wg1".to_string(),
-                    ty: Some("wireguard".to_string()),
-                    state: WireGuardInterfaceState::Up,
-                    public_key: "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51821,
-                },
-                InterfaceStatus {
-                    name: "wg0".to_string(),
-                    ty: None,
-                    state: WireGuardInterfaceState::Error,
-                    public_key: "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51820,
-                },
-            ];
-
-            assert_eq!(
-                expected,
-                parse_wireguard_interfaces(wg_dump, elementalist(fabric), &network_interfaces)
-                    .expect("can parse wireguard output")
-            );
-        }
-
-        #[test]
-        fn interface_without_link_kind() {
-            // wg0 is a physical NIC, which has no link kind and is not reported by wg
+            // wg0 exists, but is not a WireGuard interface, so wg does not report it
             let wg_dump = r#"wg1	wF2D1my5Cj962/MOS2UXLvCddm3ozmCSSuBQ1Ey6v3I=	Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM=	51821	off
 wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)	0	0	0	off"#;
 
-            let network_interfaces = network_interfaces(
-                r#"[
-                {"ifname": "wg0", "ifindex": 2, "link_type": "ether", "address": "bc:24:11:aa:bb:cc", "operstate": "UP", "flags": ["BROADCAST", "MULTICAST", "UP", "LOWER_UP"]},
-                {"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "wireguard"}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}
-            ]"#,
-            );
+            let wg0_links = [
+                // an interface of another kind
+                r#"{"ifname": "wg0", "ifindex": 25, "link_type": "ether", "address": "a2:5f:3c:11:22:33", "operstate": "UNKNOWN", "linkinfo": {"info_kind": "dummy"}, "flags": ["BROADCAST", "NOARP", "UP", "LOWER_UP"]}"#,
+                // a physical NIC, which has no link kind
+                r#"{"ifname": "wg0", "ifindex": 2, "link_type": "ether", "address": "bc:24:11:aa:bb:cc", "operstate": "UP", "flags": ["BROADCAST", "MULTICAST", "UP", "LOWER_UP"]}"#,
+            ];
 
             let config = fabric_config();
             let fabric = wireguard_fabric(&config);
@@ -3814,27 +3774,36 @@ wg1	aHnKVQ4yTtTdfwsk+r4Z12FrRlUnXXksjRcV7x41+G0=	(none)	172.31.1.10:51820	(none)
                     name: "wg1".to_string(),
                     ty: Some("wireguard".to_string()),
                     state: WireGuardInterfaceState::Up,
-                    public_key: "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51821,
+                    public_key: Some(
+                        "Um+Z4Ymq3r24txH2itVVtC86ra1PIrFs9AeMebESdWM="
+                            .parse()
+                            .expect("valid public key"),
+                    ),
+                    listen_port: Some(51821),
                 },
                 InterfaceStatus {
                     name: "wg0".to_string(),
                     ty: None,
                     state: WireGuardInterfaceState::Error,
-                    public_key: "AQkUKUJXOxR/QH6fjZLx8GO1ZnnD8PueRYMJNOCzc2M="
-                        .parse()
-                        .expect("valid public key"),
-                    listen_port: 51820,
+                    public_key: None,
+                    listen_port: None,
                 },
             ];
 
-            assert_eq!(
-                expected,
-                parse_wireguard_interfaces(wg_dump, elementalist(fabric), &network_interfaces)
-                    .expect("can parse wireguard output")
-            );
+            for wg0_link in wg0_links {
+                let network_interfaces = network_interfaces(&format!(
+                    r#"[
+                    {wg0_link},
+                    {{"ifname": "wg1", "ifindex": 24, "link_type": "none", "operstate": "UNKNOWN", "linkinfo": {{"info_kind": "wireguard"}}, "flags": ["POINTOPOINT", "NOARP", "UP", "LOWER_UP"]}}
+                ]"#,
+                ));
+
+                assert_eq!(
+                    expected,
+                    parse_wireguard_interfaces(wg_dump, elementalist(fabric), &network_interfaces)
+                        .expect("can parse wireguard output")
+                );
+            }
         }
 
         #[test]
