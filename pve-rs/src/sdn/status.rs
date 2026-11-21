@@ -11,6 +11,7 @@ use proxmox_ve_config::sdn::fabric::section_config::protocol::bgp::BgpNode;
 use proxmox_ve_config::sdn::fabric::section_config::protocol::ospf::{
     OspfNodeProperties, OspfProperties,
 };
+use proxmox_ve_config::sdn::fabric::section_config::protocol::wireguard::WireGuardNode;
 use proxmox_ve_config::{
     common::valid::Valid,
     sdn::fabric::{
@@ -1118,6 +1119,20 @@ pub fn get_status(
         if nodeid.as_str() != hostname {
             continue;
         }
+
+        // an external peer can have the name of this node, but this node is not part of the
+        // fabric then
+        let is_external = match node {
+            ConfigNode::WireGuard(section) => {
+                matches!(section.properties(), WireGuardNode::External(_))
+            }
+            ConfigNode::Bgp(section) => matches!(section.properties(), BgpNode::External(_)),
+            ConfigNode::Openfabric(_) | ConfigNode::Ospf(_) => false,
+        };
+        if is_external {
+            continue;
+        }
+
         let fabric_id = node.id().fabric_id();
         let vrf_name = config
             .get_fabric(fabric_id)?
@@ -4224,6 +4239,22 @@ wg0	8ybxvVfiWqpBG160nMgH14acR3z31ZeceW7ita0zonA=	(none)	172.31.1.4:51820	198.51.
 
             let fabric_id = FabricId::from_str("test").expect("valid fabric id");
             assert_eq!(FabricStatus::Ok, status[&fabric_id].status);
+        }
+
+        #[test]
+        fn fabric_status_external_peer_with_node_name() {
+            // stormweaver is an external peer, a cluster node with that name is not part of the
+            // fabric
+            let routes = RoutesParsed {
+                openfabric: de::Routes::default(),
+                ospf: de::Routes::default(),
+                bgp: de::Routes::default(),
+            };
+
+            let status = get_status(fabric_config(), routes, None, "stormweaver")
+                .expect("can determine fabric status");
+
+            assert!(status.is_empty());
         }
 
         #[test]
