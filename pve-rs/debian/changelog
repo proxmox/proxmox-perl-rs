@@ -1,3 +1,22 @@
+libpve-rs-perl (0.16.5) trixie; urgency=medium
+
+  * sdn: fabrics: list the nodes of all fabrics a host is part of. Before,
+    only the node of the fabric that sorts last was listed for each host,
+    which, among others, hid the WireGuard interfaces in the node edit window
+    of OSPF and BGP fabrics.
+
+  * sdn: fabrics: wireguard: status:
+    - return no interfaces and neighbors on nodes that are not part of the
+      fabric, instead of failing.
+    - only report the public key, listen port and type that WireGuard reports
+      for an interface, instead of falling back to the configured values.
+
+  * sdn: fabrics: status: do not take an external peer of a WireGuard or BGP
+    fabric for the cluster node with the same name, which showed the fabric
+    as not ok on that node.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 21 Nov 2026 18:52:33 +0100
+
 libpve-rs-perl (0.16.4) trixie; urgency=medium
 
   * sdn: fabrics: wireguard: write the configured MTU to the interface
