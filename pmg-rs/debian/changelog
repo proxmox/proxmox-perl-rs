@@ -1,3 +1,13 @@
+libpmg-rs-perl (0.8.5) trixie; urgency=medium
+
+  * apt: history: tell whether a transaction without end time is still running
+    or got interrupted. As APT runs one transaction at a time, only the
+    newest one can still be running, which it is if the process holding the
+    lock of the dpkg frontend started before it. If that cannot be told, the
+    state stays open as before.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 23 Nov 2026 03:48:07 +0100
+
 libpmg-rs-perl (0.8.4) trixie; urgency=medium
 
   * apt: update changelogs:
