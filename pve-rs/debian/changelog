@@ -1,3 +1,29 @@
+libpve-rs-perl (0.16.6) trixie; urgency=medium
+
+  * access log: let the user filter match any user or API token containing
+    the text, ignoring case, like the search does. An exact match still
+    compares the whole ID.
+
+  * access log: report a compressed copy that is too large to identify as a
+    gap, instead of possibly skipping it and reporting the log as complete.
+
+  * apt: update changelogs:
+    - show that the repository provides no changelog for packages of
+      repositories without a changelog location, like most of those of third
+      parties, instead of reporting them as missing from the package lists
+      and counting them as failed in the daily prefetch.
+    - keep the cached changelogs if resolving their locations fails, for
+      example at the time limit, and show APT's error for failures that
+      are not about a package, like a broken list of sources.
+    - write the cache markers atomically, so that a daily prefetch running at
+      the same time cannot empty the cache.
+
+  * apt: terminal output: ignore the parameters of underline colors instead of
+    taking them as styles of their own, which could, for example, make text
+    bold.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 23 Nov 2026 01:39:26 +0100
+
 libpve-rs-perl (0.16.5) trixie; urgency=medium
 
   * sdn: fabrics: list the nodes of all fabrics a host is part of. Before,
