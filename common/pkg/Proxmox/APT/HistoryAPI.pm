@@ -150,6 +150,14 @@ sub history_method {
                         optional => 1,
                         renderer => 'timestamp',
                     },
+                    running => {
+                        description =>
+                            "Whether a transaction without end time is still running,"
+                            . " or else got interrupted. Only the newest transaction can still be"
+                            . " running. Missing if that could not be checked.",
+                        type => 'boolean',
+                        optional => 1,
+                    },
                     'command-line' => {
                         description => "Command line of the APT invocation.",
                         type => 'string',
