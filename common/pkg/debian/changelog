@@ -1,3 +1,10 @@
+libproxmox-rs-perl (0.4.4) trixie; urgency=medium
+
+  * apt: history: describe whether a transaction is still running in the
+    returned schema of the API methods.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 23 Nov 2026 03:48:07 +0100
+
 libproxmox-rs-perl (0.4.3) trixie; urgency=medium
 
   * add Proxmox::RS::AccessLog module for reading the API access log.
