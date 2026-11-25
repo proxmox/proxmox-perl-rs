@@ -1,3 +1,9 @@
+libpve-rs-perl (0.16.8) trixie; urgency=medium
+
+  * add Ceph Umbrella as newly available standard repository.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 25 Nov 2026 12:58:59 +0100
+
 libpve-rs-perl (0.16.7) trixie; urgency=medium
 
   * apt: history: tell whether a transaction without end time is still running
